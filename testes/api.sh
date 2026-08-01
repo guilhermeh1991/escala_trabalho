@@ -8,7 +8,7 @@
 set -u
 cd "$(dirname "$0")/.."
 
-BASE="http://127.0.0.1:877"
+BASE="http://127.0.0.1:8877"
 COOKIES_A=$(mktemp); COOKIES_B=$(mktemp)
 falhas=0
 
@@ -30,12 +30,12 @@ cat > api/config.php <<'PHP'
 <?php return [
   'bd_host'=>'127.0.0.1', 'bd_nome'=>'teste_escala',
   'bd_usuario'=>'root', 'bd_senha'=>'',
-  'endereco_site'=>'http://127.0.0.1:877',
+  'endereco_site'=>'http://127.0.0.1:8877',
   'email_remetente'=>'teste@local',
 ];
 PHP
 
-php -S 127.0.0.1:877 -t . > /tmp/phpserver.log 2>&1 &
+php -S 127.0.0.1:8877 -t . > /tmp/phpserver.log 2>&1 &
 SERVIDOR=$!
 sleep 3
 
