@@ -19,7 +19,21 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 error_reporting(E_ALL);
 
-$config = require __DIR__ . '/config.php';
+$caminhoConfig = __DIR__ . '/config.php';
+if (!is_file($caminhoConfig)) {
+    // Sem isto, a falta do arquivo derruba o script inteiro com um erro fatal
+    // do PHP antes mesmo do header() de JSON — o navegador recebe uma resposta
+    // vazia/HTML e mostra só "o servidor respondeu algo inesperado", sem pista
+    // nenhuma do que fazer. Aqui a causa fica explícita na tela.
+    header('Content-Type: application/json; charset=utf-8');
+    http_response_code(500);
+    echo json_encode([
+        'erro' => 'api/config.php não existe no servidor. Copie api/config.exemplo.php '
+                 . 'para api/config.php e preencha com os dados do MySQL do cPanel.',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+$config = require $caminhoConfig;
 
 // -----------------------------------------------------------------------------
 //  Cabeçalhos
