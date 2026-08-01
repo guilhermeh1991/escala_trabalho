@@ -22,9 +22,9 @@ chamar() { # $1=cookies $2=arquivo $3=json $4=csrf
 }
 
 # --- preparar banco ---------------------------------------------------------
-mysql -h 127.0.0.1 -e "DROP DATABASE IF EXISTS teste_escala; CREATE DATABASE testhe_escala CHARACTER SET utf8mb4;" 2>/dev/null
-mysql -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
-mysql -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS teste_escala; CREATE DATABASE testhe_escala CHARACTER SET utf8mb4;" 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/dev/null
 
 cat > api/config.php <<'PHP'
 <?php return [
@@ -67,7 +67,7 @@ echo "=== 4. Cadastro e confirmação ==="
 R=$(chamar "$COOKIES_A" auth.php '{"acao":"cadastrar","nome":"Ana Silva","email":"ana@teste.com","senha":"cavalo bateria grampo"}' "$CSRF_A")
 echo "$R" | grep -q '"ok":true' && ok "cadastro aceito" || falha "cadastro: $R"
 
-HASH=$(mysql -h 127.0.0.1 teste_escala -sN -e "SELECT senha_hash FROM usuarios WHERE email='ana@teste.com';")
+HASH=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT senha_hash FROM usuarios WHERE email='ana@teste.com';")
 case "$HASH" in
   \$argon2id\$*|\$2y\$*) ok "senha guardada com hash forte (${HASH:0:9}...)" ;;
   *) falha "hash inesperado: ${HASH:0:20}" ;;
@@ -77,7 +77,7 @@ echo "$HASH" | grep -qi "cavalo" && falha "senha em claro no banco" || ok "senha
 R=$(chamar "$COOKIES_A" auth.php '{"acao":"entrar","email":"ana@teste.com","senha":"cavalo bateria grampo"}' "$CSRF_A")
 echo "$R" | grep -q "Confirme o e-mail" && ok "entrada bloqueada antes de confirmar" || falha "entrou sem confirmar: $R"
 
-TOKEN=$(mysql -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='ana@teste.com';")
+TOKEN=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='ana@teste.com';")
 R=$(chamar "$COOKIES_A" auth.php "{\"acao\":\"confirmar\",\"token\":\"$TOKEN\"}" "$CSRF_A")
 echo "$R" | grep -q '"ok":true' && ok "confirmação por token funciona" || falha "confirmação: $R"
 
@@ -95,7 +95,7 @@ R=$(chamar "$COOKIES_A" auth.php '{"acao":"criar_empresa","nome":"Drogaria A"}' 
 echo "$R" | grep -q '"ok":true' && ok "empresa criada" || falha "criar empresa: $R"
 CONVITE_A=$(echo "$R" | grep -o '"codigo_convite":"[^"]*"' | cut -d'"' -f4)
 EMPRESA_A=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4)
-PAPEL=$(mysql -h 127.0.0.1 teste_escala -sN -e "SELECT papel FROM usuarios WHERE email='ana@teste.com';")
+PAPEL=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT papel FROM usuarios WHERE email='ana@teste.com';")
 [ "$PAPEL" = "admin" ] && ok "quem cria a empresa vira admin" || falha "papel: $PAPEL"
 
 R=$(chamar "$COOKIES_A" auth.php '{"acao":"criar_empresa","nome":"Outra"}' "$CSRF_A")
@@ -105,7 +105,7 @@ echo ""
 echo "=== 7. Segunda empresa, usuário separado ==="
 CSRF_B=$(chamar "$COOKIES_B" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
 chamar "$COOKIES_B" auth.php '{"acao":"cadastrar","nome":"Bruno","email":"bruno@outra.com","senha":"trovao janela verde"}' "$CSRF_B" > /dev/null
-TOKEN_B=$(mysql -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='bruno@outra.com';")
+TOKEN_B=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='bruno@outra.com';")
 chamar "$COOKIES_B" auth.php "{\"acao\":\"confirmar\",\"token\":\"$TOKEN_B\"}" "$CSRF_B" > /dev/null
 CSRF_B=$(chamar "$COOKIES_B" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
 R=$(chamar "$COOKIES_B" auth.php '{"acao":"criar_empresa","nome":"Drogaria B"}' "$CSRF_B")
@@ -128,9 +128,9 @@ JSON
 )
 R=$(chamar "$COOKIES_A" dados.php "$PAYLOAD" "$CSRF_A")
 echo "$R" | grep -q '"ok":true' && ok "equipe salva" || falha "salvar: $R"
-N=$(mysql -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM colaboradores WHERE loja_id='$LOJA_A';")
+N=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM colaboradores WHERE loja_id='$LOJA_A';")
 [ "$N" = "2" ] && ok "2 colaboradores gravados" || falha "gravou $N colaboradores"
-NA=$(mysql -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM ausencias;")
+NA=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM ausencias;")
 [ "$NA" = "1" ] && ok "ausência gravada" || falha "ausências: $NA"
 
 R=$(chamar "$COOKIES_A" dados.php '{"acao":"carregar"}' "$CSRF_A")
@@ -151,7 +151,7 @@ echo "$R" | grep -q "não encontrada" && ok "empresa B barrada ao ler escala da 
 PAYLOAD_INVASAO="{\"acao\":\"salvar\",\"lojas\":{\"$LOJA_A\":{\"nome\":\"INVADIDA\",\"colabs\":[]}}}"
 R=$(chamar "$COOKIES_B" dados.php "$PAYLOAD_INVASAO" "$CSRF_B")
 echo "$R" | grep -q "outra empresa" && ok "empresa B barrada ao sobrescrever loja da empresa A" || falha "B sobrescreveu loja de A: $R"
-NOME=$(mysql -h 127.0.0.1 teste_escala -sN -e "SELECT nome FROM lojas WHERE id='$LOJA_A';")
+NOME=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT nome FROM lojas WHERE id='$LOJA_A';")
 [ "$NOME" = "Loja 330" ] && ok "nome da loja intacto após tentativa" || falha "loja renomeada para: $NOME"
 
 echo ""
@@ -177,11 +177,11 @@ echo ""
 echo "=== 13. Injeção de SQL ==="
 R=$(chamar "$COOKIES_A" dados.php '{"acao":"carregar_escala","loja_id":"1'\'' OR '\''1'\''='\''1","inicio":"2026-01-01","fim":"2026-01-31"}' "$CSRF_A")
 echo "$R" | grep -q "Loja inválida" && ok "identificador malicioso recusado" || falha "injeção: $R"
-mysql -h 127.0.0.1 teste_escala -e "SELECT 1;" > /dev/null 2>&1 && ok "banco intacto após tentativa" || falha "banco afetado"
+mysql -u root -h 127.0.0.1 teste_escala -e "SELECT 1;" > /dev/null 2>&1 && ok "banco intacto após tentativa" || falha "banco afetado"
 
 echo ""
 echo "=== 14. Auditoria ==="
-NR=$(mysql -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM registro_acoes;")
+NR=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM registro_acoes;")
 [ "$NR" -gt 3 ] && ok "$NR ações registradas na auditoria" || falha "auditoria vazia"
 
 # --- encerrar ---------------------------------------------------------------
