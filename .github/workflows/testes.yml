@@ -97,21 +97,30 @@ jobs:
             "
           done
 
-      - name: Fazer upload para a HostGator via SFTP
+      - name: Preparar pasta da API para deploy
+        run: |
+          mkdir -p deploy/api
+          cp api/comum.php api/auth.php api/dados.php api/minha.php api/.htaccess deploy/api/
+
+      - name: Enviar HTML para a HostGator via SFTP
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
           server: ${{ secrets.HG_HOST }}
           username: ${{ secrets.HG_USER }}
           password: ${{ secrets.HG_PASSWORD }}
           port: 2222
-          # só os arquivos que precisam ir ao servidor
-          local_path: |
-            dist/escala-hostgator.html
-            api/comum.php
-            api/auth.php
-            api/dados.php
-            api/minha.php
-            api/.htaccess
+          local_path: 'dist/escala-hostgator.html'
+          remote_path: ${{ secrets.HG_PATH }}
+          sftp_only: true
+
+      - name: Enviar API para a HostGator via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          server: ${{ secrets.HG_HOST }}
+          username: ${{ secrets.HG_USER }}
+          password: ${{ secrets.HG_PASSWORD }}
+          port: 2222
+          local_path: 'deploy/api'
           remote_path: ${{ secrets.HG_PATH }}
           sftp_only: true
 
