@@ -1,0 +1,97 @@
+<section id="login">
+  <div class="card-login">
+    <div class="marca">Quadro de escala</div>
+
+    <!-- ENTRAR -->
+    <div id="tela-entrar">
+      <h1>Entrar</h1>
+      <p class="sub">Acesse com o seu e-mail e senha.</p>
+      <label for="in-email">E-mail</label>
+      <input id="in-email" class="inp" type="email" autocomplete="username" inputmode="email">
+      <label for="in-senha">Senha</label>
+      <input id="in-senha" class="inp" type="password" autocomplete="current-password">
+      <div class="erro" id="erro-entrar"></div>
+      <button class="btn" style="width:100%;margin-top:6px" id="btn-entrar">Entrar</button>
+      <div class="aviso">
+        <a href="#" data-ir="cadastro">Criar uma conta</a> &nbsp;·&nbsp;
+        <a href="#" data-ir="recuperar">Esqueci minha senha</a>
+      </div>
+    </div>
+
+    <!-- CRIAR CONTA -->
+    <div id="tela-cadastro" style="display:none">
+      <h1>Criar conta</h1>
+      <p class="sub">Você recebe um e-mail para confirmar o endereço.</p>
+      <div id="cd-form">
+        <label for="cd-nome">Seu nome</label>
+        <input id="cd-nome" class="inp" autocomplete="name">
+        <label for="cd-email">E-mail</label>
+        <input id="cd-email" class="inp" type="email" autocomplete="email" inputmode="email">
+        <label for="cd-senha">Senha</label>
+        <input id="cd-senha" class="inp" type="password" autocomplete="new-password" maxlength="64">
+        <div id="cd-medidor"></div>
+        <label for="cd-senha2">Repita a senha</label>
+        <input id="cd-senha2" class="inp" type="password" autocomplete="new-password" maxlength="64">
+        <div class="erro" id="erro-cadastro"></div>
+        <button class="btn" style="width:100%;margin-top:6px" id="btn-cadastrar">Criar conta</button>
+        <div class="aviso" style="font-size:11.5px">
+          Sem exigência de maiúscula, número ou símbolo — o que protege é o tamanho.
+          A senha é conferida contra bases de vazamentos sem sair do seu navegador.
+        </div>
+      </div>
+      <div id="cd-enviado" style="display:none">
+        <p style="font-size:14px;line-height:1.6">Enviamos um link de confirmação para
+          <b id="cd-email-mostrado"></b>. Abra o e-mail e clique no link para ativar a conta.</p>
+      </div>
+      <div class="aviso"><a href="#" data-ir="entrar">Voltar para entrar</a></div>
+    </div>
+
+    <!-- RECUPERAR -->
+    <div id="tela-recuperar" style="display:none">
+      <h1>Recuperar senha</h1>
+      <div id="rc-form">
+        <p class="sub">Enviaremos um link para você definir uma nova senha.</p>
+        <label for="rc-email">E-mail</label>
+        <input id="rc-email" class="inp" type="email" autocomplete="email" inputmode="email">
+        <div class="erro" id="erro-recuperar"></div>
+        <button class="btn" style="width:100%;margin-top:6px" id="btn-recuperar">Enviar link</button>
+      </div>
+      <div id="rc-enviado" style="display:none">
+        <p style="font-size:14px;line-height:1.6">Se existir conta com esse e-mail, o link chegará
+          em instantes. Confira também a caixa de spam.</p>
+      </div>
+      <div class="aviso"><a href="#" data-ir="entrar">Voltar para entrar</a></div>
+    </div>
+
+    <!-- NOVA SENHA -->
+    <div id="tela-novaSenha" style="display:none">
+      <h1>Nova senha</h1>
+      <p class="sub">Escolha a senha que passará a valer.</p>
+      <label for="ns-senha">Nova senha</label>
+      <input id="ns-senha" class="inp" type="password" autocomplete="new-password" maxlength="64">
+      <div id="ns-medidor"></div>
+      <label for="ns-senha2">Repita a nova senha</label>
+      <input id="ns-senha2" class="inp" type="password" autocomplete="new-password" maxlength="64">
+      <div class="erro" id="erro-nova-senha"></div>
+      <button class="btn" style="width:100%;margin-top:6px" id="btn-nova-senha">Salvar nova senha</button>
+    </div>
+
+    <!-- VÍNCULO COM EMPRESA -->
+    <div id="tela-vinculo" style="display:none">
+      <h1>Sua empresa</h1>
+      <p class="sub">Crie uma empresa nova ou entre em uma já existente.</p>
+      <label for="vn-empresa">Nome da empresa</label>
+      <input id="vn-empresa" class="inp" placeholder="Drogaria Bauru">
+      <button class="btn" style="width:100%;margin-top:10px" id="btn-criar-empresa">Criar empresa</button>
+      <div style="display:flex;align-items:center;gap:10px;margin:20px 0 6px">
+        <div style="flex:1;height:1px;background:var(--linha)"></div>
+        <span style="font-size:11.5px;color:var(--fraco)">ou</span>
+        <div style="flex:1;height:1px;background:var(--linha)"></div>
+      </div>
+      <label for="vn-codigo">Código de convite</label>
+      <input id="vn-codigo" class="inp" placeholder="A1B2C3D4" style="text-transform:uppercase">
+      <button class="btn ghost" style="width:100%;margin-top:10px" id="btn-entrar-convite">Entrar com código</button>
+      <div class="erro" id="erro-vinculo"></div>
+    </div>
+  </div>
+</section>

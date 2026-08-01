@@ -1,0 +1,31 @@
+# Proteção do diretório da API
+
+# 1. Ninguém baixa o arquivo de configuração pelo navegador
+<FilesMatch "^(config|config\.exemplo)\.php$">
+    Require all denied
+</FilesMatch>
+
+# 2. Só os três endpoints respondem; qualquer outro arquivo fica fora
+<FilesMatch "\.(sql|md|log|bak|old|txt|ini|json)$">
+    Require all denied
+</FilesMatch>
+
+# 3. Sem listagem de diretório
+Options -Indexes
+
+# 4. HTTPS obrigatório — cookie de sessão marcado como Secure não
+#    funciona em HTTP, e senha em HTTP trafega legível
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</IfModule>
+
+# 5. Cabeçalhos de segurança
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "same-origin"
+    Header always set Strict-Transport-Security "max-age=31536000"
+</IfModule>

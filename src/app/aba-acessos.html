@@ -1,0 +1,23 @@
+<section class="view" data-view="usuarios">
+      <div class="painel">
+        <h2>Quem acessa o sistema</h2>
+        <p class="desc">Cada pessoa entra com o próprio e-mail e senha. As senhas ficam
+          no serviço de autenticação, com hash forte e salt — este aplicativo nunca as vê.</p>
+        <div style="display:flex;gap:28px;flex-wrap:wrap;margin:16px 0 20px">
+          <div>
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);margin-bottom:4px">Empresa</div>
+            <div id="nome-empresa" style="font-size:15px;font-weight:600">—</div>
+          </div>
+          <div>
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);margin-bottom:4px">Código de convite</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span id="codigo-convite" class="mono" style="font-size:15px;font-weight:600;letter-spacing:.08em">—</span>
+              <button class="btn ghost small" id="copiar-codigo">Copiar</button>
+            </div>
+          </div>
+        </div>
+        <p class="desc">Para dar acesso a alguém: peça que crie a conta na tela de entrada
+          e informe este código quando o sistema pedir a empresa.</p>
+        <div id="lista-acessos" style="margin-top:14px"></div>
+      </div>
+    </section>

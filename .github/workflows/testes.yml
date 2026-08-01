@@ -1,0 +1,123 @@
+name: testes e deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  motor:
+    name: Motor de escala
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Suíte do motor
+        run: node testes/executar.js
+
+  api:
+    name: Backend PHP
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: teste_escala
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring
+      - name: Conferir sintaxe PHP
+        run: for f in api/*.php; do php -l "$f"; done
+      - name: Suíte da API
+        run: bash testes/api.sh
+      - name: Suíte do acesso individual
+        run: bash testes/api-colaborador.sh
+
+  banco:
+    name: Esquema do banco
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toda tabela precisa ter RLS no schema Postgres
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          sql = open('banco/schema.sql').read()
+          tabelas = set(re.findall(r'create table if not exists public\.(\w+)', sql))
+          com_rls = set(re.findall(r'alter table public\.(\w+)\s+enable row level security', sql))
+          faltando = tabelas - com_rls
+          if faltando:
+              sys.exit('tabelas sem RLS: ' + ', '.join(sorted(faltando)))
+          print(f'{len(tabelas)} tabelas, todas com RLS')
+          PY
+
+  # -----------------------------------------------------------------
+  # BUILD + DEPLOY
+  # Só roda no push para main (não em pull request).
+  # Exige que os três jobs acima passem — assim código com teste
+  # falhando nunca chega ao servidor.
+  # -----------------------------------------------------------------
+  deploy:
+    name: Build e deploy para HostGator
+    needs: [motor, api, banco]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Montar aplicativos
+        run: python3 build/montar.py
+
+      - name: Conferir sintaxe do JS gerado
+        run: |
+          for f in dist/*.html; do
+            node -e "
+              const fs=require('fs');
+              const js=fs.readFileSync('$f','utf8').match(/<script>([\s\S]*)<\/script>/)[1];
+              new Function(js);
+              console.log('$f: ok');
+            "
+          done
+
+      - name: Fazer upload para a HostGator via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          server: ${{ secrets.HG_HOST }}
+          username: ${{ secrets.HG_USER }}
+          password: ${{ secrets.HG_PASSWORD }}
+          port: 2222
+          # só os arquivos que precisam ir ao servidor
+          local_path: |
+            dist/escala-hostgator.html
+            api/comum.php
+            api/auth.php
+            api/dados.php
+            api/minha.php
+            api/.htaccess
+          remote_path: ${{ secrets.HG_PATH }}
+          sftp_only: true
+
+      - name: Guardar os HTMLs gerados como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: aplicativos
+          path: dist/
+          retention-days: 30

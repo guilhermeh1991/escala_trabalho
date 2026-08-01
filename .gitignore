@@ -1,0 +1,16 @@
+dist/
+node_modules/
+.DS_Store
+*.log
+.env
+.env.*
+*.xlsx
+!docs/**/*.xlsx
+.vscode/
+.idea/
+__pycache__/
+
+api/config.php
+*.sql.gz
+
+.vscode/sftp.json
