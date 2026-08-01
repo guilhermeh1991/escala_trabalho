@@ -107,24 +107,24 @@ jobs:
         with:
           server: ${{ secrets.HG_HOST }}
           username: ${{ secrets.HG_USER }}
-          password: ${{ secrets.HG_PASSWORD }}
+          ssh_private_key: ${{ secrets.HG_SSH_KEY }}
+          ssh_passphrase: ${{ secrets.HG_SSH_PASSPHRASE }}
           port: 2222
           local_path: 'dist/escala-hostgator.html'
           remote_path: ${{ secrets.HG_PATH }}
           sftp_only: true
-          sftpArgs: '-o PreferredAuthentications=password -o PubkeyAuthentication=no'
 
       - name: Enviar API para a HostGator via SFTP
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
           server: ${{ secrets.HG_HOST }}
           username: ${{ secrets.HG_USER }}
-          password: ${{ secrets.HG_PASSWORD }}
+          ssh_private_key: ${{ secrets.HG_SSH_KEY }}
+          ssh_passphrase: ${{ secrets.HG_SSH_PASSPHRASE }}
           port: 2222
           local_path: 'deploy/api'
           remote_path: ${{ secrets.HG_PATH }}
           sftp_only: true
-          sftpArgs: '-o PreferredAuthentications=password -o PubkeyAuthentication=no'
 
       - name: Guardar os HTMLs gerados como artefato
         uses: actions/upload-artifact@v4
