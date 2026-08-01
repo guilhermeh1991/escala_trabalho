@@ -18,19 +18,19 @@ req(){ curl -s -c "$1" -b "$1" -X POST "$BASE/api/$2" \
        -H 'Content-Type: application/json' ${4:+-H "X-CSRF: $4"} -d "$3"; }
 tok(){ req "$1" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4; }
 
-mysql -e "DROP DATABASE IF EXISTS teste_escala; CREATE DATABASE teste_escala CHARACTER SET utf8mb4;" 2>/dev/null
-mysql teste_escala < banco/mysql-schema.sql 2>/dev/null
-mysql teste_escala < banco/migracao-002-colaborador.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS teste_escala; CREATE DATABASE teste_escala CHARACTER SET utf8mb4;" 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/dev/null
 
 cat > api/config.php <<'PHP'
-<?php return ['bd_host'=>'localhost','bd_nome'=>'teste_escala','bd_usuario'=>'root','bd_senha'=>'',
+<?php return ['bd_host'=>'127.0.0.1','bd_nome'=>'teste_escala','bd_usuario'=>'root','bd_senha'=>'',
 'endereco_site'=>'http://127.0.0.1:881','email_remetente'=>'teste@local'];
 PHP
 php -S 127.0.0.1:881 -t . > /tmp/php881.log 2>&1 &
 SRV=$!; sleep 3
 
 confirmar(){ # $1=cookies $2=email $3=csrf
-  T=$(mysql teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='$2';")
+  T=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='$2';")
   req "$1" auth.php "{\"acao\":\"confirmar\",\"token\":\"$T\"}" "$3" > /dev/null
 }
 
@@ -55,8 +55,8 @@ JSON
 R=$(req $CG dados.php "$EQUIPE" "$TG")
 echo "$R" | grep -q '"ok":true' && ok "equipe salva com e-mails" || falha "salvar equipe: $R"
 
-CID_R=$(mysql teste_escala -sN -e "SELECT id FROM colaboradores WHERE nome='RENATA';")
-CID_L=$(mysql teste_escala -sN -e "SELECT id FROM colaboradores WHERE nome='LUCAS';")
+CID_R=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT id FROM colaboradores WHERE nome='RENATA';")
+CID_L=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT id FROM colaboradores WHERE nome='LUCAS';")
 
 # escala com linhas distintas: Renata folga dia 1-2, Lucas dias 3-4
 GRADE="{\"$CID_R\":[\"X\",\"X\",\"\",\"\",\"\"],\"$CID_L\":[\"\",\"\",\"X\",\"X\",\"\"]}"
@@ -68,11 +68,11 @@ echo "=== 2. Vínculo automático pelo e-mail ==="
 TC=$(tok $CC)
 req $CC auth.php '{"acao":"cadastrar","nome":"Renata","email":"renata@drogaria.com","senha":"vento azul carro 12"}' "$TC" >/dev/null
 confirmar $CC renata@drogaria.com "$TC"
-PAPEL=$(mysql teste_escala -sN -e "SELECT papel FROM usuarios WHERE email='renata@drogaria.com';")
-VINC=$(mysql teste_escala -sN -e "SELECT colaborador_id FROM usuarios WHERE email='renata@drogaria.com';")
+PAPEL=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT papel FROM usuarios WHERE email='renata@drogaria.com';")
+VINC=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT colaborador_id FROM usuarios WHERE email='renata@drogaria.com';")
 [ "$PAPEL" = "colaborador" ] && ok "papel definido como colaborador" || falha "papel: $PAPEL"
 [ "$VINC" = "$CID_R" ] && ok "vinculada à ficha certa" || falha "vínculo: $VINC"
-EMP=$(mysql teste_escala -sN -e "SELECT empresa_id IS NOT NULL FROM usuarios WHERE email='renata@drogaria.com';")
+EMP=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT empresa_id IS NOT NULL FROM usuarios WHERE email='renata@drogaria.com';")
 [ "$EMP" = "1" ] && ok "empresa preenchida sozinha" || falha "empresa vazia"
 
 echo ""
@@ -121,7 +121,7 @@ echo "$R2" | grep -q "não permite" && ok "gravar escala: barrado" || falha "gra
 
 R2=$(req $CC dados.php "{\"acao\":\"salvar\",\"lojas\":{\"$LOJA\":{\"nome\":\"HACK\",\"colabs\":[]}}}" "$TC")
 echo "$R2" | grep -q "não permite" && ok "alterar equipe: barrado" || falha "alterou equipe: $R2"
-NOME=$(mysql teste_escala -sN -e "SELECT nome FROM lojas WHERE id='$LOJA';")
+NOME=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT nome FROM lojas WHERE id='$LOJA';")
 [ "$NOME" = "Loja 330" ] && ok "loja intacta" || falha "loja virou: $NOME"
 
 R2=$(req $CC dados.php '{"acao":"criar_loja","nome":"Minha"}' "$TC")
@@ -157,8 +157,8 @@ TX=$(tok $CX)
 req $CX auth.php '{"acao":"cadastrar","nome":"Estranho","email":"estranho@fora.com","senha":"nuvem preta 4321"}' "$TX" >/dev/null
 confirmar $CX estranho@fora.com "$TX"
 TX=$(tok $CX)
-PAPEL=$(mysql teste_escala -sN -e "SELECT papel FROM usuarios WHERE email='estranho@fora.com';")
-EMP=$(mysql teste_escala -sN -e "SELECT COALESCE(empresa_id,'vazio') FROM usuarios WHERE email='estranho@fora.com';")
+PAPEL=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT papel FROM usuarios WHERE email='estranho@fora.com';")
+EMP=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT COALESCE(empresa_id,'vazio') FROM usuarios WHERE email='estranho@fora.com';")
 [ "$EMP" = "vazio" ] && ok "e-mail fora da equipe não vira colaborador" || falha "vinculou sem estar na equipe"
 R2=$(req $CX minha.php '{"acao":"minha_escala"}' "$TX")
 echo "$R2" | grep -q "sem empresa\|não está ligado" && ok "sem vínculo, nada é devolvido" || falha "estranho recebeu dados: $R2"
