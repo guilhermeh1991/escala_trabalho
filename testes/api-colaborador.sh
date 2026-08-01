@@ -8,7 +8,7 @@
 set -u
 cd "$(dirname "$0")/.."
 
-BASE="http://127.0.0.1:881"
+BASE="http://127.0.0.1:8881"
 CG=$(mktemp); CC=$(mktemp); CX=$(mktemp)
 falhas=0
 ok()    { echo "  ok     $1"; }
@@ -24,9 +24,9 @@ mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/
 
 cat > api/config.php <<'PHP'
 <?php return ['bd_host'=>'127.0.0.1','bd_nome'=>'teste_escala','bd_usuario'=>'root','bd_senha'=>'',
-'endereco_site'=>'http://127.0.0.1:881','email_remetente'=>'teste@local'];
+'endereco_site'=>'http://127.0.0.1:8881','email_remetente'=>'teste@local'];
 PHP
-php -S 127.0.0.1:881 -t . > /tmp/php881.log 2>&1 &
+php -S 127.0.0.1:8881 -t . > /tmp/php881.log 2>&1 &
 SRV=$!; sleep 3
 
 confirmar(){ # $1=cookies $2=email $3=csrf
