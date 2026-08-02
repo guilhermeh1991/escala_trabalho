@@ -101,7 +101,9 @@ jobs:
         run: |
           mkdir -p deploy/api
           cp api/comum.php api/auth.php api/dados.php api/minha.php api/.htaccess deploy/api/
-
+      - name: Preparar HTML final como index.html
+              run: cp dist/escala-hostgator.html dist/index.html
+              
       - name: Enviar HTML para a HostGator via SFTP
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
@@ -110,7 +112,7 @@ jobs:
           ssh_private_key: ${{ secrets.HG_SSH_KEY }}
           ssh_passphrase: ${{ secrets.HG_SSH_PASSPHRASE }}
           port: 2222
-          local_path: 'dist/escala-hostgator.html'
+          local_path: 'dist/index.html'
           remote_path: ${{ secrets.HG_PATH }}
           sftp_only: true
 
