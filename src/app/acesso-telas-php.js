@@ -126,9 +126,19 @@ async function criarEmpresa(){
   try{ await auth({acao:'criar_empresa', nome}); }
   catch(e){ btn.disabled=false; btn.textContent='Criar empresa'; erroEm('#erro-vinculo', erroAmigavel(e)); return; }
   await DB.carregarEmpresa();
-  await semearLojas();
+  await criarLojaPadrao(nome);
   btn.disabled = false; btn.textContent = 'Criar empresa';
   await abrirApp();
+}
+
+async function criarLojaPadrao(nome){
+   const params = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:'P',
+                   minCaixa:2, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
+                   minDia:{0:7, 1:7, 2:9, 3:9, 4:9, 5:9, 6:9}};
+   const id = await DB.criarLoja(nome || 'Minha loja', params);
+   const novas = {};
+   novas[id] = {nome: nome || 'Minha loja', params, _ordem:0, colabs: []};
+   await DB.salvarLojas(novas);
 }
 
 async function entrarPorConvite(){
@@ -173,7 +183,7 @@ async function abrirApp(){
     + ' · ' + SESSAO.usuario.papel + (SESSAO.empresa ? ' · ' + SESSAO.empresa.nome : '');
   S.lojas = await store.get('escala:lojas');
   if(!S.lojas || !Object.keys(S.lojas).length){
-    await semearLojas();
+    await criarLojaPadrao(SESSAO.empresa ? SESSAO.empresa.nome : '');
     S.lojas = await store.get('escala:lojas');
   }
   S.loja = Object.keys(S.lojas)[0];
