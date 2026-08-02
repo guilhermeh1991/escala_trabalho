@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Base de todos os endpoints.
  *
@@ -29,11 +30,14 @@ if (!is_file($caminhoConfig)) {
     http_response_code(500);
     echo json_encode([
         'erro' => 'api/config.php não existe no servidor. Copie api/config.exemplo.php '
-                 . 'para api/config.php e preencha com os dados do MySQL do cPanel.',
+            . 'para api/config.php e preencha com os dados do MySQL do cPanel.',
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 $config = require $caminhoConfig;
+
+$ehHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
 
 // -----------------------------------------------------------------------------
 //  Cabeçalhos
@@ -42,13 +46,19 @@ header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: same-origin');
+header('X-Permitted-Cross-Domain-Policies: none');
+header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
 header('Cache-Control: no-store');
+if ($ehHttps) {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
 
 // -----------------------------------------------------------------------------
 //  Sessão
 // -----------------------------------------------------------------------------
-$ehHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+
+ini_set('session.use_strict_mode', '1');
+ini_set('session.use_only_cookies', '1');
 
 session_set_cookie_params([
     'lifetime' => 0,
@@ -70,8 +80,11 @@ function bd(): PDO
         return $pdo;
     }
     global $config;
-    $dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4',
-        $config['bd_host'], $config['bd_nome']);
+    $dsn = sprintf(
+        'mysql:host=%s;dbname=%s;charset=utf8mb4',
+        $config['bd_host'],
+        $config['bd_nome']
+    );
     try {
         $pdo = new PDO($dsn, $config['bd_usuario'], $config['bd_senha'], [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -141,7 +154,8 @@ function usuarioLogado(): ?array
     }
     $st = bd()->prepare(
         'SELECT id, empresa_id, colaborador_id, email, nome, papel, email_confirmado
-           FROM usuarios WHERE id = ? LIMIT 1');
+           FROM usuarios WHERE id = ? LIMIT 1'
+    );
     $st->execute([$_SESSION['usuario_id']]);
     $u = $st->fetch();
     return $u ?: null;
@@ -216,7 +230,8 @@ function vincularColaboradorInterno(array $u): array
            JOIN lojas l ON l.id = c.loja_id
           WHERE c.email = ? AND c.ativo = 1
           ORDER BY l.criado_em, c.ordem
-          LIMIT 1');
+          LIMIT 1'
+    );
     $st->execute([$u['email']]);
     $achado = $st->fetch();
     if (!$achado) {
@@ -225,11 +240,16 @@ function vincularColaboradorInterno(array $u): array
     bd()->prepare(
         'UPDATE usuarios
             SET empresa_id = ?, colaborador_id = ?, papel = \'colaborador\'
-          WHERE id = ? AND empresa_id IS NULL')
+          WHERE id = ? AND empresa_id IS NULL'
+    )
         ->execute([$achado['empresa_id'], $achado['colaborador_id'], $u['id']]);
 
-    registrar($u['id'], $achado['empresa_id'], 'vinculado_como_colaborador',
-        ['colaborador' => $achado['colaborador_id']]);
+    registrar(
+        $u['id'],
+        $achado['empresa_id'],
+        'vinculado_como_colaborador',
+        ['colaborador' => $achado['colaborador_id']]
+    );
 
     $u['empresa_id']     = $achado['empresa_id'];
     $u['colaborador_id'] = $achado['colaborador_id'];
@@ -265,7 +285,8 @@ function exigirColaboradorDaEmpresa(string $colabId, array $u): void
     $st = bd()->prepare(
         'SELECT 1 FROM colaboradores c
            JOIN lojas l ON l.id = c.loja_id
-          WHERE c.id = ? AND l.empresa_id = ? LIMIT 1');
+          WHERE c.id = ? AND l.empresa_id = ? LIMIT 1'
+    );
     $st->execute([$colabId, $u['empresa_id']]);
     if (!$st->fetchColumn()) {
         falhar('Colaborador não encontrado.', 404);
@@ -283,10 +304,43 @@ function tokenCsrf(): string
     return $_SESSION['csrf'];
 }
 
+function origemPermitida(): bool
+{
+    $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+    $host = preg_replace('/:\d+$/', '', $host) ?? $host;
+    if ($host === '') {
+        return false;
+    }
+
+    $origens = [$_SERVER['HTTP_ORIGIN'] ?? '', $_SERVER['HTTP_REFERER'] ?? ''];
+    $temHeader = false;
+    foreach ($origens as $valor) {
+        if ($valor === '') {
+            continue;
+        }
+        $temHeader = true;
+        $par = parse_url($valor);
+        if (!is_array($par) || empty($par['host'])) {
+            return false;
+        }
+        $hostPar = strtolower((string)$par['host']);
+        $esquema = strtolower((string)($par['scheme'] ?? ''));
+        if ($hostPar !== $host || !in_array($esquema, ['http', 'https'], true)) {
+            return false;
+        }
+        return true;
+    }
+
+    return !$temHeader ? false : true;
+}
+
 function exigirCsrf(): void
 {
-    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'GET') {
         return;
+    }
+    if (!origemPermitida()) {
+        falhar('Requisição inválida para este site.', 403);
     }
     $enviado = $_SERVER['HTTP_X_CSRF'] ?? '';
     if (empty($_SESSION['csrf']) || !hash_equals($_SESSION['csrf'], $enviado)) {
@@ -313,7 +367,8 @@ function exigirDentroDoLimite(string $chave, int $maximo = 5, int $minutos = 15)
 {
     $st = bd()->prepare(
         'SELECT COUNT(*) FROM tentativas_login
-          WHERE chave = ? AND sucesso = 0 AND em > (NOW() - INTERVAL ? MINUTE)');
+          WHERE chave = ? AND sucesso = 0 AND em > (NOW() - INTERVAL ? MINUTE)'
+    );
     $st->execute([substr($chave, 0, 190), $minutos]);
     if ((int)$st->fetchColumn() >= $maximo) {
         falhar("Muitas tentativas. Espere {$minutos} minutos e tente de novo.", 429);
@@ -328,9 +383,12 @@ function registrar(?string $usuarioId, ?string $empresaId, string $acao, ?array 
     try {
         $st = bd()->prepare(
             'INSERT INTO registro_acoes (usuario_id, empresa_id, acao, detalhe, origem)
-             VALUES (?, ?, ?, ?, ?)');
+             VALUES (?, ?, ?, ?, ?)'
+        );
         $st->execute([
-            $usuarioId, $empresaId, $acao,
+            $usuarioId,
+            $empresaId,
+            $acao,
             $detalhe ? json_encode($detalhe, JSON_UNESCAPED_UNICODE) : null,
             origem(),
         ]);
@@ -386,11 +444,19 @@ function algoritmoSenha(): string
 function enviarEmail(string $para, string $assunto, string $corpoHtml): bool
 {
     global $config;
+    $para = trim((string)$para);
+    $remetente = trim((string)($config['email_remetente'] ?? ''));
+    $assunto = str_replace(["\r", "\n"], '', $assunto);
+    $remetente = str_replace(["\r", "\n"], '', $remetente);
+    if (!filter_var($para, FILTER_VALIDATE_EMAIL) || !filter_var($remetente, FILTER_VALIDATE_EMAIL)) {
+        error_log('e-mail: endereço inválido para envio');
+        return false;
+    }
     $cabecalhos = implode("\r\n", [
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset=UTF-8',
-        'From: ' . $config['email_remetente'],
-        'Reply-To: ' . $config['email_remetente'],
+        'From: ' . $remetente,
+        'Reply-To: ' . $remetente,
     ]);
     try {
         return @mail($para, '=?UTF-8?B?' . base64_encode($assunto) . '?=', $corpoHtml, $cabecalhos);

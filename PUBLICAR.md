@@ -40,6 +40,10 @@ Se o motor reprovar, leia a saída: ela mostra qual limiar caiu e por quanto.
 `main`, marque "Require status checks to pass". Assim ninguém envia código que
 quebra a escala.
 
+**Configurar secrets de deploy** — em Settings → Secrets and variables → Actions,
+adicione `HG_HOST`, `HG_USER`, `HG_SSH_KEY`, `HG_SSH_PASSPHRASE` e `HG_PATH`.
+Com isso o workflow publica automaticamente após passar nos testes.
+
 **Baixar os aplicativos prontos** — em cada execução do Actions, na seção
 Artifacts, ficam `escala-offline.html` e `escala-web.html` montados. É de lá que
 você pega o arquivo para publicar, em vez de montar na mão.

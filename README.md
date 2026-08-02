@@ -38,6 +38,38 @@ bash testes/api-colaborador.sh  # acesso individual e isolamento
 Não há dependências para instalar. O motor é JavaScript puro e o build é Python
 da biblioteca padrão.
 
+## Deploy real
+
+### 1. Preparar secrets do GitHub Actions
+
+No repositório, em Settings → Secrets and variables → Actions, crie estes secrets:
+
+- `HG_HOST`
+- `HG_USER`
+- `HG_SSH_KEY`
+- `HG_SSH_PASSPHRASE`
+- `HG_PATH`
+
+O workflow já usa esses valores para publicar automaticamente a versão HostGator.
+
+### 2. Arquivo de configuração do backend
+
+Copie [api/config.exemplo.php](api/config.exemplo.php) para [api/config.php](api/config.php) e preencha:
+
+- banco MySQL
+- endereço do site
+- remetente de e-mail
+
+O arquivo [api/config.php](api/config.php) não é versionado.
+
+### 3. Publicar os artefatos
+
+Os arquivos prontos estão em [dist/](dist/). Para publicação real, use:
+
+- [dist/escala-hostgator.html](dist/escala-hostgator.html) para a versão PHP+MySQL
+- [dist/escala-web.html](dist/escala-web.html) para a versão Supabase
+- [dist/escala-offline.html](dist/escala-offline.html) como plano B
+
 ## As três versões
 
 Saem do mesmo template de interface. O que muda é onde os dados moram.
