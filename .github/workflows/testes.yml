@@ -101,8 +101,9 @@ jobs:
         run: |
           mkdir -p deploy/api
           cp api/comum.php api/auth.php api/dados.php api/minha.php api/.htaccess deploy/api/
+          
       - name: Preparar HTML final como index.html
-              run: cp dist/escala-hostgator.html dist/index.html
+        run: cp dist/escala-hostgator.html dist/index.html
               
       - name: Enviar HTML para a HostGator via SFTP
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
