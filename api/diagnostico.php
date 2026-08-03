@@ -1,4 +1,5 @@
 <?php
+
 /**
  * DIAGNÓSTICO — descobre por que a API não está respondendo.
  *
@@ -18,15 +19,30 @@ header('Cache-Control: no-store');
 // apurado continua visivel em vez de perder a pagina inteira.
 @ini_set('output_buffering', '0');
 @ini_set('zlib.output_compression', '0');
-while (ob_get_level()) { ob_end_flush(); }
+while (ob_get_level()) {
+    ob_end_flush();
+}
 ob_implicit_flush(true);
 
 $falhas = [];
 $avisos = [];
 
-function ok($t)    { echo "  ok      $t\n"; }
-function erro($t)  { global $falhas; $falhas[] = $t; echo "  FALHA   $t\n"; }
-function aviso($t) { global $avisos; $avisos[] = $t; echo "  atencao $t\n"; }
+function ok($t)
+{
+    echo "  ok      $t\n";
+}
+function erro($t)
+{
+    global $falhas;
+    $falhas[] = $t;
+    echo "  FALHA   $t\n";
+}
+function aviso($t)
+{
+    global $avisos;
+    $avisos[] = $t;
+    echo "  atencao $t\n";
+}
 
 echo "DIAGNOSTICO DO SISTEMA DE ESCALA\n";
 echo str_repeat('=', 60) . "\n\n";
@@ -44,10 +60,14 @@ if (version_compare($v, '7.4', '<')) {
     ok("versao adequada");
 }
 
-foreach (['pdo_mysql' => 'conexao com o banco',
-          'mbstring'  => 'acentuacao',
-          'json'      => 'formato das respostas',
-          'openssl'   => 'geracao de tokens'] as $ext => $paraQue) {
+foreach (
+    [
+        'pdo_mysql' => 'conexao com o banco',
+        'mbstring'  => 'acentuacao',
+        'json'      => 'formato das respostas',
+        'openssl'   => 'geracao de tokens'
+    ] as $ext => $paraQue
+) {
     if (extension_loaded($ext)) ok("extensao $ext ($paraQue)");
     else erro("extensao $ext AUSENTE — necessaria para $paraQue");
 }
@@ -61,8 +81,14 @@ echo "\n2. Arquivos\n";
 $precisa = ['comum.php', 'auth.php', 'dados.php', 'minha.php'];
 foreach ($precisa as $arq) {
     $caminho = __DIR__ . '/' . $arq;
-    if (!file_exists($caminho)) { erro("$arq nao encontrado em " . __DIR__); continue; }
-    if (filesize($caminho) < 100) { erro("$arq esta vazio ou truncado (upload incompleto?)"); continue; }
+    if (!file_exists($caminho)) {
+        erro("$arq nao encontrado em " . __DIR__);
+        continue;
+    }
+    if (filesize($caminho) < 100) {
+        erro("$arq esta vazio ou truncado (upload incompleto?)");
+        continue;
+    }
     ok("$arq presente (" . number_format(filesize($caminho)) . " bytes)");
 }
 
@@ -83,11 +109,19 @@ if (file_exists($cfg)) {
         if (!is_array($config)) {
             erro('config.php nao devolve um array. A primeira linha deve ser <?php return [');
         } else {
-            foreach (['bd_host','bd_nome','bd_usuario','bd_senha','endereco_site','email_remetente'] as $c) {
-                if (!array_key_exists($c, $config)) { erro("config.php sem a chave '$c'"); continue; }
-                if ($c === 'bd_senha') { ok("$c preenchida (" . strlen($config[$c]) . " caracteres)"); continue; }
-                if ($config[$c] === '' || strpos((string)$config[$c], 'SEU') === 0
-                    || strpos((string)$config[$c], 'COLE') === 0) {
+            foreach (['bd_host', 'bd_nome', 'bd_usuario', 'bd_senha', 'endereco_site', 'email_remetente'] as $c) {
+                if (!array_key_exists($c, $config)) {
+                    erro("config.php sem a chave '$c'");
+                    continue;
+                }
+                if ($c === 'bd_senha') {
+                    ok("$c preenchida (" . strlen($config[$c]) . " caracteres)");
+                    continue;
+                }
+                if (
+                    $config[$c] === '' || strpos((string)$config[$c], 'SEU') === 0
+                    || strpos((string)$config[$c], 'COLE') === 0
+                ) {
                     erro("$c ainda com o valor de exemplo: {$config[$c]}");
                 } else {
                     ok("$c = {$config[$c]}");
@@ -104,16 +138,27 @@ echo "\n4. Banco de dados\n";
 // -----------------------------------------------------------------
 if (is_array($config)) {
     try {
-        $dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4',
-            $config['bd_host'], $config['bd_nome']);
+        $dsn = sprintf(
+            'mysql:host=%s;dbname=%s;charset=utf8mb4',
+            $config['bd_host'],
+            $config['bd_nome']
+        );
         $pdo = new PDO($dsn, $config['bd_usuario'], $config['bd_senha'], [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_TIMEOUT => 5,
         ]);
         ok('conectou no banco');
 
-        $tabelas = ['empresas','usuarios','lojas','colaboradores',
-                    'ausencias','escalas','registro_acoes','tentativas_login'];
+        $tabelas = [
+            'empresas',
+            'usuarios',
+            'lojas',
+            'colaboradores',
+            'ausencias',
+            'escalas',
+            'registro_acoes',
+            'tentativas_login'
+        ];
         $existem = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
         foreach ($tabelas as $t) {
             if (in_array($t, $existem, true)) ok("tabela $t");
@@ -137,7 +182,7 @@ if (is_array($config)) {
                 $venc = '';
                 if (!$u['email_confirmado'] && $u['token_expira']) {
                     $venc = (strtotime($u['token_expira']) < time())
-                          ? ' — TOKEN VENCIDO' : ' — token valido ate ' . $u['token_expira'];
+                        ? ' — TOKEN VENCIDO' : ' — token valido ate ' . $u['token_expira'];
                 }
                 echo "    {$u['email']}: $conf$venc\n";
             }
@@ -170,7 +215,7 @@ if (@session_start()) {
 echo "\n6. HTTPS e cabecalhos\n";
 // -----------------------------------------------------------------
 $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-      || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
 if ($https) ok('acessado por HTTPS');
 else erro('acessado por HTTP — o cookie de sessao exige HTTPS e o login nao vai funcionar');
 
@@ -196,7 +241,7 @@ if (function_exists('mail')) {
 echo "\n8. Teste real da API\n";
 // -----------------------------------------------------------------
 $url = ($https ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
-     . dirname($_SERVER['SCRIPT_NAME'] ?? '/api') . '/auth.php';
+    . dirname($_SERVER['SCRIPT_NAME'] ?? '/api') . '/auth.php';
 echo "  chamando: $url\n";
 
 $servidorSimples = (PHP_SAPI === 'cli-server');
