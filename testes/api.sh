@@ -18,6 +18,7 @@ falha() { echo "  FALHA  $1"; falhas=$((falhas+1)); }
 chamar() { # $1=cookies $2=arquivo $3=json $4=csrf
   curl -s -c "$1" -b "$1" -X POST "$BASE/api/$2" \
     -H 'Content-Type: application/json' \
+        -H "Origin: $BASE" \
     ${4:+-H "X-CSRF: $4"} -d "$3"
 }
 
