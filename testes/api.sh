@@ -164,7 +164,7 @@ echo "$R" | grep -q '"X"' && ok "escala recuperada igual" || falha "carregar esc
 
 echo ""
 echo "=== 11. Sem sessão não passa ==="
-R=$(curl -s -X POST "$BASE/api/dados.php" -H 'Content-Type: application/json' -H "X-CSRF: x" -d '{"acao":"carregar"}')
+R=$(curl -s -X POST "$BASE/api/dados.php" -H 'Content-Type: application/json' -H "Origin: $BASE" -H "X-CSRF: x" -d '{"acao":"carregar"}')
 echo "$R" | grep -q "Sessão expirada\|credencial" && ok "sem sessão é barrado" || falha "passou sem sessão: $R"
 
 echo ""
