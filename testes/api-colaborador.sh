@@ -15,8 +15,8 @@ ok()    { echo "  ok     $1"; }
 falha() { echo "  FALHA  $1"; falhas=$((falhas+1)); }
 
 req(){ curl -s -c "$1" -b "$1" -X POST "$BASE/api/$2" \
-       -H 'Content-Type: application/json' ${4:+-H "X-CSRF: $4"} -d "$3"; }
-tok(){ req "$1" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4; }
+    -H 'Content-Type: application/json' -H "Origin: $BASE" ${4:+-H "X-CSRF: $4"} -d "$3"; }
+    tok(){ req "$1" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4; }
 
 mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS teste_escala; CREATE DATABASE teste_escala CHARACTER SET utf8mb4;" 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
