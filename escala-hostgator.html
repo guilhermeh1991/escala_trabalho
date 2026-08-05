@@ -59,6 +59,32 @@ input,select{font:inherit}
 #pop-cel .pc-link:hover{color:var(--texto)}
 #pop-cel .pc-link.pc-voltar{text-decoration:underline}
 
+/* ---------- escalas salvas ---------- */
+.salva{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--linha)}
+.salva:last-child{border-bottom:0}
+.salva-info{flex:1;min-width:0}
+.salva-tit{font-weight:600;font-size:14px}
+.salva-desc{font-size:12.5px;color:var(--fraco);margin-top:2px;line-height:1.5}
+.salva-desc b{color:var(--texto);font-weight:600}
+.salva-acoes{display:flex;gap:7px;flex-shrink:0}
+.salva-atual{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;background:var(--v-bg);color:var(--v-fg);padding:2px 7px;
+  border-radius:10px;margin-left:7px;vertical-align:1px}
+@media(max-width:620px){
+  .salva{flex-direction:column;align-items:stretch;gap:9px}
+  .salva-acoes{justify-content:flex-start}
+}
+
+/* ---------- faixa de cargo na grade ---------- */
+table.esc tr.grupo td{background:#EDF1EE;border-bottom:1px solid var(--linha);height:20px}
+table.esc tr.grupo td.fixa{background:#EDF1EE;font-size:10px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:#61736D;padding:3px 9px}
+table.esc tr.grupo td.hr{background:#EDF1EE}
+
+/* ---------- excluir escala salva ---------- */
+.salva-excluir{color:var(--fraco)}
+.salva-excluir:hover{border-color:var(--r-fg);color:var(--r-fg);background:var(--r-bg)}
+
 /* ---------- minha escala ---------- */
 .me-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
 .me-cartoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px}
@@ -374,6 +400,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           <button class="btn" id="btn-gerar">Gerar escala</button>
           <button class="btn ghost" id="btn-salvar">Salvar</button>
           <button class="btn ghost" id="btn-xlsx">Baixar planilha</button>
+      <button class="btn ghost" id="btn-pdf">Baixar PDF</button>
           <button class="btn ghost" id="btn-print">Imprimir</button>
           <span id="status-salvo" class="chip"></span>
         </div>
@@ -392,6 +419,13 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           <span><b style="background:var(--r-bg);border:1px solid var(--r-fg)"></b>rodapé vermelho: abaixo do mínimo</span>
           <span style="margin-left:auto">Clique na célula para trocar o código.</span>
         </div>
+      </div>
+
+      <div class="painel naoimprime" id="painel-salvas" style="display:none">
+        <h2>Escalas salvas</h2>
+        <p class="desc">Cada gravação fica registrada aqui. Baixe em PDF para
+        imprimir, arquivar ou mandar para a equipe.</p>
+        <div id="lista-salvas"></div>
       </div>
 
       <div class="cols2 naoimprime">
@@ -1567,6 +1601,333 @@ ${merges}
 
 
 
+/* =========================================================================
+   GERADOR DE PDF EM JAVASCRIPT PURO
+   Monta o arquivo na mão, como o gerador de .xlsx. Sem biblioteca externa,
+   então funciona offline.
+
+   Usa as fontes padrão do PDF (Helvetica), que todo leitor já tem — não é
+   preciso embutir arquivo de fonte. Elas são codificadas em WinAnsi, que
+   cobre o português inteiro: á, ã, ç, é, ê, í, ó, õ, ú.
+   ========================================================================= */
+
+/* ---------- texto para bytes WinAnsi (Latin-1) ---------- */
+const WINANSI_EXTRA = {
+  '€':128,'‚':130,'ƒ':131,'„':132,'…':133,'†':134,'‡':135,'ˆ':136,'‰':137,
+  'Š':138,'‹':139,'Œ':140,'Ž':142,'‘':145,'’':146,'“':147,'”':148,'•':149,
+  '–':150,'—':151,'˜':152,'™':153,'š':154,'›':155,'œ':156,'ž':158,'Ÿ':159
+};
+function winAnsi(txt){
+  const saida = [];
+  for(const ch of String(txt == null ? '' : txt)){
+    const c = ch.codePointAt(0);
+    if(c < 256) saida.push(c);
+    else if(WINANSI_EXTRA[ch] != null) saida.push(WINANSI_EXTRA[ch]);
+    else saida.push(63);                       // '?' para o que não couber
+  }
+  return saida;
+}
+function textoPdf(txt){
+  // escapa os caracteres que têm significado dentro de uma string PDF
+  return winAnsi(txt).map(b=>{
+    if(b === 40 || b === 41 || b === 92) return '\\' + String.fromCharCode(b);
+    if(b < 32 || b > 126) return '\\' + b.toString(8).padStart(3, '0');
+    return String.fromCharCode(b);
+  }).join('');
+}
+
+/* ---------- medida aproximada de largura, para centralizar e cortar ---------- */
+const LARG_HELV = (()=>{
+  // larguras da Helvetica em milésimos de ponto, por faixa de caractere
+  const m = {};
+  const def = 556;
+  const tab = {
+    ' ':278,'!':278,'"':355,'#':556,'$':556,'%':889,'&':667,"'":191,'(':333,')':333,
+    '*':389,'+':584,',':278,'-':333,'.':278,'/':278,':':278,';':278,'<':584,'=':584,
+    '>':584,'?':556,'@':1015,'[':278,'\\':278,']':278,'^':469,'_':556,'`':333,
+    '{':334,'|':260,'}':334,'~':584
+  };
+  for(let i=48;i<=57;i++) m[String.fromCharCode(i)] = 556;          // dígitos
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((c,k)=>{
+    m[c] = [667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,
+            667,778,722,667,611,722,667,944,667,667,611][k];
+  });
+  'abcdefghijklmnopqrstuvwxyz'.split('').forEach((c,k)=>{
+    m[c] = [556,556,500,556,556,278,556,556,222,222,500,222,833,556,
+            556,556,556,333,500,278,556,500,722,500,500,500][k];
+  });
+  Object.assign(m, tab);
+  return {m, def};
+})();
+
+function larguraTexto(txt, tamanho, negrito){
+  let total = 0;
+  for(const ch of String(txt||'')){
+    let w = LARG_HELV.m[ch];
+    if(w == null){
+      // acentuado: usa a largura da letra base
+      const base = ch.normalize('NFD')[0];
+      w = LARG_HELV.m[base] != null ? LARG_HELV.m[base] : LARG_HELV.def;
+    }
+    total += w;
+  }
+  if(negrito) total *= 1.06;
+  return total * tamanho / 1000;
+}
+
+function cortarTexto(txt, tamanho, limite, negrito){
+  if(larguraTexto(txt, tamanho, negrito) <= limite) return txt;
+  let s = String(txt||'');
+  while(s.length > 1 && larguraTexto(s + '…', tamanho, negrito) > limite) s = s.slice(0, -1);
+  return s + '…';
+}
+
+/* =========================================================================
+   Construtor de página
+   ========================================================================= */
+function PaginaPdf(largura, altura){
+  this.largura = largura;
+  this.altura  = altura;
+  this.ops = [];
+}
+PaginaPdf.prototype.retangulo = function(x, y, l, a, cor){
+  if(!cor) return;
+  const [r,g,b] = cor;
+  this.ops.push(`${r} ${g} ${b} rg`);
+  this.ops.push(`${x.toFixed(2)} ${(this.altura-y-a).toFixed(2)} ${l.toFixed(2)} ${a.toFixed(2)} re f`);
+};
+PaginaPdf.prototype.linha = function(x1, y1, x2, y2, cor, esp){
+  const [r,g,b] = cor || [0.85,0.88,0.86];
+  this.ops.push(`${r} ${g} ${b} RG ${(esp||0.4).toFixed(2)} w`);
+  this.ops.push(`${x1.toFixed(2)} ${(this.altura-y1).toFixed(2)} m ${x2.toFixed(2)} ${(this.altura-y2).toFixed(2)} l S`);
+};
+PaginaPdf.prototype.texto = function(txt, x, y, opc){
+  const o = opc || {};
+  const tam = o.tamanho || 8;
+  const fonte = o.negrito ? '/F2' : '/F1';
+  const [r,g,b] = o.cor || [0.09,0.14,0.17];
+  let px = x;
+  if(o.centro){
+    const larg = larguraTexto(txt, tam, o.negrito);
+    px = x + (o.largura - larg) / 2;
+  }
+  this.ops.push('BT');
+  this.ops.push(`${r} ${g} ${b} rg`);
+  this.ops.push(`${fonte} ${tam} Tf`);
+  this.ops.push(`${px.toFixed(2)} ${(this.altura - y - tam * 0.78).toFixed(2)} Td`);
+  this.ops.push(`(${textoPdf(txt)}) Tj`);
+  this.ops.push('ET');
+};
+PaginaPdf.prototype.conteudo = function(){ return this.ops.join('\n'); };
+
+/* =========================================================================
+   Monta o arquivo PDF a partir das páginas
+   ========================================================================= */
+function montarPdf(paginas, meta){
+  const objetos = [];
+  const add = (txt)=>{ objetos.push(txt); return objetos.length; };
+
+  const nCatalogo = 1, nPaginas = 2;
+  objetos.push('', '');                                    // reservados
+
+  const idsFontes = [];
+  idsFontes.push(add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'));
+  idsFontes.push(add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'));
+
+  const idsPaginas = [];
+  paginas.forEach(pg=>{
+    const fluxo = pg.conteudo();
+    const nFluxo = add(`<< /Length ${winAnsi(fluxo).length} >>\nstream\n${fluxo}\nendstream`);
+    const nPag = add(`<< /Type /Page /Parent ${nPaginas} 0 R `
+      + `/MediaBox [0 0 ${pg.largura} ${pg.altura}] `
+      + `/Resources << /Font << /F1 ${idsFontes[0]} 0 R /F2 ${idsFontes[1]} 0 R >> >> `
+      + `/Contents ${nFluxo} 0 R >>`);
+    idsPaginas.push(nPag);
+  });
+
+  const nInfo = add(`<< /Title (${textoPdf(meta && meta.titulo || 'Escala')}) `
+    + `/Producer (Quadro de Escala) /Creator (Quadro de Escala) >>`);
+
+  objetos[nCatalogo-1] = `<< /Type /Catalog /Pages ${nPaginas} 0 R >>`;
+  objetos[nPaginas-1]  = `<< /Type /Pages /Kids [${idsPaginas.map(i=>i+' 0 R').join(' ')}] `
+                       + `/Count ${idsPaginas.length} >>`;
+
+  // montagem com a tabela de referência cruzada
+  let corpo = '%PDF-1.4\n';
+  const posicoes = [];
+  objetos.forEach((obj, i)=>{
+    posicoes.push(winAnsi(corpo).length);
+    corpo += `${i+1} 0 obj\n${obj}\nendobj\n`;
+  });
+  const inicioXref = winAnsi(corpo).length;
+  corpo += `xref\n0 ${objetos.length+1}\n0000000000 65535 f \n`;
+  posicoes.forEach(p=>{ corpo += String(p).padStart(10,'0') + ' 00000 n \n'; });
+  corpo += `trailer\n<< /Size ${objetos.length+1} /Root ${nCatalogo} 0 R /Info ${nInfo} 0 R >>\n`
+         + `startxref\n${inicioXref}\n%%EOF\n`;
+
+  return new Uint8Array(winAnsi(corpo));
+}
+
+/* =========================================================================
+   A escala em PDF: A4 paisagem, quebrando em páginas quando não couber
+   ========================================================================= */
+const COR_PDF = {
+  texto:    [0.09, 0.14, 0.17],
+  fraco:    [0.42, 0.47, 0.45],
+  linha:    [0.84, 0.87, 0.85],
+  cabecalho:[0.09, 0.14, 0.17],
+  branco:   [1, 1, 1],
+  faixa:    [0.96, 0.97, 0.96],
+  fds:      [0.94, 0.96, 0.95],
+  X:  [[0.847,0.929,0.886],[0.078,0.400,0.247]],
+  FC: [[0.965,0.906,0.769],[0.541,0.369,0.024]],
+  F:  [[0.843,0.898,0.941],[0.122,0.333,0.502]],
+  AT: [[0.953,0.859,0.843],[0.588,0.200,0.165]],
+  LC: [[0.890,0.867,0.949],[0.314,0.251,0.494]]
+};
+
+function gerarPdfEscala(D, nomeLoja){
+  const {days, grid, ativos, P, cob} = D;
+  const L = 842, A = 595;                       // A4 paisagem, em pontos
+  const margem = 22;
+  const larguraNome = 96, larguraHora = 30;
+  const areaDias = L - margem*2 - larguraNome - larguraHora;
+  const largDia = areaDias / days.length;
+  const altLinha = 15;
+  const topoTabela = 74;
+
+  const rodapes = [
+    ['Caixa',        (c)=>c.cx,  P.minCaixa,  null],
+    ['Balcão',       (c)=>c.bl,  P.minBalcao, null],
+    ['Farmacêutico', (c)=>c.fa,  1,           P.minFarma != null ? P.minFarma : 2],
+    ['Subgerente',   (c)=>c.sg||0, P.minSubger != null ? P.minSubger : 1, null],
+    ['Total na loja',(c)=>c.total, null, null],
+    ['De folga',     (c,i)=>ativos.filter(x=>grid[x.id][i]==='X'||grid[x.id][i]==='FC').length, null, null]
+  ];
+
+  // reserva espaço para até 6 faixas de cargo
+  const alturaUtil = A - topoTabela - margem - (rodapes.length * altLinha) - 26 - 6*11;
+  const porPagina = Math.max(1, Math.floor(alturaUtil / altLinha));
+  const paginas = [];
+  const totalPag = Math.ceil(ativos.length / porPagina);
+
+  for(let pg = 0; pg < totalPag; pg++){
+    const p = new PaginaPdf(L, A);
+    const fatia = ativos.slice(pg * porPagina, (pg+1) * porPagina);
+
+    // ---- título ----
+    p.texto('Escala — ' + nomeLoja, margem, 22, {tamanho:15, negrito:true});
+    p.texto(D.periodo + '  ·  ' + ativos.length + ' colaboradores  ·  emitida em '
+            + new Date().toLocaleDateString('pt-BR'),
+            margem, 43, {tamanho:8.5, cor:COR_PDF.fraco});
+    if(totalPag > 1){
+      const rot = 'Página ' + (pg+1) + ' de ' + totalPag;
+      p.texto(rot, L - margem - larguraTexto(rot, 8.5, false), 43, {tamanho:8.5, cor:COR_PDF.fraco});
+    }
+
+    // ---- cabeçalho da tabela ----
+    let y = topoTabela;
+    p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.cabecalho);
+    p.texto('COLABORADOR', margem + 4, y + 4, {tamanho:6.5, negrito:true, cor:COR_PDF.branco});
+    p.texto('ENTRA', margem + larguraNome + 2, y + 4,
+            {tamanho:6.5, negrito:true, cor:COR_PDF.branco, centro:true, largura:larguraHora});
+    days.forEach((d,i)=>{
+      const x = margem + larguraNome + larguraHora + i*largDia;
+      p.texto(DIA_ABREV[d.getDay()], x, y + 4,
+              {tamanho:5.8, negrito:true, cor:COR_PDF.branco, centro:true, largura:largDia});
+    });
+
+    // ---- linha das datas ----
+    y += altLinha;
+    p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.faixa);
+    days.forEach((d,i)=>{
+      const x = margem + larguraNome + larguraHora + i*largDia;
+      if(d.getDay()===0 || d.getDay()===6) p.retangulo(x, y, largDia, altLinha, [0.88,0.91,0.89]);
+      p.texto(ddmm(d), x, y + 4, {tamanho:6, negrito:true, centro:true, largura:largDia});
+    });
+
+    // ---- linhas dos colaboradores ----
+    y += altLinha;
+    let faixaPdf = null;
+    fatia.forEach((c)=>{
+      const g = D.faixaDe ? D.faixaDe(c) : null;
+      if(g !== null && g !== faixaPdf){
+        p.retangulo(margem, y, L - margem*2, 11, [0.93,0.945,0.935]);
+        p.texto(D.rotuloFaixa(g).toUpperCase(), margem + 4, y + 2.5,
+                {tamanho:5.5, negrito:true, cor:COR_PDF.fraco});
+        p.linha(margem, y + 11, L - margem, y + 11, COR_PDF.linha);
+        y += 11;
+        faixaPdf = g;
+      }
+      p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.branco);
+      p.texto(cortarTexto(c.nome, 7.5, larguraNome - 8, true), margem + 4, y + 2.5,
+              {tamanho:7.5, negrito:true});
+      p.texto(cortarTexto(c.cargo, 5, larguraNome - 8, false), margem + 4, y + 9.5,
+              {tamanho:5, cor:COR_PDF.fraco});
+      p.texto(D.horaDe(c, 0).slice(0,5), margem + larguraNome, y + 4.5,
+              {tamanho:6, cor:COR_PDF.fraco, centro:true, largura:larguraHora});
+
+      days.forEach((d,i)=>{
+        const x = margem + larguraNome + larguraHora + i*largDia;
+        const cod = grid[c.id][i];
+        const fds = d.getDay()===0 || d.getDay()===6;
+        if(COR_PDF[cod]){
+          p.retangulo(x, y, largDia, altLinha, COR_PDF[cod][0]);
+          p.texto(cod, x, y + 4.5, {tamanho:6.5, negrito:true, cor:COR_PDF[cod][1],
+                                    centro:true, largura:largDia});
+        } else {
+          if(fds) p.retangulo(x, y, largDia, altLinha, COR_PDF.fds);
+          p.texto(D.horaDe(c, i).slice(0,5), x, y + 4.5,
+                  {tamanho:5.6, cor:COR_PDF.fraco, centro:true, largura:largDia});
+        }
+      });
+      p.linha(margem, y + altLinha, L - margem, y + altLinha, COR_PDF.linha);
+      y += altLinha;
+    });
+
+    // ---- rodapé de conferência, só na última página ----
+    if(pg === totalPag - 1){
+      y += 3;
+      rodapes.forEach(([rot, fn, minimo, alvo])=>{
+        p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.faixa);
+        p.texto(rot.toUpperCase(), margem + 4, y + 4.5, {tamanho:6, negrito:true, cor:COR_PDF.fraco});
+        cob.forEach((c,i)=>{
+          const x = margem + larguraNome + larguraHora + i*largDia;
+          const v = fn(c, i);
+          let corFundo = null, corTexto = COR_PDF.texto;
+          const lim = typeof minimo === 'function' ? minimo(c,i) : minimo;
+          if(lim != null && v < lim){ corFundo = COR_PDF.AT[0]; corTexto = COR_PDF.AT[1]; }
+          else if(alvo != null && v < alvo){ corFundo = COR_PDF.FC[0]; corTexto = COR_PDF.FC[1]; }
+          if(corFundo) p.retangulo(x, y, largDia, altLinha, corFundo);
+          p.texto(String(v), x, y + 4.5, {tamanho:6.5, negrito:!!corFundo, cor:corTexto,
+                                          centro:true, largura:largDia});
+        });
+        p.linha(margem, y + altLinha, L - margem, y + altLinha, COR_PDF.linha);
+        y += altLinha;
+      });
+
+      // legenda
+      y += 8;
+      let x = margem;
+      [['X','folga'],['FC','compensatória'],['F','férias'],['AT','atestado'],['LC','licença']]
+      .forEach(([k, rot])=>{
+        p.retangulo(x, y, 8, 6, COR_PDF[k][0]);
+        p.texto(k + ' ' + rot, x + 11, y - 0.5, {tamanho:6.5, cor:COR_PDF.fraco});
+        x += 13 + larguraTexto(k + ' ' + rot, 6.5, false) + 10;
+      });
+    }
+
+    // ---- moldura ----
+    p.linha(margem, topoTabela, L - margem, topoTabela, COR_PDF.linha, 0.6);
+    paginas.push(p);
+  }
+
+  return montarPdf(paginas, {titulo: 'Escala ' + nomeLoja + ' — ' + D.periodo});
+}
+
+
+
+
 /* ============================================================
    MINHA ESCALA — visão individual do colaborador
    Recebe do servidor apenas a própria linha. A extração acontece
@@ -1874,6 +2235,9 @@ const DB = {
     const p = Object.assign({}, params || {}, {_horas: horas || {}});
     await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:p});
   },
+  async excluirEscala(lojaId, inicio, fim){
+    await dadosApi({acao:'excluir_escala', loja_id:lojaId, inicio, fim});
+  },
   async criarLoja(nome, params){
     const r = await dadosApi({acao:'criar_loja', nome, params});
     return r.id;
@@ -1888,10 +2252,17 @@ const DB = {
 /* ---------- store: mesma interface de sempre ---------- */
 let _timerSync = null, _pendente = null, _sincronizando = false;
 const store = {
+  async del(chave){
+    if(!chave.startsWith('escala:grade:')) return;
+    const [, , lojaId, periodo] = chave.split(':');
+    const [inicio, fim] = (periodo||'').split('_');
+    if(!lojaId || !inicio || !fim) return;
+    await DB.excluirEscala(lojaId, inicio, fim);
+  },
   async get(chave){
     if(chave === 'escala:lojas') return await DB.carregarLojas();
     if(chave.startsWith('escala:grade:')){
-      const [, , , lojaId, periodo] = chave.split(':');
+      const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       if(!lojaId || !inicio || !fim) return null;
       try { return await DB.carregarEscala(lojaId, inicio, fim); }
@@ -1914,7 +2285,7 @@ const store = {
       return;
     }
     if(chave.startsWith('escala:grade:')){
-      const [, , , lojaId, periodo] = chave.split(':');
+      const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       try{
         await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas);
@@ -2266,12 +2637,12 @@ function montar(){
   const sel = $('#sel-loja'); sel.innerHTML='';
   Object.keys(S.lojas).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=S.lojas[k].nome; sel.appendChild(o); });
   sel.value = S.loja;
-  sel.onchange = async ()=>{ S.loja = sel.value; await carregarPeriodoSalvo(); pintarParams(); pintarEquipe(); pintarAus(); };
+  sel.onchange = async ()=>{ S.loja = sel.value; await carregarPeriodoSalvo(); pintarParams(); pintarEquipe(); pintarAus(); pintarSalvas(); };
   const hoje = new Date();
   const ini = new Date(hoje.getFullYear(), hoje.getMonth()+1, 11);
   const fim = new Date(hoje.getFullYear(), hoje.getMonth()+2, 10);
   $('#p-inicio').value = ymd(ini); $('#p-fim').value = ymd(fim);
-  pintarParams(); pintarEquipe(); pintarAus(); carregarPeriodoSalvo();
+  pintarParams(); pintarEquipe(); pintarAus(); carregarPeriodoSalvo(); pintarSalvas();
 }
 const loja = ()=>S.lojas[S.loja];
 const chaveGrade = ()=>`escala:grade:${S.loja}:${$('#p-inicio').value}_${$('#p-fim').value}`;
@@ -2462,7 +2833,120 @@ $('#btn-salvar').onclick = async ()=>{
                  horas:S.res.horas||{}, ordem:S.res.ativos.map(c=>c.id)};
   await store.set(chaveGrade(), dados);
   S.salvo = true; marcarSalvo();
+  registrarSalva();
+  pintarSalvas();
 };
+
+/* ---------- registro das escalas salvas ---------- */
+function chaveSalvas(){ return 'escala:salvas:' + S.loja; }
+
+function resumoDaEscala(){
+  const feridas = S.val ? S.val.alertas.filter(a=>a.nivel!=='nota').length : 0;
+  const notas   = S.val ? S.val.alertas.filter(a=>a.nivel==='nota').length : 0;
+  const folgas  = S.res.ativos.reduce((t,c)=>t + S.res.grid[c.id].filter(v=>v==='X').length, 0);
+  const ajustes = Object.values(S.res.horas||{}).reduce((t,m)=>t + Object.keys(m).length, 0);
+  return {inicio:$('#p-inicio').value, fim:$('#p-fim').value,
+    dias:S.res.days.length, pessoas:S.res.ativos.length,
+    modelo:(S.res.params.modelo || '5x2'), folgas, feridas, notas, ajustes,
+    em:new Date().toISOString()};
+}
+
+function lerSalvas(){
+  try{ return JSON.parse(localStorage.getItem(chaveSalvas()) || '[]'); }catch(e){ return []; }
+}
+
+function registrarSalva(){
+  const lista = lerSalvas().filter(x=>!(x.inicio===$('#p-inicio').value && x.fim===$('#p-fim').value));
+  lista.unshift(resumoDaEscala());
+  try{ localStorage.setItem(chaveSalvas(), JSON.stringify(lista.slice(0,24))); }catch(e){}
+}
+
+function pintarSalvas(){
+  const painel = $('#painel-salvas'), cx = $('#lista-salvas');
+  if(!painel || !cx) return;
+  const lista = lerSalvas();
+  if(!lista.length){ painel.style.display = 'none'; return; }
+  painel.style.display = '';
+  const dt = iso => { const [a,m,d] = String(iso).split('-'); return d + '/' + m; };
+  cx.innerHTML = lista.map((x,k)=>{
+    const atual = x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value;
+    const partes = [`<b>${x.pessoas}</b> pessoas`, `<b>${x.dias}</b> dias`,
+                    `modelo <b>${esc(x.modelo)}</b>`, `<b>${x.folgas}</b> folgas no total`];
+    if(x.ajustes) partes.push(`<b>${x.ajustes}</b> horário(s) ajustado(s)`);
+    partes.push(x.feridas ? `<b style="color:var(--alerta)">${x.feridas} regra(s) ferida(s)</b>`
+                          : 'sem regra ferida');
+    const q = new Date(x.em);
+    return `<div class="salva">
+      <div class="salva-info">
+        <div class="salva-tit">${dt(x.inicio)} a ${dt(x.fim)}${atual ? '<span class="salva-atual">aberta</span>' : ''}</div>
+        <div class="salva-desc">${partes.join(' · ')}<br>salva em ${q.toLocaleDateString('pt-BR')} às ${q.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div class="salva-acoes">${atual
+        ? '<button class="btn small" data-pdf="1">Baixar PDF</button>'
+        : '<button class="btn ghost small" data-abrir="' + k + '">Abrir</button>'}
+        <button class="btn ghost small salva-excluir" data-excluir="${k}" title="Excluir esta escala">Excluir</button></div>
+    </div>`;
+  }).join('');
+  cx.querySelectorAll('[data-pdf]').forEach(b=>{ b.onclick = baixarPdf; });
+  cx.querySelectorAll('[data-abrir]').forEach(b=>{
+    b.onclick = async ()=>{
+      const x = lerSalvas()[+b.dataset.abrir];
+      if(!x) return;
+      $('#p-inicio').value = x.inicio; $('#p-fim').value = x.fim;
+      await carregarPeriodoSalvo(); pintarSalvas();
+    };
+  });
+  cx.querySelectorAll('[data-excluir]').forEach(b=>{
+    b.onclick = ()=> excluirSalva(+b.dataset.excluir);
+  });
+}
+
+/* Exclui a escala do período: apaga do banco (ou do dispositivo, na versão
+   offline) e tira da lista. O que fica na tela continua até você gerar outra —
+   assim dá para desfazer salvando de novo, se tiver sido engano. */
+async function excluirSalva(k){
+  const lista = lerSalvas();
+  const x = lista[k];
+  if(!x) return;
+  const dt = iso => { const [a,m,d] = String(iso).split('-'); return d + '/' + m; };
+  if(!confirm(`Excluir a escala de ${dt(x.inicio)} a ${dt(x.fim)}?\n\n`
+            + `A escala gravada será apagada e não dá para desfazer. `
+            + `A equipe e os parâmetros não são afetados.`)) return;
+
+  try{
+    if(store.del) await store.del(`escala:grade:${S.loja}:${x.inicio}_${x.fim}`);
+  }catch(e){
+    alert('Não foi possível excluir no servidor: ' + (e && e.message ? e.message : e));
+    return;
+  }
+  lista.splice(k, 1);
+  try{ localStorage.setItem(chaveSalvas(), JSON.stringify(lista)); }catch(e){}
+
+  // se era o período aberto, limpa a tela
+  if(x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value){
+    S.res = null; S.val = null; S.salvo = true;
+    $('#grade').innerHTML = '<p class="vazio">Escala excluída. Clique em Gerar escala para montar outra.</p>';
+    $('#lista-alertas').innerHTML = '';
+    $('#cont-alertas').textContent = '';
+    $('#resumo-cobertura').innerHTML = '';
+  }
+  pintarSalvas();
+}
+
+function baixarPdf(){
+  if(!S.res){ alert('Gere a escala antes de baixar.'); return; }
+  const D = dadosDaEscala();
+  D.horaDe = (c, i) => horaDoDia(c, i);
+  D.faixaDe = faixaDe;
+  D.rotuloFaixa = (g) => FAIXAS_CARGO[g].rotulo;
+  const bytes = gerarPdfEscala(D, loja().nome);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+  a.download = 'escala_' + loja().nome.replace(/[^\w]+/g,'_') + '_'
+             + $('#p-inicio').value + '_a_' + $('#p-fim').value + '.pdf';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
 async function carregarPeriodoSalvo(){
   S.res=null; S.val=null;
   const d = await store.get(chaveGrade());
@@ -2738,13 +3222,51 @@ function avisoCiclo(){
   }
 }
 
+/* ============================================================
+   ORDEM DE EXIBIÇÃO POR CARGO
+   Só afeta como a grade é mostrada e exportada. O motor continua
+   com a ordem dele, que influencia a distribuição dos domingos —
+   mexer ali mudaria a escala gerada, não só a aparência.
+   ============================================================ */
+const FAIXAS_CARGO = [
+  /* Atenção à ordem e ao "SUB": a palavra SUBGERENTE contém GERENTE, então o
+     teste da gerência precisa recusar quem é subgerente antes de aceitar.
+     E vale tanto a caixa "gerente" marcada quanto o cargo escrito GERENTE —
+     antes só a caixa contava, e quem tinha o cargo sem marcar a caixa não
+     entrava em nenhum grupo e caía em Apoio. */
+  {chave:'gerencia',  rotulo:'Gerência',      teste: c => {
+      const up = (c.cargo||'').toUpperCase();
+      if(/SUBGER|^SUB\//.test(up)) return false;
+      return !!c.gerente || /GERENTE|GERENCIA|GERÊNCIA/.test(up);
+    }},
+  {chave:'subger',    rotulo:'Subgerência',   teste: c => /SUBGER|^SUB\//.test((c.cargo||'').toUpperCase())},
+  {chave:'farma',     rotulo:'Farmacêuticos', teste: c => /FARMA/.test((c.cargo||'').toUpperCase())},
+  {chave:'balcao',    rotulo:'Balcão',        teste: c => /BALCON/.test((c.cargo||'').toUpperCase())},
+  {chave:'caixa',     rotulo:'Caixas',        teste: c => /CAIXA/.test((c.cargo||'').toUpperCase())},
+  {chave:'apoio',     rotulo:'Apoio',         teste: () => true}
+];
+
+function faixaDe(c){
+  for(let i=0;i<FAIXAS_CARGO.length;i++) if(FAIXAS_CARGO[i].teste(c)) return i;
+  return FAIXAS_CARGO.length - 1;
+}
+
+/* Ordena por cargo mantendo, dentro de cada faixa, a ordem que veio da
+   equipe — quem foi cadastrado antes aparece antes. */
+function ordenarPorCargo(lista){
+  return lista.map((c,i)=>({c, i, f: faixaDe(c)}))
+              .sort((a,b)=> a.f - b.f || a.i - b.i)
+              .map(x=>x.c);
+}
+
 function pintarGrade(){
   marcarSalvo();
   const box = $('#grade');
   if(!S.res){ box.innerHTML = `<div class="vazio" style="padding:48px">Escolha o período e clique em <b>Gerar escala</b>.</div>`;
     $('#lista-alertas').innerHTML=''; $('#cont-alertas').textContent=''; $('#tab-resumo').innerHTML='';
     $('#resumo-cobertura').innerHTML=''; return; }
-  const {days, grid, ativos} = S.res;
+  const {days, grid} = S.res;
+  const ativos = ordenarPorCargo(S.res.ativos);
   const P = S.res.params;
 
   let h = '<table class="esc"><thead><tr><th class="fixa">Colaborador</th><th class="hr">Entra</th>';
@@ -2753,12 +3275,16 @@ function pintarGrade(){
   days.forEach(d=>{ h += `<th class="${d.getDay()===0?'domingo':''}">${ddmm(d)}</th>`; });
   h += '<th></th></tr></thead><tbody>';
 
-  let grupoAnterior = null;
+  let faixaAnterior = null;
   ativos.forEach(c=>{
-    const g = grupoDe(c);
-    if(grupoAnterior!==null && g!==grupoAnterior)
-      h += `<tr class="sep"><td class="fixa"></td><td class="hr"></td><td colspan="${days.length+1}"></td></tr>`;
-    grupoAnterior = g;
+    const g = faixaDe(c);
+    if(g !== faixaAnterior){
+      if(faixaAnterior !== null)
+        h += `<tr class="sep"><td class="fixa"></td><td class="hr"></td><td colspan="${days.length+1}"></td></tr>`;
+      h += `<tr class="grupo"><td class="fixa">${esc(FAIXAS_CARGO[g].rotulo)}</td>`
+         + `<td class="hr"></td><td colspan="${days.length+1}"></td></tr>`;
+    }
+    faixaAnterior = g;
     h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome">${esc(c.nome)}</div><div class="cargo">${esc(c.cargo)}${c.gerente?' · gerente':''}</div></td>`;
     h += `<td class="hr">${horaEntrada(c)}</td>`;
     days.forEach((d,i)=>{
@@ -2851,7 +3377,8 @@ function pintarGrade(){
 
 // dados da grade num formato só, usado pela planilha e pela impressão
 function dadosDaEscala(){
-  const {days, grid, ativos} = S.res, P = S.res.params, cob = S.val.cobertura;
+  const {days, grid} = S.res, P = S.res.params, cob = S.val.cobertura;
+  const ativos = ordenarPorCargo(S.res.ativos);
   const alvo = P.minDia || {};
   const alvoFa = P.minFarma != null ? P.minFarma : 2;
   const alvoSg = P.minSubger != null ? P.minSubger : 1;
@@ -2870,7 +3397,13 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
     .concat(days.map(d=>({v:DIA_ABREV[d.getDay()], e:'cabecalho'}))));
   linhas.push([null,null,null].concat(days.map(d=>({v:ddmm(d), e:(d.getDay()===0||d.getDay()===6)?'dataFds':'data'}))));
 
+  let faixaXls = null;
   ativos.forEach(c=>{
+    const g = faixaDe(c);
+    if(g !== faixaXls){
+      linhas.push([{v:FAIXAS_CARGO[g].rotulo.toUpperCase(), e:'rotulo'}]);
+      faixaXls = g;
+    }
     const l = [{v:c.nome, e:'nome'}, {v:horaEntrada(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
@@ -2928,7 +3461,14 @@ function htmlDeImpressao(D, nomeLoja){
   const cor = {'X':['#D8EDE2','#14663F'],'FC':['#F6E7C4','#8A5E06'],'F':['#D7E5F0','#1F5580'],
                'AT':['#F3DBD7','#96332A'],'LC':['#E3DDF2','#50407E']};
   let corpo = '';
+  let faixaImp = null;
   ativos.forEach(c=>{
+    const g = faixaDe(c);
+    if(g !== faixaImp){
+      corpo += `<tr class="gr"><td class="nm">${esc(FAIXAS_CARGO[g].rotulo)}</td><td></td>`
+             + `<td colspan="${days.length}"></td></tr>`;
+      faixaImp = g;
+    }
     corpo += `<tr><td class="nm">${esc(c.nome)}<span>${esc(c.cargo)}</span></td><td class="hr">${horaEntrada(c)}</td>`;
     days.forEach((d,i)=>{
       const v = grid[c.id][i], fds = (d.getDay()===0||d.getDay()===6);
@@ -2970,6 +3510,7 @@ td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-tran
 td.hr{font-size:7.5px;color:#63736F}
 td i{font-style:normal;color:#8A9995}
 td.fds{background:#F4F7F5}
+tr.gr td{background:#EDF1EE;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#61736D;text-align:left;height:12px}
 tr.rp td{background:#F0F3F1;font-weight:600;font-size:8px}
 tr.rp td.nm{font-size:7.5px;text-transform:uppercase}
 .lg{margin-top:6px;font-size:8px;color:#5b6b66}
@@ -2994,6 +3535,8 @@ ${rodape('De folga', (c,i)=>ativos.filter(x=>grid[x.id][i]==='X'||grid[x.id][i]=
 <div class="lg"><b style="background:#D8EDE2"></b>X folga<b style="background:#F6E7C4"></b>FC compensatória<b style="background:#D7E5F0"></b>F férias<b style="background:#F3DBD7"></b>AT atestado<b style="background:#E3DDF2"></b>LC licença<b style="background:#F3DBD7;border-color:#96332A"></b>rodapé vermelho: abaixo do mínimo<b style="background:#F6E7C4;border-color:#8A5E06"></b>amarelo: abaixo do alvo, tolerado</div>
 </body></html>`;
 }
+
+$('#btn-pdf').onclick = baixarPdf;
 
 $('#btn-print').onclick = ()=>{
   if(!S.res){ alert('Gere a escala antes de imprimir.'); return; }
