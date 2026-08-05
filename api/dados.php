@@ -256,6 +256,25 @@ case 'salvar_escala':
     responder(['ok' => true]);
 
 // -----------------------------------------------------------------------------
+case 'excluir_escala':
+// -----------------------------------------------------------------------------
+    exigirGestao($u);
+    $lojaId = (string)campo($dados, 'loja_id', '');
+    exigirLojaDaEmpresa($lojaId, $u);
+
+    $inicio = (string)campo($dados, 'inicio', '');
+    $fim    = (string)campo($dados, 'fim', '');
+
+    $st = bd()->prepare(
+        'DELETE FROM escalas WHERE loja_id = ? AND inicio = ? AND fim = ?');
+    $st->execute([$lojaId, $inicio, $fim]);
+    $apagadas = $st->rowCount();
+
+    registrar($u['id'], $u['empresa_id'], 'escala_excluida',
+        ['loja' => $lojaId, 'inicio' => $inicio, 'fim' => $fim]);
+    responder(['ok' => true, 'apagadas' => $apagadas]);
+
+// -----------------------------------------------------------------------------
 case 'criar_loja':
 // -----------------------------------------------------------------------------
     exigirGestao($u);
