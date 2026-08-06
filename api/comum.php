@@ -448,11 +448,15 @@ function enviarEmail(string $para, string $assunto, string $corpoHtml): bool
     $remetente = trim((string)($config['email_remetente'] ?? ''));
     $assunto = str_replace(["\r", "\n"], '', $assunto);
     $remetente = str_replace(["\r", "\n"], '', $remetente);
-    if (!filter_var($para, FILTER_VALIDATE_EMAIL) || !filter_var($remetente, FILTER_VALIDATE_EMAIL)) {
-        error_log('e-mail: endereço inválido para envio');
-        return false;
+    $remetenteEmail = $remetente;
+    if (preg_match('/<([^>]+)>/', $remetente, $m)) {
+                $remetenteEmail = $m[1];
     }
-    $cabecalhos = implode("\r\n", [
+        if (!filter_var($para, FILTER_VALIDATE_EMAIL) || !filter_var($remetenteEmail, FILTER_VALIDATE_EMAIL)) {
+                    error_log('e-mail: endereço inválido para envio');
+                    return false;
+        }
+        $cabecalhos = implode("\r\n", [
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset=UTF-8',
         'From: ' . $remetente,
