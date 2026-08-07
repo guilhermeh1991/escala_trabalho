@@ -140,6 +140,7 @@ function gerarEscala(colabs, params){
     // faixa 2: regra da casa
     soDomingo: 30000,          // no 6x1, ficar sem a folga da semana por causa do domingo
     diaFixo: 25000,            // não respeitar o dia de folga fixa escolhido para a pessoa
+       domingoAncorado: 28000, // furar o domingo de folga que o usuário fixou na data
     // faixa 3: cobertura da loja
     farmaCritico: 5000, farmaAlvo: 900, subger: 1400, subgerFds: 900,
     curva: 400, equipe: 600, teto: 150, outroDomingo: 450,
@@ -208,6 +209,11 @@ function gerarEscala(colabs, params){
 
   const contadorOffset = {caixa:0, balcao:0, gerencia:0};
   const domFolga = {};   // id -> Set de índices
+/* Quem teve o 1º domingo informado por data. Para essas pessoas o ciclo
+   deixa de ser preferência e passa a ser regra: a data marcada é o domingo
+   de folga, e os seguintes saem dela somando o ciclo. Sem isso o motor
+   trocava o domingo por outro quando a cobertura ficava mais barata. */
+const domAncorado = {};
 
   /* Converte uma data ISO para o índice do domingo correspondente no período,
      ou null se estiver fora do intervalo. */
@@ -226,6 +232,7 @@ function gerarEscala(colabs, params){
     let primeiro;
 
     if(c.primeiroDomingo){
+  domAncorado[c.id] = true;
       /* Usuário informou o primeiro domingo de folga: âncora exata. */
       const ancora = indiceDomingo(c.primeiroDomingo);
       if(ancora != null){
@@ -318,7 +325,7 @@ function gerarEscala(colabs, params){
     /* 6x1: a folga da semana e a folga de domingo são direitos separados —
        na semana em que cai o domingo do ciclo, a pessoa folga duas vezes. */
     if(P.modelo === '6x1')
-      return opcoes6x1(c, sem, {fixos, jaX, nDias, ausentes, domSemana, marcar});
+        return opcoes6x1(c, sem, {fixos, jaX, nDias, ausentes, domSemana, marcar, meuDomingo});
 
     let alvo = nDias>=7 ? P.folgasSemana : (nDias>=3 ? 1 : 0);
     const semOpcao = [Object.assign({tipo:'fixo', custo:0}, marcar([]))];
@@ -478,6 +485,9 @@ function gerarEscala(colabs, params){
         if(days[i].getDay()===0 && i !== ctx.meuDomingo) custo += 0;   // no 6x1 o domingo é do ciclo, não penaliza
       });
       custo += pesoBalanceamento(c, o.novos);
+  if(domAncorado[c.id] && ctx.meuDomingo != null
+     && !info.dias.includes(ctx.meuDomingo)
+     && !AUSENTE.includes(grid[c.id][ctx.meuDomingo])) custo += PESO.domingoAncorado;
       if(fixo != null){
         // dia de folga escolhido para a pessoa: só cede quando não há alternativa
         const temODia = o.novos.some(i => days[i].getDay() === fixo);
