@@ -21,6 +21,7 @@ req(){ curl -s -c "$1" -b "$1" -X POST "$BASE/api/$2" \
 mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS teste_escala; CREATE DATABASE teste_escala CHARACTER SET utf8mb4;" 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-003-acesso-por-loja.sql 2>/dev/null
 
 cat > api/config.php <<'PHP'
 <?php return ['bd_host'=>'127.0.0.1','bd_nome'=>'teste_escala','bd_usuario'=>'root','bd_senha'=>'',
