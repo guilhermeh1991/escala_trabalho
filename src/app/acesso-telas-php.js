@@ -123,22 +123,12 @@ async function criarEmpresa(){
   erroEm('#erro-vinculo','');
   if(nome.length < 2){ erroEm('#erro-vinculo','Informe o nome da empresa.'); return; }
   btn.disabled = true; btn.textContent = 'Criando…';
-  try{ await auth({acao:'criar_empresa', nome}); }
+  const nomeLoja = ($('#vn-loja') && $('#vn-loja').value.trim()) || '';
+  try{ await auth({acao:'criar_empresa', nome, loja: nomeLoja}); }
   catch(e){ btn.disabled=false; btn.textContent='Criar empresa'; erroEm('#erro-vinculo', erroAmigavel(e)); return; }
   await DB.carregarEmpresa();
-  await criarLojaPadrao(nome);
   btn.disabled = false; btn.textContent = 'Criar empresa';
   await abrirApp();
-}
-
-async function criarLojaPadrao(nome){
-   const params = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:'P',
-                   minCaixa:2, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
-                   minDia:{0:7, 1:7, 2:9, 3:9, 4:9, 5:9, 6:9}};
-   const id = await DB.criarLoja(nome || 'Minha loja', params);
-   const novas = {};
-   novas[id] = {nome: nome || 'Minha loja', params, _ordem:0, colabs: []};
-   await DB.salvarLojas(novas);
 }
 
 async function entrarPorConvite(){
@@ -154,19 +144,6 @@ async function entrarPorConvite(){
   await abrirApp();
 }
 
-/* semeia as duas lojas de exemplo na primeira vez */
-async function semearLojas(){
-  const base = seedLojas();
-  const novas = {};
-  for(const [, l] of Object.entries(base)){
-    const id = await DB.criarLoja(l.nome, l.params);
-    novas[id] = {nome: l.nome, params: l.params, _ordem: Object.keys(novas).length,
-                 colabs: l.colabs.map(c=>({nome:c.nome, cargo:c.cargo, horario:c.horario,
-                                           gerente:!!c.gerente, ativo:true, ausencias:[]}))};
-  }
-  await DB.salvarLojas(novas);
-}
-
 /* ---------- pós-login ---------- */
 async function aposLogin(){
   let r;
@@ -179,13 +156,23 @@ async function aposLogin(){
 
 async function abrirApp(){
   mostrarTela('app');
-  $('#quem').textContent = (SESSAO.usuario.nome || SESSAO.usuario.email)
-    + ' · ' + SESSAO.usuario.papel + (SESSAO.empresa ? ' · ' + SESSAO.empresa.nome : '');
+  pintarIdentidade({
+    nome:    SESSAO.usuario.nome,
+    email:   SESSAO.usuario.email,
+    papel:   SESSAO.usuario.papel,
+    empresa: SESSAO.empresa ? SESSAO.empresa.nome : ''
+  });
   S.lojas = await store.get('escala:lojas');
   if(!S.lojas || !Object.keys(S.lojas).length){
-    await criarLojaPadrao(SESSAO.empresa ? SESSAO.empresa.nome : '');
-    S.lojas = await store.get('escala:lojas');
+    // Empresa sem loja: acontece se a criação falhou pela metade. Em vez de
+    // encher com dados de exemplo, a pessoa nomeia a própria loja.
+    const nome = prompt('Qual o nome da sua loja?', SESSAO.empresa ? SESSAO.empresa.nome : 'Minha loja');
+    if(nome && nome.trim()){
+      try{ await DB.criarLoja(nome.trim(), {}); }catch(e){}
+      S.lojas = await store.get('escala:lojas');
+    }
   }
+  if(!S.lojas || !Object.keys(S.lojas).length){ S.lojas = {}; }
   S.loja = Object.keys(S.lojas)[0];
   montar();
   pintarAcessos();
@@ -202,13 +189,53 @@ async function pintarAcessos(){
   const cx = $('#lista-acessos');
   if(!cx) return;
   $('#codigo-convite').textContent = SESSAO.empresa?.codigo_convite || '—';
+  const cxl = document.getElementById('codigos-loja');
+  if(cxl){
+    const lojas = Object.entries(S.lojas || {}).filter(([,l])=>l.codigo);
+    cxl.innerHTML = lojas.length
+      ? lojas.map(([id,l])=>`<div class="cod-loja"><span>${esc(l.nome)}</span>
+          <b class="mono">${esc(l.codigo)}</b></div>`).join('')
+      : '';
+    const bloco = document.getElementById('bloco-codigos-loja');
+    if(bloco) bloco.style.display = lojas.length ? '' : 'none';
+  }
   $('#nome-empresa').textContent = SESSAO.empresa?.nome || '—';
   try{
     const gente = await DB.listarAcessos();
-    cx.innerHTML = `<table class="simples"><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Último acesso</th></tr></thead><tbody>${
-      gente.map(p=>`<tr><td>${esc(p.nome||'—')}</td><td>${esc(p.email||'')}</td><td>${esc(p.papel)}</td>
-        <td class="mono">${p.ultimo_acesso ? new Date(p.ultimo_acesso.replace(' ','T')).toLocaleDateString('pt-BR') : '—'}</td></tr>`).join('')
+    const souAdmin = SESSAO.usuario && SESSAO.usuario.papel === 'admin';
+    const lojas = S.lojas || {};
+    const opcoesLoja = (sel)=> '<option value="">todas as lojas</option>' +
+      Object.entries(lojas).map(([id,l])=>
+        `<option value="${id}"${String(sel)===id?' selected':''}>${esc(l.nome)}</option>`).join('');
+
+    cx.innerHTML = `<table class="simples"><thead><tr>
+        <th>Nome</th><th>E-mail</th><th>Perfil</th><th>Enxerga</th><th>Último acesso</th>
+      </tr></thead><tbody>${
+      gente.map(p=>{
+        const euMesmo = SESSAO.usuario && p.id === SESSAO.usuario.id;
+        const podeMexer = souAdmin && !euMesmo && p.papel !== 'colaborador';
+        const enxerga = podeMexer
+          ? `<select data-loja-de="${p.id}" style="font-size:12px;padding:3px 5px">${opcoesLoja(p.loja_id)}</select>`
+          : esc(p.loja || (p.papel === 'admin' ? 'todas as lojas' : 'todas as lojas'));
+        return `<tr>
+          <td>${esc(p.nome||'—')}${euMesmo?' <span class="chip">você</span>':''}</td>
+          <td>${esc(p.email||'')}</td>
+          <td>${esc(p.papel)}</td>
+          <td>${enxerga}</td>
+          <td class="mono">${p.ultimo_acesso ? new Date(p.ultimo_acesso.replace(' ','T')).toLocaleDateString('pt-BR') : '—'}</td>
+        </tr>`;
+      }).join('')
     }</tbody></table>`;
+
+    cx.querySelectorAll('[data-loja-de]').forEach(sel=>{
+      sel.onchange = async ()=>{
+        try{
+          await auth({acao:'definir_loja', usuario_id: sel.dataset.lojaDe, loja_id: sel.value});
+          sel.style.borderColor = 'var(--v-fg)';
+          setTimeout(()=>{ sel.style.borderColor = ''; }, 1200);
+        }catch(e){ alert(erroAmigavel(e)); pintarAcessos(); }
+      };
+    });
   }catch(e){ cx.innerHTML = `<p class="vazio">${esc(erroAmigavel(e))}</p>`; }
 }
 
