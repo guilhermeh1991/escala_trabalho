@@ -26,6 +26,7 @@ chamar() { # $1=cookies $2=arquivo $3=json $4=csrf
 mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS teste_escala; CREATE DATABASE teste_escala CHARACTER SET utf8mb4;" 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-003-acesso-por-loja.sql 2>/dev/null
 
 cat > api/config.php <<'PHP'
 <?php return [
