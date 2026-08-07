@@ -92,7 +92,7 @@ case 'minha_escala':
 
     // Somente escala publicada. Rascunho não vaza.
     $st = bd()->prepare(
-        'SELECT grade, inicio, fim, publicada_em FROM escalas
+        'SELECT grade, parametros, inicio, fim, publicada_em FROM escalas
           WHERE loja_id = ? AND inicio = ? AND fim = ? AND publicada = 1 LIMIT 1');
     $st->execute([$ficha['loja_id'], $inicio, $fim]);
     $esc = $st->fetch();
@@ -108,6 +108,12 @@ case 'minha_escala':
 
     $grade = json_decode($esc['grade'], true);
     $minha = $grade[$ficha['id']] ?? null;
+
+    // Horarios ajustados dia a dia. Ficam dentro de "parametros" porque o
+    // motor identifica dia de trabalho pela celula vazia da grade — gravar o
+    // horario ali dentro quebraria a validacao.
+    $params = $esc['parametros'] ? json_decode($esc['parametros'], true) : [];
+    $ajustes = $params['_horas'][$ficha['id']] ?? [];
     if (!is_array($minha)) {
         responder([
             'colaborador' => ['nome' => $ficha['nome'], 'cargo' => $ficha['cargo'],
@@ -125,7 +131,8 @@ case 'minha_escala':
     foreach ($minha as $i => $codigo) {
         $d = $atual->modify("+{$i} day");
         if ($d->format('Y-m-d') > $fim) break;
-        $info = descreverDia((string)$codigo, $ficha['horario']);
+        $horaDoDia = $ajustes[(string)$i] ?? ($ajustes[$i] ?? $ficha['horario']);
+        $info = descreverDia((string)$codigo, $horaDoDia);
         if ($info['tipo'] === 'folga') $folgas++;
         if ($info['tipo'] === 'trabalho') $trabalhados++;
         $dias[] = [
@@ -144,7 +151,7 @@ case 'minha_escala':
     // Próximas folgas, contando de hoje
     $hoje = (new DateTimeImmutable('today'))->format('Y-m-d');
     $proximas = array_values(array_filter($dias,
-        fn($d) => $d['tipo'] === 'folga' && $d['data'] >= $hoje));
+        function($d) use ($hoje) { return $d['tipo'] === 'folga' && $d['data'] >= $hoje; }));
 
     responder([
         'colaborador' => [
