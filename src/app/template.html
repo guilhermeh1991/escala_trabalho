@@ -17,7 +17,7 @@
   --r-bg:#F3DBD7; --r-fg:#96332A;   /* atestado */
   --p-bg:#E3DDF2; --p-fg:#50407E;   /* licença */
   --alerta:#B4453C;
-      --radius:3px; --col-fixa-largura:170px;
+  --radius:3px;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -26,6 +26,69 @@ h1,h2,h3,.disp{font-family:Archivo,Inter,sans-serif;letter-spacing:-.01em}
 button{font:inherit;cursor:pointer}
 input,select{font:inherit}
 .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+
+/* ---------- pop-up de edição da célula ---------- */
+.cel-editada{position:relative}
+.cel-editada::after{content:'';position:absolute;left:4px;right:4px;bottom:1px;height:2px;background:var(--teal);border-radius:1px}
+#pop-cel{position:absolute;z-index:60;width:292px;background:#fff;border:1px solid var(--linha);
+  border-radius:10px;box-shadow:0 8px 28px rgba(22,35,43,.16);overflow:hidden;font-size:13px}
+#pop-cel .pc-topo{padding:11px 14px;border-bottom:1px solid #EDF1EE;background:#F7F9F7}
+#pop-cel .pc-nome{font-weight:600;font-size:13px}
+#pop-cel .pc-data{font-size:11.5px;color:var(--fraco)}
+#pop-cel .pc-corpo{padding:12px 14px}
+#pop-cel .pc-rot{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#8A9995;margin-bottom:8px}
+#pop-cel .pc-linha{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+#pop-cel input[type=time]{flex:1;padding:7px 8px;border:1px solid var(--linha);border-radius:6px;
+  font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
+#pop-cel .pc-aplicar{padding:7px 12px;border:0;border-radius:6px;background:var(--texto);color:#fff;
+  font-size:12.5px;font-weight:500;cursor:pointer}
+#pop-cel .pc-atalhos{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+#pop-cel .pc-atalho{padding:4px 9px;border:1px solid var(--linha);border-radius:20px;background:#fff;
+  font-family:'JetBrains Mono',monospace;font-size:11.5px;cursor:pointer}
+#pop-cel .pc-atalho:hover{border-color:var(--teal);color:var(--teal)}
+#pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--fraco);cursor:pointer}
+#pop-cel .pc-repetir input{accent-color:var(--teal);width:14px;height:14px}
+#pop-cel .pc-codigos{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+#pop-cel .pc-cod{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--linha);
+  border-radius:6px;background:#fff;font-size:12px;cursor:pointer;text-align:left}
+#pop-cel .pc-cod:hover{border-color:var(--teal)}
+#pop-cel .pc-cod b{width:13px;height:13px;border-radius:3px;flex-shrink:0}
+#pop-cel .pc-rodape{padding:9px 14px;border-top:1px solid #EDF1EE;background:#F7F9F7;
+  display:flex;justify-content:space-between;align-items:center;gap:10px}
+#pop-cel .pc-link{border:0;background:none;color:var(--fraco);font-size:12px;cursor:pointer;padding:0}
+#pop-cel .pc-link:hover{color:var(--texto)}
+#pop-cel .pc-link.pc-voltar{text-decoration:underline}
+
+/* ---------- escalas salvas ---------- */
+.salva{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--linha)}
+.salva:last-child{border-bottom:0}
+.salva-info{flex:1;min-width:0}
+.salva-tit{font-weight:600;font-size:14px}
+.salva-desc{font-size:12.5px;color:var(--fraco);margin-top:2px;line-height:1.5}
+.salva-desc b{color:var(--texto);font-weight:600}
+.salva-acoes{display:flex;gap:7px;flex-shrink:0}
+.salva-atual{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;background:var(--v-bg);color:var(--v-fg);padding:2px 7px;
+  border-radius:10px;margin-left:7px;vertical-align:1px}
+@media(max-width:620px){
+  .salva{flex-direction:column;align-items:stretch;gap:9px}
+  .salva-acoes{justify-content:flex-start}
+}
+
+/* ---------- faixa de cargo na grade ---------- */
+table.esc tr.grupo td{background:#EDF1EE;border-bottom:1px solid var(--linha);height:20px}
+table.esc tr.grupo td.fixa{background:#EDF1EE;font-size:10px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:#61736D;padding:3px 9px}
+table.esc tr.grupo td.hr{background:#EDF1EE}
+
+/* ---------- excluir escala salva ---------- */
+.salva-excluir{color:var(--fraco)}
+.salva-excluir:hover{border-color:var(--r-fg);color:var(--r-fg);background:var(--r-bg)}
+
+/* ---------- códigos de convite por loja ---------- */
+.cod-loja{display:flex;justify-content:space-between;align-items:center;gap:14px;
+  padding:7px 11px;background:#F4F6F4;border-radius:var(--radius);margin-bottom:5px;font-size:13px}
+.cod-loja b{font-size:14px;letter-spacing:.09em;font-weight:600}
 
 /*CSS_MINHA*/
 /* ---------- params ---------- */
@@ -76,8 +139,21 @@ label{display:block;font-size:12px;font-weight:600;letter-spacing:.06em;text-tra
 #app{display:none}
 header.top{background:var(--tinta);color:#fff;padding:0 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;min-height:56px}
 header.top .marca{font-family:Archivo;font-weight:800;letter-spacing:.16em;font-size:12.5px;text-transform:uppercase;color:#8FC9BE}
-header.top .sel{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:13px;color:#C6D2CE}
-header.top select{background:#26383F;color:#fff;border:1px solid #3C525A;border-radius:var(--radius);padding:6px 8px}
+header.top .sel{margin-left:auto;display:flex;gap:12px;align-items:center;font-size:13px;color:#C6D2CE}
+header.top select{background:#26383F;color:#fff;border:1px solid #3C525A;border-radius:var(--radius);
+  padding:7px 10px;font-size:13.5px;font-weight:500;max-width:220px}
+header.top .divisa{width:1px;height:22px;background:#3C525A;flex-shrink:0}
+header.top .quem{width:29px;height:29px;border-radius:50%;background:#2E4750;color:#8FC9BE;
+  display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;
+  border:1px solid #3C525A;flex-shrink:0;cursor:default;text-transform:uppercase}
+header.top .quem:focus{outline:2px solid #8FC9BE;outline-offset:2px}
+@media(max-width:560px){
+  header.top{padding:0 12px;gap:10px}
+  header.top .marca{font-size:11px;letter-spacing:.12em}
+  header.top .sel{gap:8px}
+  header.top select{max-width:130px;font-size:12.5px}
+  header.top .divisa{display:none}
+}
 nav.tabs{background:var(--tinta2);display:flex;gap:2px;padding:0 20px;overflow-x:auto}
 nav.tabs button{background:transparent;border:0;color:#B9C8C5;padding:11px 15px;font-size:13.5px;font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
 nav.tabs button[aria-current="true"]{color:#fff;border-bottom-color:#8FC9BE}
@@ -91,20 +167,47 @@ main{padding:20px;max-width:1900px;margin:0 auto}
 .grade-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px 16px}
 .grade-form label{margin-top:0}
 
-/* ---------- tabela escala ---------- */
-.scroll{overflow:auto;border:1px solid var(--linha);background:#fff;max-height:72vh}
-table.esc{border-collapse:separate;border-spacing:0;font-size:12px;white-space:nowrap}
+/* ---------- tabela escala ----------
+   As duas primeiras colunas ficam presas na rolagem horizontal. As larguras
+   são declaradas aqui em variáveis e usadas TANTO na largura da coluna QUANTO
+   no deslocamento da coluna seguinte — antes o deslocamento era um número
+   solto, e quando um nome comprido esticava a coluna, a coluna ENTRA subia
+   por cima e escondia o primeiro dia. */
+.esc-quadro{position:relative}
+.scroll{overflow:auto;border:1px solid var(--linha);background:#fff;max-height:72vh;
+  scrollbar-color:#B9C6C0 #EDF1EE;scrollbar-width:thin}
+.scroll::-webkit-scrollbar{height:12px;width:12px}
+.scroll::-webkit-scrollbar-track{background:#EDF1EE}
+.scroll::-webkit-scrollbar-thumb{background:#B9C6C0;border-radius:6px;border:3px solid #EDF1EE}
+.scroll::-webkit-scrollbar-thumb:hover{background:#94A59E}
+
+table.esc{--w-nome:168px;--w-hora:60px;
+  border-collapse:separate;border-spacing:0;font-size:12px;white-space:nowrap}
 table.esc th,table.esc td{border-right:1px solid #E4E9E5;border-bottom:1px solid #E4E9E5;padding:0}
 table.esc thead th{position:sticky;top:0;z-index:3;background:#F4F6F4;font-weight:600;color:var(--fraco);
-  font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:5px 4px;text-align:center}
-table.esc thead tr.datas th{top:24px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--texto);letter-spacing:0;text-transform:none}
-table.esc th.fixa,table.esc td.fixa{position:sticky;left:0;z-index:2;background:#fff;text-align:left;padding:5px 9px;border-right:1px solid var(--linha)}
-table.esc thead th.fixa{z-index:4;background:#F4F6F4}
-table.esc td.fixa .nome{font-weight:600;font-size:12.5px}
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:5px 4px;text-align:center;
+  height:24px;box-sizing:border-box}
+table.esc thead tr.datas th{top:24px;font-family:'JetBrains Mono',monospace;font-size:11px;
+  color:var(--texto);letter-spacing:0;text-transform:none}
+
+/* coluna 1 — nome e cargo */
+table.esc th.fixa,table.esc td.fixa{position:sticky;left:0;z-index:2;background:#fff;text-align:left;
+  padding:5px 9px;width:var(--w-nome);min-width:var(--w-nome);max-width:var(--w-nome);
+  box-sizing:border-box;overflow:hidden}
+table.esc thead th.fixa{z-index:5;background:#F4F6F4}
+table.esc td.fixa .nome{font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis}
 table.esc td.fixa .cargo{color:var(--fraco);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
-table.esc td.hr{position:sticky;left:var(--col-fixa-largura);z-index:2;background:#fff;font-family:'JetBrains Mono',monospace;
-      font-size:11px;color:var(--fraco);padding:0 8px;text-align:center;border-right:1px solid var(--linha);box-shadow:6px 0 6px -6px rgba(22,35,43,.25)}
-table.esc thead th.hr{left:var(--col-fixa-largura);z-index:4;background:#F4F6F4}
+
+/* coluna 2 — horário de entrada. O left vem da largura da coluna 1. */
+table.esc th.hr,table.esc td.hr{position:sticky;left:var(--w-nome);z-index:2;background:#fff;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--fraco);padding:0 6px;text-align:center;
+  width:var(--w-hora);min-width:var(--w-hora);max-width:var(--w-hora);box-sizing:border-box}
+table.esc thead th.hr{z-index:5;background:#F4F6F4}
+
+/* sombra na divisa, para ficar claro que a tabela corre para o lado */
+table.esc th.hr::after,table.esc td.hr::after{content:'';position:absolute;top:0;right:0;bottom:0;
+  width:6px;transform:translateX(100%);pointer-events:none;
+  background:linear-gradient(to right,rgba(22,35,43,.10),transparent)}
 td.cel{text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;width:38px;min-width:38px;height:30px;cursor:pointer;user-select:none}
 td.cel:hover{outline:2px solid var(--teal);outline-offset:-2px}
 td.cel.fds{background:#F7F9F7}
@@ -114,8 +217,12 @@ td.cel[data-cod="F"]{background:var(--a-bg);color:var(--a-fg);font-weight:600}
 td.cel[data-cod="AT"]{background:var(--r-bg);color:var(--r-fg);font-weight:600}
 td.cel[data-cod="LC"]{background:var(--p-bg);color:var(--p-fg);font-weight:600}
 tr.sep td{height:6px;background:var(--fundo);border:0}
+tr.sep td.fixa,tr.sep td.hr{background:var(--fundo);border:0}
 tfoot td{font-size:11px;text-align:center;font-family:'JetBrains Mono',monospace;background:#F4F6F4;height:24px}
-tfoot td.fixa{font-family:Inter;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--fraco);background:#F4F6F4}
+tfoot td{position:sticky;bottom:0;z-index:3}
+tfoot td.fixa{position:sticky;left:0;z-index:5;font-family:Inter;font-weight:600;font-size:11px;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--fraco);background:#F4F6F4}
+tfoot td.hr{position:sticky;left:var(--w-nome);z-index:5;background:#F4F6F4}
 tfoot td.furo{background:var(--r-bg);color:var(--r-fg);font-weight:700}
 tfoot td.leve{background:var(--m-bg);color:var(--m-fg);font-weight:600}
 th.domingo{color:var(--v-fg)}
@@ -169,9 +276,9 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
   <header class="top">
     <div class="marca">Quadro de escala</div>
     <div class="sel">
-      <span>Loja</span>
-      <select id="sel-loja"></select>
-      <span id="quem"></span>
+      <select id="sel-loja" aria-label="Loja"></select>
+      <span class="divisa" aria-hidden="true"></span>
+      <span id="quem" class="quem" tabindex="0"></span>
       <button class="btn ghost small" id="btn-sair" style="border-color:#3C525A;color:#C6D2CE;background:transparent">Sair</button>
     </div>
   </header>
@@ -192,6 +299,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           <button class="btn" id="btn-gerar">Gerar escala</button>
           <button class="btn ghost" id="btn-salvar">Salvar</button>
           <button class="btn ghost" id="btn-xlsx">Baixar planilha</button>
+      <button class="btn ghost" id="btn-pdf">Baixar PDF</button>
           <button class="btn ghost" id="btn-print">Imprimir</button>
           <span id="status-salvo" class="chip"></span>
         </div>
@@ -210,6 +318,13 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           <span><b style="background:var(--r-bg);border:1px solid var(--r-fg)"></b>rodapé vermelho: abaixo do mínimo</span>
           <span style="margin-left:auto">Clique na célula para trocar o código.</span>
         </div>
+      </div>
+
+      <div class="painel naoimprime" id="painel-salvas" style="display:none">
+        <h2>Escalas salvas</h2>
+        <p class="desc">Cada gravação fica registrada aqui. Baixe em PDF para
+        imprimir, arquivar ou mandar para a equipe.</p>
+        <div id="lista-salvas"></div>
       </div>
 
       <div class="cols2 naoimprime">
@@ -260,13 +375,13 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <div class="hint">No 6x1, o domingo do ciclo vem por cima da folga semanal.</div>
           </div>
           <div class="pg-cel">
-            <label>Domingos: folga a cada</label>
+            <label>Ciclo de domingos</label>
             <select id="r-ciclo" class="inp">
-              <option value="2">2 domingos trabalhados</option>
-              <option value="3">3 domingos trabalhados</option>
-              <option value="4">4 domingos trabalhados</option>
+              <option value="2">Trabalha 1 domingo, folga 1</option>
+              <option value="3">Trabalha 2 domingos, folga 1</option>
+              <option value="4">Trabalha 3 domingos, folga 1</option>
             </select>
-            <div class="hint">Lei 10.101/2000: máximo 2 domingos seguidos.</div>
+            <div class="hint" id="hint-ciclo"></div>
           </div>
           <div class="pg-cel">
             <label>Máx. dias seguidos trabalhados</label>
@@ -385,6 +500,10 @@ const store = {
   async set(k,v){
     mem[k] = v;
     try{ await window.storage.set(k, JSON.stringify(v)); }catch(e){}
+  },
+  async del(k){
+    delete mem[k];
+    try{ await window.storage.delete(k); }catch(e){}
   }
 };
 async function sha256(txt){
@@ -481,7 +600,7 @@ async function entrar(){
   if(!achou){ $('#lg-erro').textContent = 'Usuário ou senha não conferem.'; return; }
   S.usuario = achou;
   $('#login').style.display='none'; $('#app').style.display='block';
-  $('#quem').textContent = achou.u + ' · ' + (achou.papel==='admin'?'admin':'gestor');
+  pintarIdentidade({nome: achou.u, papel: achou.papel==='admin'?'admin':'gestor'});
   montar();
 }
 $('#btn-sair').onclick = ()=>{ location.reload(); };
@@ -497,12 +616,12 @@ function montar(){
   const sel = $('#sel-loja'); sel.innerHTML='';
   Object.keys(S.lojas).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=S.lojas[k].nome; sel.appendChild(o); });
   sel.value = S.loja;
-  sel.onchange = async ()=>{ S.loja = sel.value; await carregarPeriodoSalvo(); pintarParams(); pintarEquipe(); pintarAus(); };
+  sel.onchange = async ()=>{ S.loja = sel.value; await carregarPeriodoSalvo(); pintarParams(); pintarEquipe(); pintarAus(); pintarSalvas(); };
   const hoje = new Date();
   const ini = new Date(hoje.getFullYear(), hoje.getMonth()+1, 11);
   const fim = new Date(hoje.getFullYear(), hoje.getMonth()+2, 10);
   $('#p-inicio').value = ymd(ini); $('#p-fim').value = ymd(fim);
-  pintarParams(); pintarEquipe(); pintarAus(); pintarUsers(); carregarPeriodoSalvo();
+  pintarParams(); pintarEquipe(); pintarAus(); pintarUsers(); carregarPeriodoSalvo(); pintarSalvas();
 }
 const loja = ()=>S.lojas[S.loja];
 const chaveGrade = ()=>`escala:grade:${S.loja}:${$('#p-inicio').value}_${$('#p-fim').value}`;
@@ -529,12 +648,13 @@ function pintarParams(){
   pintarMinDias();
   const p = loja().params;
   $('#r-modelo').value = p.modelo || (p.folgasSemana===1 ? '6x1' : '5x2');
-  $('#r-ciclo').value=p.cicloDomingo; $('#r-maxseq').value=p.maxSeq;
+  $('#r-ciclo').value=p.cicloDomingo; avisoCiclo(); $('#r-maxseq').value=p.maxSeq;
   $('#r-semana').value=String(p.inicioSemana); $('#r-mincaixa').value=p.minCaixa; $('#r-minbalcao').value=p.minBalcao;
   $('#r-minfarma').value=p.minFarma; $('#r-minsubger').value = p.minSubger!=null?p.minSubger:1;
   $('#r-subger').checked = p.subgerFds!==false;
   $('#r-prioridade').value = p.prioridade || 'par';
 }
+$('#r-ciclo').onchange = avisoCiclo;
 $('#btn-salvar-params').onclick = async ()=>{
   const modelo = $('#r-modelo').value;
   loja().params = {modelo, folgasSemana: modelo==='6x1' ? 1 : 2,
@@ -716,16 +836,130 @@ $('#btn-gerar').onclick = ()=>{
   const p = Object.assign({}, loja().params, {inicio:$('#p-inicio').value, fim:$('#p-fim').value});
   if(!p.inicio || !p.fim || p.inicio>=p.fim){ alert('Confira o período: a data final precisa ser depois da inicial.'); return; }
   S.res = gerarEscala(loja().colabs, p);
+  S.res.horas = {};
   S.val = validar(S.res, loja().colabs);
-  S.salvo = false; pintarGrade(); $('#grade').scrollLeft = 0;
+  S.salvo = false; pintarGrade();
 };
 $('#btn-salvar').onclick = async ()=>{
   if(!S.res) return;
   const dados = {inicio:$('#p-inicio').value, fim:$('#p-fim').value, grid:S.res.grid, params:S.res.params,
-                 ordem:S.res.ativos.map(c=>c.id)};
+                 horas:S.res.horas||{}, ordem:S.res.ativos.map(c=>c.id)};
   await store.set(chaveGrade(), dados);
   S.salvo = true; marcarSalvo();
+  registrarSalva();
+  pintarSalvas();
 };
+
+/* ---------- registro das escalas salvas ---------- */
+function chaveSalvas(){ return 'escala:salvas:' + S.loja; }
+
+function resumoDaEscala(){
+  const feridas = S.val ? S.val.alertas.filter(a=>a.nivel!=='nota').length : 0;
+  const notas   = S.val ? S.val.alertas.filter(a=>a.nivel==='nota').length : 0;
+  const folgas  = S.res.ativos.reduce((t,c)=>t + S.res.grid[c.id].filter(v=>v==='X').length, 0);
+  const ajustes = Object.values(S.res.horas||{}).reduce((t,m)=>t + Object.keys(m).length, 0);
+  return {inicio:$('#p-inicio').value, fim:$('#p-fim').value,
+    dias:S.res.days.length, pessoas:S.res.ativos.length,
+    modelo:(S.res.params.modelo || '5x2'), folgas, feridas, notas, ajustes,
+    em:new Date().toISOString()};
+}
+
+function lerSalvas(){
+  try{ return JSON.parse(localStorage.getItem(chaveSalvas()) || '[]'); }catch(e){ return []; }
+}
+
+function registrarSalva(){
+  const lista = lerSalvas().filter(x=>!(x.inicio===$('#p-inicio').value && x.fim===$('#p-fim').value));
+  lista.unshift(resumoDaEscala());
+  try{ localStorage.setItem(chaveSalvas(), JSON.stringify(lista.slice(0,24))); }catch(e){}
+}
+
+function pintarSalvas(){
+  const painel = $('#painel-salvas'), cx = $('#lista-salvas');
+  if(!painel || !cx) return;
+  const lista = lerSalvas();
+  if(!lista.length){ painel.style.display = 'none'; return; }
+  painel.style.display = '';
+  const dt = iso => { const [a,m,d] = String(iso).split('-'); return d + '/' + m; };
+  cx.innerHTML = lista.map((x,k)=>{
+    const atual = x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value;
+    const partes = [`<b>${x.pessoas}</b> pessoas`, `<b>${x.dias}</b> dias`,
+                    `modelo <b>${esc(x.modelo)}</b>`, `<b>${x.folgas}</b> folgas no total`];
+    if(x.ajustes) partes.push(`<b>${x.ajustes}</b> horário(s) ajustado(s)`);
+    partes.push(x.feridas ? `<b style="color:var(--alerta)">${x.feridas} regra(s) ferida(s)</b>`
+                          : 'sem regra ferida');
+    const q = new Date(x.em);
+    return `<div class="salva">
+      <div class="salva-info">
+        <div class="salva-tit">${dt(x.inicio)} a ${dt(x.fim)}${atual ? '<span class="salva-atual">aberta</span>' : ''}</div>
+        <div class="salva-desc">${partes.join(' · ')}<br>salva em ${q.toLocaleDateString('pt-BR')} às ${q.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div class="salva-acoes">${atual
+        ? '<button class="btn small" data-pdf="1">Baixar PDF</button>'
+        : '<button class="btn ghost small" data-abrir="' + k + '">Abrir</button>'}
+        <button class="btn ghost small salva-excluir" data-excluir="${k}" title="Excluir esta escala">Excluir</button></div>
+    </div>`;
+  }).join('');
+  cx.querySelectorAll('[data-pdf]').forEach(b=>{ b.onclick = baixarPdf; });
+  cx.querySelectorAll('[data-abrir]').forEach(b=>{
+    b.onclick = async ()=>{
+      const x = lerSalvas()[+b.dataset.abrir];
+      if(!x) return;
+      $('#p-inicio').value = x.inicio; $('#p-fim').value = x.fim;
+      await carregarPeriodoSalvo(); pintarSalvas();
+    };
+  });
+  cx.querySelectorAll('[data-excluir]').forEach(b=>{
+    b.onclick = ()=> excluirSalva(+b.dataset.excluir);
+  });
+}
+
+/* Exclui a escala do período: apaga do banco (ou do dispositivo, na versão
+   offline) e tira da lista. O que fica na tela continua até você gerar outra —
+   assim dá para desfazer salvando de novo, se tiver sido engano. */
+async function excluirSalva(k){
+  const lista = lerSalvas();
+  const x = lista[k];
+  if(!x) return;
+  const dt = iso => { const [a,m,d] = String(iso).split('-'); return d + '/' + m; };
+  if(!confirm(`Excluir a escala de ${dt(x.inicio)} a ${dt(x.fim)}?\n\n`
+            + `A escala gravada será apagada e não dá para desfazer. `
+            + `A equipe e os parâmetros não são afetados.`)) return;
+
+  try{
+    if(store.del) await store.del(`escala:grade:${S.loja}:${x.inicio}_${x.fim}`);
+  }catch(e){
+    alert('Não foi possível excluir no servidor: ' + (e && e.message ? e.message : e));
+    return;
+  }
+  lista.splice(k, 1);
+  try{ localStorage.setItem(chaveSalvas(), JSON.stringify(lista)); }catch(e){}
+
+  // se era o período aberto, limpa a tela
+  if(x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value){
+    S.res = null; S.val = null; S.salvo = true;
+    $('#grade').innerHTML = '<p class="vazio">Escala excluída. Clique em Gerar escala para montar outra.</p>';
+    $('#lista-alertas').innerHTML = '';
+    $('#cont-alertas').textContent = '';
+    $('#resumo-cobertura').innerHTML = '';
+  }
+  pintarSalvas();
+}
+
+function baixarPdf(){
+  if(!S.res){ alert('Gere a escala antes de baixar.'); return; }
+  const D = dadosDaEscala();
+  D.horaDe = (c, i) => horaDoDia(c, i);
+  D.faixaDe = faixaDe;
+  D.rotuloFaixa = (g) => FAIXAS_CARGO[g].rotulo;
+  const bytes = gerarPdfEscala(D, loja().nome);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+  a.download = 'escala_' + loja().nome.replace(/[^\w]+/g,'_') + '_'
+             + $('#p-inicio').value + '_a_' + $('#p-fim').value + '.pdf';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
 async function carregarPeriodoSalvo(){
   S.res=null; S.val=null;
   const d = await store.get(chaveGrade());
@@ -733,6 +967,7 @@ async function carregarPeriodoSalvo(){
     const p = Object.assign({}, loja().params, d.params||{}, {inicio:d.inicio, fim:d.fim});
     const base = gerarEscala(loja().colabs, p);
     Object.keys(d.grid).forEach(id=>{ if(base.grid[id]) base.grid[id] = d.grid[id]; });
+    base.horas = d.horas || {};
     S.res = base; S.val = validar(S.res, loja().colabs); S.salvo = true;
   }
   pintarGrade();
@@ -745,13 +980,306 @@ function marcarSalvo(){
 }
 function esc(s){ return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 
+/* As duas primeiras colunas ficam presas na rolagem horizontal. O quanto a
+   segunda precisa se deslocar depende da largura REAL da primeira, que muda
+   conforme o nome mais longo da equipe e a fonte que o navegador carregou.
+   Cravar o número no CSS foi o que escondia os primeiros dias atrás das
+   colunas fixas — aqui a medida é tirada do próprio desenho da página. */
+function ajustarColunasFixas(box){
+  const tabela = box.querySelector('table.esc');
+  if(!tabela) return;
+
+  const medir = ()=>{
+    const primeira = tabela.querySelector('thead th.fixa');
+    if(!primeira) return;
+    const larg = Math.round(primeira.getBoundingClientRect().width);
+    if(larg > 0) tabela.style.setProperty('--w-nome', larg + 'px');
+    // a grade recém-montada sempre começa no primeiro dia do período
+    box.scrollLeft = 0;
+  };
+
+  medir();
+  // as fontes podem chegar depois e mudar a largura; remede quando chegarem
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(medir).catch(()=>{});
+  requestAnimationFrame(medir);
+
+  if(window.ResizeObserver && !box._observando){
+    const alvo = tabela.querySelector('thead th.fixa');
+    if(alvo){
+      new ResizeObserver(medir).observe(alvo);
+      box._observando = true;
+    }
+  }
+}
+
+
+/* ============================================================
+   HORÁRIOS AJUSTADOS POR DIA
+   O motor distingue "trabalha" de "folga" pela célula estar vazia.
+   Por isso o horário ajustado NÃO vai para dentro da grade: fica
+   num mapa à parte. Assim a validação e a contagem de cobertura
+   continuam funcionando sem saber que o horário mudou.
+   ============================================================ */
+function mapaHoras(){
+  if(!S.res) return {};
+  if(!S.res.horas) S.res.horas = {};
+  return S.res.horas;
+}
+function horaAjustada(id, i){
+  const m = mapaHoras()[id];
+  return (m && m[i] != null) ? m[i] : null;
+}
+function horaDoDia(c, i){
+  const a = horaAjustada(c.id, i);
+  return a != null ? a : horaEntrada(c);
+}
+function definirHora(id, i, valor){
+  const m = mapaHoras();
+  if(valor == null){ if(m[id]){ delete m[id][i]; if(!Object.keys(m[id]).length) delete m[id]; } return; }
+  if(!m[id]) m[id] = {};
+  m[id][i] = valor;
+}
+
+/* ---------- pop-up de edição da célula ---------- */
+function fecharPopupCelula(){
+  const p = document.getElementById('pop-cel');
+  if(p) p.remove();
+  document.removeEventListener('keydown', _escFecha, true);
+  document.removeEventListener('click', _foraFecha, true);
+}
+function _escFecha(e){ if(e.key === 'Escape'){ e.stopPropagation(); fecharPopupCelula(); } }
+function _foraFecha(e){
+  const p = document.getElementById('pop-cel');
+  if(p && !p.contains(e.target)) fecharPopupCelula();
+}
+
+function abrirPopupCelula(td){
+  fecharPopupCelula();
+  const id = td.dataset.id, i = +td.dataset.i;
+  const c = S.res.ativos.find(x=>x.id===id);
+  if(!c) return;
+  const dia = S.res.days[i];
+  const cod = S.res.grid[id][i];
+  const padrao = (horaEntrada(c)||'').slice(0,5) || '09:00';
+  const atual = (horaDoDia(c, i)||'').slice(0,5) || padrao;
+  const ajustada = horaAjustada(id, i);
+
+  // horários já praticados na loja, para escolher com um clique
+  const atalhos = [...new Set(loja().colabs.map(x=>(horaEntrada(x)||'').slice(0,5)).filter(Boolean))]
+                  .sort().slice(0, 6);
+
+  const DIA_NOMES = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  const CODIGOS = [
+    ['X',  'X folga',        '#D8EDE2', '#14663F'],
+    ['FC', 'FC compens.',    '#F6E7C4', '#8A5E06'],
+    ['F',  'F férias',       '#D7E5F0', '#1F5580'],
+    ['AT', 'AT atestado',    '#F3DBD7', '#96332A'],
+    ['LC', 'LC licença',     '#E3DDF2', '#50407E']
+  ];
+
+  const pop = document.createElement('div');
+  pop.id = 'pop-cel';
+  pop.innerHTML = `
+    <div class="pc-topo">
+      <div class="pc-nome">${esc(c.nome)}</div>
+      <div class="pc-data">${DIA_NOMES[dia.getDay()]}, ${ddmm(dia)}</div>
+    </div>
+    <div class="pc-corpo">
+      <div class="pc-rot">Trabalha — horário de entrada</div>
+      <div class="pc-linha">
+        <input type="time" id="pc-hora" value="${atual}">
+        <button class="pc-aplicar" id="pc-ok">Aplicar</button>
+      </div>
+      ${atalhos.length ? `<div class="pc-atalhos">${atalhos.map(a=>
+        `<button class="pc-atalho" data-h="${a}">${a}</button>`).join('')}</div>` : ''}
+      <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
+        repetir deste dia até o fim do período</label>
+    </div>
+    <div class="pc-corpo" style="padding-top:0">
+      <div class="pc-rot">Não trabalha</div>
+      <div class="pc-codigos">
+        ${CODIGOS.map(([k,rot,bg,fg],n)=>
+          `<button class="pc-cod" data-cod="${k}"${n===4?' style="grid-column:span 2"':''}>
+             <b style="background:${bg};border:1px solid ${fg}"></b>${rot}</button>`).join('')}
+      </div>
+    </div>
+    <div class="pc-rodape">
+      ${(cod!=='' || ajustada!=null)
+        ? `<button class="pc-link pc-voltar" id="pc-limpar">Voltar ao padrão (${padrao})</button>`
+        : '<span></span>'}
+      <button class="pc-link" id="pc-fechar">Fechar</button>
+    </div>`;
+
+  document.body.appendChild(pop);
+
+  // posicionar junto da célula, sem sair da janela
+  const r = td.getBoundingClientRect();
+  const lp = pop.getBoundingClientRect();
+  let esq = r.left + window.scrollX;
+  let topo = r.bottom + window.scrollY + 6;
+  if(esq + lp.width > window.scrollX + document.documentElement.clientWidth - 10)
+    esq = window.scrollX + document.documentElement.clientWidth - lp.width - 10;
+  if(esq < window.scrollX + 8) esq = window.scrollX + 8;
+  if(r.bottom + lp.height + 12 > document.documentElement.clientHeight)
+    topo = r.top + window.scrollY - lp.height - 6;
+  pop.style.left = esq + 'px';
+  pop.style.top  = Math.max(window.scrollY + 8, topo) + 'px';
+
+  const aplicar = ()=>{
+    S.val = validar(S.res, loja().colabs);
+    S.salvo = false;
+    fecharPopupCelula();
+    pintarGrade();
+  };
+
+  const porHora = (valor)=>{
+    const repetir = document.getElementById('pc-repetir').checked;
+    const ate = repetir ? S.res.days.length - 1 : i;
+    for(let k=i; k<=ate; k++){
+      // só mexe em dia de trabalho: folga, férias e atestado ficam como estão
+      if(S.res.grid[id][k] !== '') continue;
+      definirHora(id, k, valor === padrao ? null : valor);
+    }
+    aplicar();
+  };
+
+  document.getElementById('pc-ok').onclick = ()=>{
+    const v = document.getElementById('pc-hora').value;
+    if(!v) return;
+    if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';   // voltou a trabalhar
+    porHora(v);
+  };
+  pop.querySelectorAll('.pc-atalho').forEach(b=>{
+    b.onclick = ()=>{
+      document.getElementById('pc-hora').value = b.dataset.h;
+      if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';
+      porHora(b.dataset.h);
+    };
+  });
+  pop.querySelectorAll('.pc-cod').forEach(b=>{
+    b.onclick = ()=>{
+      const repetir = document.getElementById('pc-repetir').checked;
+      const ate = repetir ? S.res.days.length - 1 : i;
+      for(let k=i; k<=ate; k++){
+        S.res.grid[id][k] = b.dataset.cod;
+        definirHora(id, k, null);
+        if(!repetir) break;
+      }
+      aplicar();
+    };
+  });
+  const limpar = document.getElementById('pc-limpar');
+  if(limpar) limpar.onclick = ()=>{
+    S.res.grid[id][i] = '';
+    definirHora(id, i, null);
+    aplicar();
+  };
+  document.getElementById('pc-fechar').onclick = fecharPopupCelula;
+
+  setTimeout(()=>{
+    document.addEventListener('keydown', _escFecha, true);
+    document.addEventListener('click', _foraFecha, true);
+  }, 0);
+}
+
+
+/* Identidade de quem esta conectado.
+   O cabecalho mostrava "nome · papel · empresa" sempre. Quando a pessoa usa o
+   mesmo nome para a loja, a empresa e o proprio usuario — que e o caso comum
+   em rede pequena — isso virava a mesma palavra tres vezes. Agora o circulo
+   traz so a inicial, e o texto completo, ja sem repeticoes, fica no tooltip. */
+const NOME_PAPEL = {admin:'administrador', gestor:'gestor', leitor:'leitor', colaborador:'colaborador'};
+
+function pintarIdentidade(dados){
+  const el = document.getElementById('quem');
+  if(!el) return;
+  const d = dados || {};
+  const nome = (d.nome || d.email || '').trim();
+  const papel = NOME_PAPEL[d.papel] || d.papel || '';
+  const empresa = (d.empresa || '').trim();
+
+  // inicial do circulo
+  el.textContent = (nome || empresa || '?').trim().charAt(0) || '?';
+
+  // tooltip: junta as partes descartando as repetidas
+  const vistas = new Set();
+  const partes = [];
+  [nome, papel, empresa].forEach(v=>{
+    const chave = (v||'').toLowerCase();
+    if(!chave || vistas.has(chave)) return;
+    vistas.add(chave); partes.push(v);
+  });
+  if(d.email && !vistas.has((d.email||'').toLowerCase())) partes.push(d.email);
+  const txt = partes.join(' · ');
+  el.title = txt;
+  el.setAttribute('aria-label', 'Conectado como ' + txt);
+}
+
+
+/* O valor do campo é o tamanho do ciclo: 3 quer dizer "folga a cada 3
+   domingos", ou seja, trabalha 2 e folga 1. O rótulo antigo dizia
+   "3 domingos trabalhados", o que dava a entender o contrário. */
+function avisoCiclo(){
+  const el = document.getElementById('hint-ciclo');
+  const sel = document.getElementById('r-ciclo');
+  if(!el || !sel) return;
+  const v = +sel.value;
+  const trabalhados = v - 1;
+  if(trabalhados >= 3){
+    el.innerHTML = '<b style="color:var(--alerta)">Fora da lei.</b> A Lei 10.101/2000 admite '
+                 + 'no máximo 2 domingos seguidos trabalhados.';
+  } else if(trabalhados === 2){
+    el.textContent = 'É o limite da Lei 10.101/2000: no máximo 2 domingos seguidos trabalhados.';
+  } else {
+    el.textContent = 'Mais folgas de domingo do que a lei exige. Precisa de equipe maior no fim de semana.';
+  }
+}
+
+/* ============================================================
+   ORDEM DE EXIBIÇÃO POR CARGO
+   Só afeta como a grade é mostrada e exportada. O motor continua
+   com a ordem dele, que influencia a distribuição dos domingos —
+   mexer ali mudaria a escala gerada, não só a aparência.
+   ============================================================ */
+const FAIXAS_CARGO = [
+  /* Atenção à ordem e ao "SUB": a palavra SUBGERENTE contém GERENTE, então o
+     teste da gerência precisa recusar quem é subgerente antes de aceitar.
+     E vale tanto a caixa "gerente" marcada quanto o cargo escrito GERENTE —
+     antes só a caixa contava, e quem tinha o cargo sem marcar a caixa não
+     entrava em nenhum grupo e caía em Apoio. */
+  {chave:'gerencia',  rotulo:'Gerência',      teste: c => {
+      const up = (c.cargo||'').toUpperCase();
+      if(/SUBGER|^SUB\//.test(up)) return false;
+      return !!c.gerente || /GERENTE|GERENCIA|GERÊNCIA/.test(up);
+    }},
+  {chave:'subger',    rotulo:'Subgerência',   teste: c => /SUBGER|^SUB\//.test((c.cargo||'').toUpperCase())},
+  {chave:'farma',     rotulo:'Farmacêuticos', teste: c => /FARMA/.test((c.cargo||'').toUpperCase())},
+  {chave:'balcao',    rotulo:'Balcão',        teste: c => /BALCON/.test((c.cargo||'').toUpperCase())},
+  {chave:'caixa',     rotulo:'Caixas',        teste: c => /CAIXA/.test((c.cargo||'').toUpperCase())},
+  {chave:'apoio',     rotulo:'Apoio',         teste: () => true}
+];
+
+function faixaDe(c){
+  for(let i=0;i<FAIXAS_CARGO.length;i++) if(FAIXAS_CARGO[i].teste(c)) return i;
+  return FAIXAS_CARGO.length - 1;
+}
+
+/* Ordena por cargo mantendo, dentro de cada faixa, a ordem que veio da
+   equipe — quem foi cadastrado antes aparece antes. */
+function ordenarPorCargo(lista){
+  return lista.map((c,i)=>({c, i, f: faixaDe(c)}))
+              .sort((a,b)=> a.f - b.f || a.i - b.i)
+              .map(x=>x.c);
+}
+
 function pintarGrade(){
   marcarSalvo();
   const box = $('#grade');
   if(!S.res){ box.innerHTML = `<div class="vazio" style="padding:48px">Escolha o período e clique em <b>Gerar escala</b>.</div>`;
     $('#lista-alertas').innerHTML=''; $('#cont-alertas').textContent=''; $('#tab-resumo').innerHTML='';
     $('#resumo-cobertura').innerHTML=''; return; }
-  const {days, grid, ativos} = S.res;
+  const {days, grid} = S.res;
+  const ativos = ordenarPorCargo(S.res.ativos);
   const P = S.res.params;
 
   let h = '<table class="esc"><thead><tr><th class="fixa">Colaborador</th><th class="hr">Entra</th>';
@@ -760,17 +1288,27 @@ function pintarGrade(){
   days.forEach(d=>{ h += `<th class="${d.getDay()===0?'domingo':''}">${ddmm(d)}</th>`; });
   h += '<th></th></tr></thead><tbody>';
 
-  let grupoAnterior = null;
+  let faixaAnterior = null;
   ativos.forEach(c=>{
-    const g = grupoDe(c);
-    if(grupoAnterior!==null && g!==grupoAnterior) h += `<tr class="sep"><td colspan="${days.length+3}"></td></tr>`;
-    grupoAnterior = g;
+    const g = faixaDe(c);
+    if(g !== faixaAnterior){
+      if(faixaAnterior !== null)
+        h += `<tr class="sep"><td class="fixa"></td><td class="hr"></td><td colspan="${days.length+1}"></td></tr>`;
+      h += `<tr class="grupo"><td class="fixa">${esc(FAIXAS_CARGO[g].rotulo)}</td>`
+         + `<td class="hr"></td><td colspan="${days.length+1}"></td></tr>`;
+    }
+    faixaAnterior = g;
     h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome">${esc(c.nome)}</div><div class="cargo">${esc(c.cargo)}${c.gerente?' · gerente':''}</div></td>`;
     h += `<td class="hr">${horaEntrada(c)}</td>`;
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
-      const txt = cod==='' ? horaEntrada(c).slice(0,5) : cod;
-      h += `<td class="cel${d.getDay()===0||d.getDay()===6?' fds':''}" data-cod="${cod}" data-i="${i}" data-id="${c.id}">${cod===''?'<span style="color:#8A9995">'+txt+'</span>':txt}</td>`;
+      const mudou = cod==='' && horaAjustada(c.id, i) != null;
+      const txt = cod==='' ? horaDoDia(c, i).slice(0,5) : cod;
+      const cls = 'cel' + (d.getDay()===0||d.getDay()===6?' fds':'') + (mudou?' cel-editada':'');
+      const conteudo = cod===''
+        ? `<span style="color:${mudou?'var(--texto)':'#8A9995'};${mudou?'font-weight:600':''}">${txt}</span>`
+        : txt;
+      h += `<td class="${cls}" data-cod="${cod}" data-i="${i}" data-id="${c.id}">${conteudo}</td>`;
     });
     h += `<td class="cel" style="cursor:default;font-weight:600">${grid[c.id].filter(v=>v==='X'||v==='FC').length}</td></tr>`;
   });
@@ -812,28 +1350,10 @@ function pintarGrade(){
   })();
   h += '</tfoot></table>';
   box.innerHTML = h;
-  requestAnimationFrame(()=>{
-    const elFixa = box.querySelector('table.esc td.fixa');
-    if(!elFixa) return;
-    const medirColunaFixa = ()=>{ const w = elFixa.getBoundingClientRect().width; if(w>0) document.documentElement.style.setProperty('--col-fixa-largura', Math.ceil(w)+'px'); };
-    medirColunaFixa();
-    if(window.ResizeObserver){
-      if(window.__roColFixa) window.__roColFixa.disconnect();
-      window.__roColFixa = new ResizeObserver(medirColunaFixa);
-      window.__roColFixa.observe(elFixa);
-    }
-    if(document.fonts && document.fonts.ready) document.fonts.ready.then(medirColunaFixa);
-  });
+  ajustarColunasFixas(box);
 
   box.querySelectorAll('td.cel[data-i]').forEach(td=>{
-    td.onclick = ()=>{
-      const id = td.dataset.id, i = +td.dataset.i;
-      const atual = S.res.grid[id][i];
-      const prox = CODES[(CODES.indexOf(atual)+1) % CODES.length];
-      S.res.grid[id][i] = prox;
-      S.val = validar(S.res, loja().colabs);
-      S.salvo = false; pintarGrade();
-    };
+    td.onclick = (ev)=>{ ev.stopPropagation(); abrirPopupCelula(td); };
   });
 
   // pendências
@@ -870,7 +1390,8 @@ function pintarGrade(){
 
 // dados da grade num formato só, usado pela planilha e pela impressão
 function dadosDaEscala(){
-  const {days, grid, ativos} = S.res, P = S.res.params, cob = S.val.cobertura;
+  const {days, grid} = S.res, P = S.res.params, cob = S.val.cobertura;
+  const ativos = ordenarPorCargo(S.res.ativos);
   const alvo = P.minDia || {};
   const alvoFa = P.minFarma != null ? P.minFarma : 2;
   const alvoSg = P.minSubger != null ? P.minSubger : 1;
@@ -889,12 +1410,18 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
     .concat(days.map(d=>({v:DIA_ABREV[d.getDay()], e:'cabecalho'}))));
   linhas.push([null,null,null].concat(days.map(d=>({v:ddmm(d), e:(d.getDay()===0||d.getDay()===6)?'dataFds':'data'}))));
 
+  let faixaXls = null;
   ativos.forEach(c=>{
+    const g = faixaDe(c);
+    if(g !== faixaXls){
+      linhas.push([{v:FAIXAS_CARGO[g].rotulo.toUpperCase(), e:'rotulo'}]);
+      faixaXls = g;
+    }
     const l = [{v:c.nome, e:'nome'}, {v:horaEntrada(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const fds = (d.getDay()===0 || d.getDay()===6);
-      if(cod === '') l.push({v: horaEntrada(c), e: fds ? 'trabalhaFds' : 'trabalha'});
+      if(cod === '') l.push({v: horaDoDia(c, i), e: fds ? 'trabalhaFds' : 'trabalha'});
       else l.push({v: cod, e: estiloCod[cod] || 'trabalha'});
     });
     linhas.push(l);
@@ -947,11 +1474,18 @@ function htmlDeImpressao(D, nomeLoja){
   const cor = {'X':['#D8EDE2','#14663F'],'FC':['#F6E7C4','#8A5E06'],'F':['#D7E5F0','#1F5580'],
                'AT':['#F3DBD7','#96332A'],'LC':['#E3DDF2','#50407E']};
   let corpo = '';
+  let faixaImp = null;
   ativos.forEach(c=>{
+    const g = faixaDe(c);
+    if(g !== faixaImp){
+      corpo += `<tr class="gr"><td class="nm">${esc(FAIXAS_CARGO[g].rotulo)}</td><td></td>`
+             + `<td colspan="${days.length}"></td></tr>`;
+      faixaImp = g;
+    }
     corpo += `<tr><td class="nm">${esc(c.nome)}<span>${esc(c.cargo)}</span></td><td class="hr">${horaEntrada(c)}</td>`;
     days.forEach((d,i)=>{
       const v = grid[c.id][i], fds = (d.getDay()===0||d.getDay()===6);
-      if(v==='') corpo += `<td class="${fds?'fds':''}"><i>${horaEntrada(c)}</i></td>`;
+      if(v==='') corpo += `<td class="${fds?'fds':''}"><i>${horaDoDia(c, i)}</i></td>`;
       else { const k = cor[v]||['#fff','#000'];
              corpo += `<td style="background:${k[0]};color:${k[1]};font-weight:700">${v}</td>`; }
     });
@@ -989,6 +1523,7 @@ td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-tran
 td.hr{font-size:7.5px;color:#63736F}
 td i{font-style:normal;color:#8A9995}
 td.fds{background:#F4F7F5}
+tr.gr td{background:#EDF1EE;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#61736D;text-align:left;height:12px}
 tr.rp td{background:#F0F3F1;font-weight:600;font-size:8px}
 tr.rp td.nm{font-size:7.5px;text-transform:uppercase}
 .lg{margin-top:6px;font-size:8px;color:#5b6b66}
@@ -1013,6 +1548,8 @@ ${rodape('De folga', (c,i)=>ativos.filter(x=>grid[x.id][i]==='X'||grid[x.id][i]=
 <div class="lg"><b style="background:#D8EDE2"></b>X folga<b style="background:#F6E7C4"></b>FC compensatória<b style="background:#D7E5F0"></b>F férias<b style="background:#F3DBD7"></b>AT atestado<b style="background:#E3DDF2"></b>LC licença<b style="background:#F3DBD7;border-color:#96332A"></b>rodapé vermelho: abaixo do mínimo<b style="background:#F6E7C4;border-color:#8A5E06"></b>amarelo: abaixo do alvo, tolerado</div>
 </body></html>`;
 }
+
+$('#btn-pdf').onclick = baixarPdf;
 
 $('#btn-print').onclick = ()=>{
   if(!S.res){ alert('Gere a escala antes de imprimir.'); return; }
