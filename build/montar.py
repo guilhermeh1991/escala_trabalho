@@ -75,9 +75,9 @@ fim = web.index('</section>', web.index('</table>', ini)) + len('</section>')
 web = web[:ini] + aba_acessos.strip() + web[fim:]
 
 # 4. indicador de sincronização no cabeçalho
-exigir(web, '<span id="quem"></span>', 'marcador quem')
-web = web.replace('<span id="quem"></span>',
-                  '<span id="sync-estado" style="font-size:12px"></span><span id="quem"></span>', 1)
+exigir(web, '<span id="quem" class="quem" tabindex="0"></span>', 'marcador quem')
+web = web.replace('<span id="quem" class="quem" tabindex="0"></span>',
+                                     '<span id="sync-estado" style="font-size:12px"></span><span id="quem" class="quem" tabindex="0"></span>', 1)
 
 # 5. camada de dados: Supabase no lugar do armazenamento local
 ini = web.index('/* ============================================================\n   ARMAZENAMENTO')
