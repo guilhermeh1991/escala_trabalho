@@ -17,9 +17,20 @@ async function chamar(arquivo, dados){
     ),
     body: JSON.stringify(dados)
   });
+  const texto = await r.text();
   let corpo;
-  try { corpo = await r.json(); }
-  catch(e){ throw new Error('O servidor respondeu algo inesperado. Recarregue a página.'); }
+  try { corpo = JSON.parse(texto); }
+  catch(e){
+    // O servidor não devolveu JSON — quase sempre é erro do PHP saindo como
+    // texto ou HTML. Mostrar o começo da resposta poupa horas de adivinhação.
+    const trecho = texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+    console.error('Resposta não-JSON de ' + arquivo + ' (HTTP ' + r.status + '):', texto.slice(0, 2000));
+    throw new Error(
+      'O servidor respondeu algo inesperado (HTTP ' + r.status + ').' +
+      (trecho ? ' Ele disse: "' + trecho + '"' : ' A resposta veio vazia.') +
+      ' Abra api/diagnostico.php para o relatório completo.'
+    );
+  }
   if(corpo && corpo.csrf) SESSAO.csrf = corpo.csrf;
   if(!r.ok) throw new Error(corpo.erro || 'Falha na comunicação.');
   return corpo;
@@ -100,10 +111,19 @@ const DB = {
   },
   async carregarEscala(lojaId, inicio, fim){
     const r = await dadosApi({acao:'carregar_escala', loja_id:lojaId, inicio, fim});
-    return r.escala ? Object.assign({}, r.escala, {inicio, fim}) : null;
+    if(!r.escala) return null;
+    // os horários ajustados viajam dentro de parametros; separá-los na volta
+    const params = Object.assign({}, r.escala.params || {});
+    const horas = params._horas || {};
+    delete params._horas;
+    return Object.assign({}, r.escala, {inicio, fim, params, horas});
   },
-  async salvarEscala(lojaId, inicio, fim, grade, params){
-    await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:params});
+  async salvarEscala(lojaId, inicio, fim, grade, params, horas){
+    const p = Object.assign({}, params || {}, {_horas: horas || {}});
+    await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:p});
+  },
+  async excluirEscala(lojaId, inicio, fim){
+    await dadosApi({acao:'excluir_escala', loja_id:lojaId, inicio, fim});
   },
   async criarLoja(nome, params){
     const r = await dadosApi({acao:'criar_loja', nome, params});
@@ -119,10 +139,17 @@ const DB = {
 /* ---------- store: mesma interface de sempre ---------- */
 let _timerSync = null, _pendente = null, _sincronizando = false;
 const store = {
+  async del(chave){
+    if(!chave.startsWith('escala:grade:')) return;
+    const [, , lojaId, periodo] = chave.split(':');
+    const [inicio, fim] = (periodo||'').split('_');
+    if(!lojaId || !inicio || !fim) return;
+    await DB.excluirEscala(lojaId, inicio, fim);
+  },
   async get(chave){
     if(chave === 'escala:lojas') return await DB.carregarLojas();
     if(chave.startsWith('escala:grade:')){
-      const [, , , lojaId, periodo] = chave.split(':');
+      const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       if(!lojaId || !inicio || !fim) return null;
       try { return await DB.carregarEscala(lojaId, inicio, fim); }
@@ -145,10 +172,10 @@ const store = {
       return;
     }
     if(chave.startsWith('escala:grade:')){
-      const [, , , lojaId, periodo] = chave.split(':');
+      const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       try{
-        await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params);
+        await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas);
         marcarSync('salvo');
       }catch(e){ marcarSync('erro', erroAmigavel(e)); }
     }
