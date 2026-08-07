@@ -24,10 +24,18 @@ case 'carregar':
     // A equipe inteira só aparece para quem monta escala. Colaborador usa
     // 'minha_escala', que devolve apenas a própria linha.
     exigirGestao($u);
-    $st = bd()->prepare(
-        'SELECT id, nome, parametros, ordem FROM lojas
-          WHERE empresa_id = ? ORDER BY ordem, criado_em');
-    $st->execute([$u['empresa_id']]);
+    // presa a uma loja: as outras nem aparecem no seletor
+    if (vePorLoja($u)) {
+        $st = bd()->prepare(
+            'SELECT id, nome, codigo_convite, parametros, ordem FROM lojas
+              WHERE empresa_id = ? AND id = ?');
+        $st->execute([$u['empresa_id'], $u['loja_id']]);
+    } else {
+        $st = bd()->prepare(
+            'SELECT id, nome, codigo_convite, parametros, ordem FROM lojas
+              WHERE empresa_id = ? ORDER BY ordem, criado_em');
+        $st->execute([$u['empresa_id']]);
+    }
     $lojas = $st->fetchAll();
 
     if (!$lojas) responder(['lojas' => []]);
@@ -79,6 +87,7 @@ case 'carregar':
     foreach ($lojas as $l) {
         $saida[$l['id']] = [
             'nome'   => $l['nome'],
+            'codigo' => $l['codigo_convite'],
             'params' => $l['parametros'] ? json_decode($l['parametros'], true) : new stdClass(),
             'colabs' => $porLoja[$l['id']] ?? [],
             '_ordem' => (int)$l['ordem'],
@@ -99,6 +108,9 @@ case 'salvar':
         foreach ($lojas as $lojaId => $loja) {
             if (!ehUuid((string)$lojaId)) {
                 falhar('Identificador de loja inválido.');
+            }
+            if (vePorLoja($u) && $lojaId !== $u['loja_id']) {
+                falhar('Loja fora do seu acesso.', 403);
             }
             // a loja precisa ser desta empresa, ou ser nova desta empresa
             $st = bd()->prepare('SELECT empresa_id FROM lojas WHERE id = ?');
@@ -278,14 +290,19 @@ case 'excluir_escala':
 case 'criar_loja':
 // -----------------------------------------------------------------------------
     exigirGestao($u);
+    if (vePorLoja($u)) falhar('Seu acesso é de uma loja só.', 403);
     $nome = mb_substr(trim((string)campo($dados, 'nome', 'Nova loja')), 0, 80);
     $id   = uuid();
     $st = bd()->prepare('SELECT COALESCE(MAX(ordem), -1) + 1 FROM lojas WHERE empresa_id = ?');
     $st->execute([$u['empresa_id']]);
     $ordem = (int)$st->fetchColumn();
-    bd()->prepare('INSERT INTO lojas (id, empresa_id, nome, parametros, ordem) VALUES (?,?,?,?,?)')
-        ->execute([$id, $u['empresa_id'], $nome, json_encode(campo($dados, 'params', new stdClass())), $ordem]);
-    responder(['ok' => true, 'id' => $id]);
+    $codigo = codigoConvite();
+    bd()->prepare('INSERT INTO lojas (id, empresa_id, nome, codigo_convite, parametros, ordem)
+                   VALUES (?,?,?,?,?,?)')
+        ->execute([$id, $u['empresa_id'], $nome, $codigo,
+                   json_encode(campo($dados, 'params', new stdClass())), $ordem]);
+    registrar($u['id'], $u['empresa_id'], 'loja_criada', ['nome' => $nome]);
+    responder(['ok' => true, 'id' => $id, 'codigo' => $codigo]);
 
 // -----------------------------------------------------------------------------
 case 'historico':
