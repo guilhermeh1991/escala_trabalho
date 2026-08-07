@@ -129,7 +129,7 @@ async function criarEmpresa(){
   const {error} = await sb.rpc('criar_empresa', {p_nome: nome});
   if(error){ btn.disabled=false; btn.textContent='Criar empresa'; erroEm('#erro-vinculo', erroAmigavel(error)); return; }
   await DB.carregarEmpresa();
-  await semearLojas();
+  await criarPrimeiraLoja(nome);
   btn.disabled = false; btn.textContent = 'Criar empresa';
   await abrirApp();
 }
@@ -147,22 +147,13 @@ async function entrarPorConvite(){
   await abrirApp();
 }
 
-/* semeia as duas lojas de exemplo na primeira vez */
-async function semearLojas(){
-  const base = seedLojas();
-  const lojas = {};
-  for(const [, l] of Object.entries(base)){
-    const {data, error} = await sb.from('lojas')
-      .insert({empresa_id: SESSAO.perfil.empresa_id, nome: l.nome, parametros: l.params, ordem: Object.keys(lojas).length})
-      .select('id').single();
-    if(error) throw error;
-    const linhas = l.colabs.map((c,i)=>({
-      loja_id: data.id, nome: c.nome, cargo: c.cargo, horario: c.horario,
-      gerente: !!c.gerente, ativo: true, ordem: i
-    }));
-    await sb.from('colaboradores').insert(linhas);
-    lojas[data.id] = true;
-  }
+/* Cria a primeira loja da empresa, com o nome que a pessoa escolheu. */
+async function criarPrimeiraLoja(nome){
+  const {data, error} = await sb.from('lojas')
+    .insert({empresa_id: SESSAO.perfil.empresa_id, nome: nome, parametros: {}, ordem: 0})
+    .select('id').single();
+  if(error) throw error;
+  return data.id;
 }
 
 /* ---------- pós-login ---------- */
@@ -178,13 +169,23 @@ async function aposLogin(){
 
 async function abrirApp(){
   mostrarTela('app');
-  $('#quem').textContent = (SESSAO.perfil.nome || SESSAO.usuario.email)
-    + ' · ' + SESSAO.perfil.papel + (SESSAO.empresa ? ' · ' + SESSAO.empresa.nome : '');
+  pintarIdentidade({
+    nome:    SESSAO.perfil.nome,
+    email:   SESSAO.usuario.email,
+    papel:   SESSAO.perfil.papel,
+    empresa: SESSAO.empresa ? SESSAO.empresa.nome : ''
+  });
   S.lojas = await store.get('escala:lojas');
   if(!S.lojas || !Object.keys(S.lojas).length){
-    await semearLojas();
-    S.lojas = await store.get('escala:lojas');
+    // Empresa sem loja: acontece se a criação falhou pela metade. Em vez de
+    // encher com dados de exemplo, a pessoa nomeia a própria loja.
+    const nome = prompt('Qual o nome da sua loja?', SESSAO.empresa ? SESSAO.empresa.nome : 'Minha loja');
+    if(nome && nome.trim()){
+      try{ await DB.criarLoja(nome.trim(), {}); }catch(e){}
+      S.lojas = await store.get('escala:lojas');
+    }
   }
+  if(!S.lojas || !Object.keys(S.lojas).length){ S.lojas = {}; }
   S.loja = Object.keys(S.lojas)[0];
   montar();
   pintarAcessos();
