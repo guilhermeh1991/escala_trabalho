@@ -1,13 +1,27 @@
 # Proteção do diretório da API
 
 # 1. Ninguém baixa o arquivo de configuração pelo navegador
+# Duas sintaxes: a primeira é do Apache 2.4, a segunda do 2.2. Sem os
+# IfModule, um servidor com a versão errada devolve erro 500 em tudo.
 <FilesMatch "^(config|config\.exemplo)\.php$">
-    Require all denied
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
 # 2. Só os três endpoints respondem; qualquer outro arquivo fica fora
 <FilesMatch "\.(sql|md|log|bak|old|txt|ini|json)$">
-    Require all denied
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
 # 3. Sem listagem de diretório
