@@ -161,16 +161,26 @@ const DB = {
       .select('grade, parametros, atualizado_em')
       .eq('loja_id', lojaId).eq('inicio', inicio).eq('fim', fim).maybeSingle();
     if(error) throw error;
-    return data ? {grid: data.grade, params: data.parametros, inicio, fim} : null;
+    if(!data) return null;
+    const params = Object.assign({}, data.parametros || {});
+    const horas = params._horas || {};
+    delete params._horas;
+    return {grid: data.grade, params, horas, inicio, fim};
   },
 
-  async salvarEscala(lojaId, inicio, fim, grade, params){
+  async salvarEscala(lojaId, inicio, fim, grade, params, horas){
+    const p = Object.assign({}, params || {}, {_horas: horas || {}});
     const {error} = await sb.from('escalas').upsert(
-      {loja_id: lojaId, inicio, fim, grade, parametros: params},
+      {loja_id: lojaId, inicio, fim, grade, parametros: p},
       {onConflict: 'loja_id,inicio,fim'});
     if(error) throw error;
   },
 
+  async excluirEscala(lojaId, inicio, fim){
+    const {error} = await sb.from('escalas').delete()
+      .eq('loja_id', lojaId).eq('inicio', inicio).eq('fim', fim);
+    if(error) throw error;
+  },
   async listarAcessos(){
     const {data, error} = await sb.from('perfis')
       .select('id, nome, papel, criado_em')
@@ -191,10 +201,17 @@ const DB = {
 /* ---------- store: mesma interface de antes, agora no banco ---------- */
 let _timerSync = null, _pendente = null, _sincronizando = false;
 const store = {
+  async del(chave){
+    if(!chave.startsWith('escala:grade:')) return;
+    const [, , lojaId, periodo] = chave.split(':');
+    const [inicio, fim] = (periodo||'').split('_');
+    if(!lojaId || !inicio || !fim) return;
+    await DB.excluirEscala(lojaId, inicio, fim);
+  },
   async get(chave){
     if(chave === 'escala:lojas') return await DB.carregarLojas();
     if(chave.startsWith('escala:grade:')){
-      const [, , , lojaId, periodo] = chave.split(':');
+      const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       if(!lojaId || !inicio || !fim) return null;
       return await DB.carregarEscala(lojaId, inicio, fim);
@@ -216,10 +233,10 @@ const store = {
       return;
     }
     if(chave.startsWith('escala:grade:')){
-      const [, , , lojaId, periodo] = chave.split(':');
+      const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       try{
-        await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params);
+        await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas);
         await DB.registrar('escala_salva', {loja: lojaId, inicio, fim});
         marcarSync('salvo');
       }catch(e){ marcarSync('erro', erroAmigavel(e)); }
