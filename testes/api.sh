@@ -32,7 +32,7 @@ cat > api/config.php <<'PHP'
 <?php return [
   'bd_host'=>'127.0.0.1', 'bd_nome'=>'teste_escala',
   'bd_usuario'=>'root', 'bd_senha'=>'',
-  'endereco_site'=>'http://127.0.0.1:8877',
+  'endereco_site'=>'http://127.0.0.1:8877', 'chave_criacao_empresa'=>'teste-ci-123',
   'email_remetente'=>'teste@local',
 ];
 PHP
@@ -93,7 +93,7 @@ R2=$(chamar "$COOKIES_B" auth.php '{"acao":"recuperar","email":"naoexiste@teste.
 echo ""
 echo "=== 6. Empresa e convite ==="
 CSRF_A=$(chamar "$COOKIES_A" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
-R=$(chamar "$COOKIES_A" auth.php '{"acao":"criar_empresa","nome":"Drogaria A"}' "$CSRF_A")
+R=$(chamar "$COOKIES_A" auth.php '{"acao":"criar_empresa","nome":"Drogaria A","chave":"teste-ci-123"}' "$CSRF_A")
 echo "$R" | grep -q '"ok":true' && ok "empresa criada" || falha "criar empresa: $R"
 CONVITE_A=$(echo "$R" | grep -o '"codigo_convite":"[^"]*"' | cut -d'"' -f4)
 EMPRESA_A=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4)
@@ -110,7 +110,7 @@ chamar "$COOKIES_B" auth.php '{"acao":"cadastrar","nome":"Bruno","email":"bruno@
 TOKEN_B=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='bruno@outra.com';")
 chamar "$COOKIES_B" auth.php "{\"acao\":\"confirmar\",\"token\":\"$TOKEN_B\"}" "$CSRF_B" > /dev/null
 CSRF_B=$(chamar "$COOKIES_B" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
-R=$(chamar "$COOKIES_B" auth.php '{"acao":"criar_empresa","nome":"Drogaria B"}' "$CSRF_B")
+R=$(chamar "$COOKIES_B" auth.php '{"acao":"criar_empresa","nome":"Drogaria B","chave":"teste-ci-123"}' "$CSRF_B")
 EMPRESA_B=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4)
 [ -n "$EMPRESA_B" ] && ok "segunda empresa criada por outro usuário" || falha "empresa B: $R"
 
