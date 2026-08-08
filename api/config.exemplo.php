@@ -20,4 +20,15 @@ return [
     // Remetente dos e-mails. Crie esta conta em cPanel > Contas de e-mail:
     // e-mail com o seu próprio domínio tem muito menos chance de cair em spam.
     'email_remetente' => 'Escala <escala@seudominio.com.br>',
+
+    // (Opcional) Envio de e-mail via SMTP autenticado — mais confiável que o
+    // mail() nativo do PHP, que às vezes é bloqueado pela hospedagem ou cai em spam.
+    // Deixe 'smtp_host' vazio para continuar usando o mail() nativo.
+    // Crie a conta de e-mail em cPanel > Contas de e-mail e use os dados que o
+    // cPanel mostrar em "Configurar cliente de e-mail" (Configure Mail Client).
+    'smtp_host'      => '',
+    'smtp_porta'     => 587,
+    'smtp_usuario'   => '',
+    'smtp_senha'     => '',
+    'smtp_seguranca' => 'tls',
 ];
