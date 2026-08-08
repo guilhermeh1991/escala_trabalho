@@ -123,8 +123,8 @@ async function criarEmpresa(){
   erroEm('#erro-vinculo','');
   if(nome.length < 2){ erroEm('#erro-vinculo','Informe o nome da empresa.'); return; }
   btn.disabled = true; btn.textContent = 'Criando…';
-  const nomeLoja = ($('#vn-loja') && $('#vn-loja').value.trim()) || '';
-  try{ await auth({acao:'criar_empresa', nome, loja: nomeLoja}); }
+  const nomeLoja = ($('#vn-loja') && $('#vn-loja').value.trim()) || ''; const chave = ($('#vn-chave') && $('#vn-chave').value.trim()) || '';
+  try{ await auth({acao:'criar_empresa', nome, loja: nomeLoja, chave}); }
   catch(e){ btn.disabled=false; btn.textContent='Criar empresa'; erroEm('#erro-vinculo', erroAmigavel(e)); return; }
   await DB.carregarEmpresa();
   btn.disabled = false; btn.textContent = 'Criar empresa';
