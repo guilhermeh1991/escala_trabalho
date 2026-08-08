@@ -426,6 +426,16 @@ function algoritmoSenha(): string
 function enviarEmail(string $para, string $assunto, string $corpoHtml): bool
 {
     global $config;
+
+    if (!empty($config['smtp_host'])) {
+        try {
+            return enviarEmailSmtp($para, $assunto, $corpoHtml);
+        } catch (Throwable $e) {
+            error_log('e-mail (SMTP): ' . $e->getMessage());
+            return false;
+        }
+    }
+
     $cabecalhos = implode("\r\n", [
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset=UTF-8',
@@ -433,11 +443,116 @@ function enviarEmail(string $para, string $assunto, string $corpoHtml): bool
         'Reply-To: ' . $config['email_remetente'],
     ]);
     try {
-        return @mail($para, '=?UTF-8?B?' . base64_encode($assunto) . '?=', $corpoHtml, $cabecalhos);
+        $ok = @mail($para, '=?UTF-8?B?' . base64_encode($assunto) . '?=', $corpoHtml, $cabecalhos);
+        if (!$ok) {
+            error_log('e-mail: mail() nativo falhou ao enviar para ' . $para);
+        }
+        return $ok;
     } catch (Throwable $e) {
         error_log('e-mail: ' . $e->getMessage());
         return false;
     }
+}
+
+/**
+ * Envia e-mail via SMTP autenticado, sem depender de bibliotecas externas.
+ *
+ * Configure em config.php: smtp_host, smtp_porta, smtp_usuario, smtp_senha,
+ * smtp_seguranca ('ssl' para porta 465, 'tls' para porta 587, ou '' para nenhuma).
+ */
+function enviarEmailSmtp(string $para, string $assunto, string $corpoHtml): bool
+{
+    global $config;
+
+    $host      = (string)$config['smtp_host'];
+    $porta     = (int)($config['smtp_porta'] ?? 587);
+    $usuario   = (string)($config['smtp_usuario'] ?? '');
+    $senha     = (string)($config['smtp_senha'] ?? '');
+    $seguranca = strtolower((string)($config['smtp_seguranca'] ?? 'tls'));
+    $remetente = (string)$config['email_remetente'];
+    $hostLocal = (string)(parse_url(paginaBase(), PHP_URL_HOST) ?: 'localhost');
+
+    $enderecoConexao = ($seguranca === 'ssl' ? 'ssl://' : '') . $host;
+    $conexao = @fsockopen($enderecoConexao, $porta, $codigoErro, $mensagemErro, 10);
+    if (!$conexao) {
+        throw new RuntimeException("Não foi possível conectar ao SMTP ($host:$porta): $mensagemErro");
+    }
+
+    smtpEsperar($conexao, '', '220');
+    smtpEsperar($conexao, 'EHLO ' . $hostLocal, '250');
+
+    if ($seguranca === 'tls') {
+        smtpEsperar($conexao, 'STARTTLS', '220');
+        if (!stream_socket_enable_crypto($conexao, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+            fclose($conexao);
+            throw new RuntimeException('Falha ao iniciar TLS com o servidor SMTP.');
+        }
+        smtpEsperar($conexao, 'EHLO ' . $hostLocal, '250');
+    }
+
+    if ($usuario !== '') {
+        smtpEsperar($conexao, 'AUTH LOGIN', '334');
+        smtpEsperar($conexao, base64_encode($usuario), '334');
+        smtpEsperar($conexao, base64_encode($senha), '235');
+    }
+
+    $enderecoRemetente = extrairEnderecoEmail($remetente);
+    smtpEsperar($conexao, 'MAIL FROM:<' . $enderecoRemetente . '>', '250');
+    smtpEsperar($conexao, 'RCPT TO:<' . $para . '>', '250');
+    smtpEsperar($conexao, 'DATA', '354');
+
+    $cabecalhosMensagem = implode("\r\n", [
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . $remetente,
+        'Reply-To: ' . $remetente,
+        'To: ' . $para,
+        'Subject: =?UTF-8?B?' . base64_encode($assunto) . '?=',
+    ]);
+    $corpoEscapado = str_replace("\n.", "\n..", $corpoHtml);
+    fwrite($conexao, $cabecalhosMensagem . "\r\n\r\n" . $corpoEscapado . "\r\n.\r\n");
+    $resposta = smtpLer($conexao);
+    if (strpos($resposta, '250') !== 0) {
+        fclose($conexao);
+        throw new RuntimeException("Servidor SMTP não confirmou o envio: $resposta");
+    }
+
+    fwrite($conexao, "QUIT\r\n");
+    fclose($conexao);
+
+    return true;
+}
+
+function smtpLer($conexao): string
+{
+    $resposta = '';
+    while ($linha = fgets($conexao, 515)) {
+        $resposta .= $linha;
+        if (isset($linha[3]) && $linha[3] === ' ') {
+            break;
+        }
+    }
+    return $resposta;
+}
+
+function smtpEsperar($conexao, string $comando, string $codigoEsperado): void
+{
+    if ($comando !== '') {
+        fwrite($conexao, $comando . "\r\n");
+    }
+    $resposta = smtpLer($conexao);
+    if (strpos($resposta, $codigoEsperado) !== 0) {
+        fclose($conexao);
+        throw new RuntimeException("SMTP recusou o comando '$comando': $resposta");
+    }
+}
+
+function extrairEnderecoEmail(string $remetente): string
+{
+    if (preg_match('/<([^>]+)>/', $remetente, $m)) {
+        return $m[1];
+    }
+    return $remetente;
 }
 
 function paginaBase(): string
