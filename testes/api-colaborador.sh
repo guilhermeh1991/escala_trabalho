@@ -25,7 +25,7 @@ mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-003-acesso-por-loja.sql
 
 cat > api/config.php <<'PHP'
 <?php return ['bd_host'=>'127.0.0.1','bd_nome'=>'teste_escala','bd_usuario'=>'root','bd_senha'=>'',
-'endereco_site'=>'http://127.0.0.1:8881','email_remetente'=>'teste@local'];
+'endereco_site'=>'http://127.0.0.1:8881','email_remetente'=>'teste@local','chave_criacao_empresa'=>'teste-ci-123'];
 PHP
 php -S 127.0.0.1:8881 -t . > /tmp/php881.log 2>&1 &
 SRV=$!; sleep 3
@@ -41,7 +41,7 @@ TG=$(tok $CG)
 req $CG auth.php '{"acao":"cadastrar","nome":"Gestor","email":"gestor@drogaria.com","senha":"pedra rio manso 88"}' "$TG" >/dev/null
 confirmar $CG gestor@drogaria.com "$TG"
 TG=$(tok $CG)
-req $CG auth.php '{"acao":"criar_empresa","nome":"Drogaria Bauru"}' "$TG" >/dev/null
+req $CG auth.php '{"acao":"criar_empresa","nome":"Drogaria Bauru","chave":"teste-ci-123"}' "$TG" >/dev/null
 LOJA=$(req $CG dados.php '{"acao":"criar_loja","nome":"Loja 330"}' "$TG" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
 [ -n "$LOJA" ] && ok "empresa e loja criadas" || falha "estrutura"
 
