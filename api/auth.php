@@ -250,7 +250,7 @@ case 'criar_empresa':
 // -----------------------------------------------------------------------------
     $u = exigirLogin();
     if ($u['empresa_id']) falhar('Este usuário já pertence a uma empresa.');
-    if ($u['papel'] === 'colaborador') falhar('Seu acesso é de colaborador.', 403);
+    if ($u['papel'] === 'colaborador') falhar('Seu acesso é de colaborador.', 403); $chaveExigida = trim((string)($config['chave_criacao_empresa'] ?? '')); $chaveEnviada = trim((string)campo($dados, 'chave', '')); if ($chaveExigida === '' || $chaveEnviada !== $chaveExigida) { falhar('Criação de empresa bloqueada. Peça o código ao administrador.'); }
 
     $nome = trim((string)campo($dados, 'nome', ''));
     if (mb_strlen($nome) < 2) falhar('Informe o nome da empresa.');
