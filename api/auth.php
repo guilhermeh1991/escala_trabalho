@@ -72,20 +72,30 @@ case 'cadastrar':
 
     exigirDentroDoLimite('cadastro:' . origem(), 10, 60);
 
-    $st = bd()->prepare('SELECT 1 FROM usuarios WHERE email = ? LIMIT 1');
+    $st = bd()->prepare('SELECT id, nome, email_confirmado FROM usuarios WHERE email = ? LIMIT 1');
     $st->execute([$email]);
-    if ($st->fetchColumn()) {
+    $existente = $st->fetch();
+    if ($existente && (int)$existente['email_confirmado'] === 1) {
         // Não confirmamos que o e-mail existe: isso revelaria cadastros.
         registrarTentativa('cadastro:' . origem(), false);
         responder(['ok' => true, 'confirmar' => true]);
     }
 
-    $id    = uuid();
     $token = bin2hex(random_bytes(32));
-    $st = bd()->prepare(
-        'INSERT INTO usuarios (id, email, senha_hash, nome, token_confirmacao, token_expira)
-         VALUES (?, ?, ?, ?, ?, (NOW() + INTERVAL 2 DAY))');
-    $st->execute([$id, $email, password_hash($senha, algoritmoSenha()), $nome, $token]);
+    if ($existente) {
+        // Cadastro existente mas nunca confirmado: gera novo link e reenvia.
+        $id = $existente['id'];
+        $st = bd()->prepare(
+            'UPDATE usuarios SET senha_hash = ?, nome = ?, token_confirmacao = ?, token_expira = (NOW() + INTERVAL 2 DAY)
+            WHERE id = ?');
+        $st->execute([password_hash($senha, algoritmoSenha()), $nome, $token, $id]);
+    } else {
+        $id = uuid();
+        $st = bd()->prepare(
+            'INSERT INTO usuarios (id, email, senha_hash, nome, token_confirmacao, token_expira)
+            VALUES (?, ?, ?, ?, ?, (NOW() + INTERVAL 2 DAY))');
+        $st->execute([$id, $email, password_hash($senha, algoritmoSenha()), $nome, $token]);
+    }
 
     $link = paginaBase() . '/?confirmar=' . $token;
     enviarEmail($email, 'Confirme seu acesso ao sistema de escala',
