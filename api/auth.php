@@ -277,8 +277,8 @@ case 'criar_empresa':
                        VALUES (?,?,?,?,?,0)')
             ->execute([$idLoja, $id, mb_substr($nomeLoja, 0, 80), $codLoja, '{}']);
 
-        bd()->prepare('UPDATE usuarios SET empresa_id = ?, papel = \'admin\' WHERE id = ?')
-            ->execute([$id, $u['id']]);
+        bd()->prepare('UPDATE usuarios SET empresa_id = ?, papel = \'gestor\', loja_id = ? WHERE id = ?')
+            ->execute([$id, $idLoja, $u['id']]);
         bd()->commit();
     } catch (Throwable $e) {
         bd()->rollBack();
