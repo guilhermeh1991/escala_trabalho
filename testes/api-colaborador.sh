@@ -41,8 +41,8 @@ TG=$(tok $CG)
 req $CG auth.php '{"acao":"cadastrar","nome":"Gestor","email":"gestor@drogaria.com","senha":"pedra rio manso 88"}' "$TG" >/dev/null
 confirmar $CG gestor@drogaria.com "$TG"
 TG=$(tok $CG)
-req $CG auth.php '{"acao":"criar_empresa","nome":"Drogaria Bauru","chave":"teste-ci-123"}' "$TG" >/dev/null
-LOJA=$(req $CG dados.php '{"acao":"criar_loja","nome":"Loja 330"}' "$TG" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+RESP_EMPRESA=$(req $CG auth.php '{"acao":"criar_empresa","nome":"Drogaria Bauru","chave":"teste-ci-123","loja":"Loja 330"}' "$TG")
+LOJA=$(echo "$RESP_EMPRESA" | grep -o '"loja_id":"[^"]*"' | cut -d'"' -f4)
 [ -n "$LOJA" ] && ok "empresa e loja criadas" || falha "estrutura"
 
 # equipe com e-mail para a Renata e para o Lucas
