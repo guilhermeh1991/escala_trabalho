@@ -260,15 +260,15 @@ function vincularColaboradorInterno(array $u): array
  * O administrador ignora a restrição por desenho: é ele quem precisa da visão
  * da rede inteira para comparar as lojas.
  */
-function vePorLoja(array $u): bool
+function ehSuperAdmin(array $u): bool { global $config; $lista = $config['super_admins'] ?? []; return in_array(mb_strtolower((string)$u['email']), array_map('mb_strtolower', $lista), true); } function vePorLoja(array $u): bool
 {
-    return $u['papel'] !== 'admin' && !empty($u['loja_id']);
+    return !ehSuperAdmin($u) && !empty($u['loja_id']);
 }
 
 /** Ids das lojas que este usuário pode enxergar. */
 function lojasDoUsuario(array $u): array
 {
-    if (vePorLoja($u)) {
+    if (ehSuperAdmin($u)) { $st = bd()->prepare('SELECT id FROM lojas ORDER BY empresa_id, ordem, criado_em'); $st->execute(); return $st->fetchAll(PDO::FETCH_COLUMN) ?: []; } if (vePorLoja($u)) {
         return [$u['loja_id']];
     }
     $st = bd()->prepare('SELECT id FROM lojas WHERE empresa_id = ? ORDER BY ordem, criado_em');
