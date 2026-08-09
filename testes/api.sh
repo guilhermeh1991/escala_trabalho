@@ -152,7 +152,7 @@ echo "$R" | grep -q "não encontrada" && ok "empresa B barrada ao ler escala da 
 
 PAYLOAD_INVASAO="{\"acao\":\"salvar\",\"lojas\":{\"$LOJA_A\":{\"nome\":\"INVADIDA\",\"colabs\":[]}}}"
 R=$(chamar "$COOKIES_B" dados.php "$PAYLOAD_INVASAO" "$CSRF_B")
-echo "$R" | grep -q "outra empresa" && ok "empresa B barrada ao sobrescrever loja da empresa A" || falha "B sobrescreveu loja de A: $R"
+echo "$R" | grep -qE "outra empresa|fora do seu acesso" && ok "empresa B barrada ao sobrescrever loja da empresa A" || falha "B sobrescreveu loja de A: $R"
 NOME=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT nome FROM lojas WHERE id='$LOJA_A';")
 [ "$NOME" = "Loja 330" ] && ok "nome da loja intacto após tentativa" || falha "loja renomeada para: $NOME"
 
