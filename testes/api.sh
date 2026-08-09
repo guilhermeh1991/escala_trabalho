@@ -93,10 +93,10 @@ R2=$(chamar "$COOKIES_B" auth.php '{"acao":"recuperar","email":"naoexiste@teste.
 echo ""
 echo "=== 6. Empresa e convite ==="
 CSRF_A=$(chamar "$COOKIES_A" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
-R=$(chamar "$COOKIES_A" auth.php '{"acao":"criar_empresa","nome":"Drogaria A","chave":"teste-ci-123"}' "$CSRF_A")
+R=$(chamar "$COOKIES_A" auth.php '{"acao":"criar_empresa","nome":"Drogaria A","chave":"teste-ci-123","loja":"Loja 330"}' "$CSRF_A")
 echo "$R" | grep -q '"ok":true' && ok "empresa criada" || falha "criar empresa: $R"
 CONVITE_A=$(echo "$R" | grep -o '"codigo_convite":"[^"]*"' | cut -d'"' -f4)
-EMPRESA_A=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4)
+EMPRESA_A=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4); LOJA_A=$(echo "$R" | grep -o '"loja_id":"[^"]*"' | cut -d'"' -f4)
 PAPEL=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT papel FROM usuarios WHERE email='ana@teste.com';")
 [ "$PAPEL" = "admin" ] && ok "quem cria a empresa vira admin" || falha "papel: $PAPEL"
 
@@ -117,8 +117,8 @@ EMPRESA_B=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4)
 echo ""
 echo "=== 8. Dados: criar loja e salvar equipe ==="
 R=$(chamar "$COOKIES_A" dados.php '{"acao":"criar_loja","nome":"Loja 330"}' "$CSRF_A")
-LOJA_A=$(echo "$R" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
-[ -n "$LOJA_A" ] && ok "loja criada na empresa A" || falha "criar loja: $R"
+LOJA_A2=$(echo "$R" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+echo "$R" | grep -q "uma loja s" && ok "criar_loja bloqueado: conta presa a uma loja" || falha "criar_loja nao foi bloqueado: $R"
 
 PAYLOAD=$(cat <<JSON
 {"acao":"salvar","lojas":{"$LOJA_A":{"nome":"Loja 330","_ordem":0,"params":{"modelo":"5x2"},
