@@ -895,7 +895,7 @@ function pintarSalvas(){
         <div class="salva-desc">${partes.join(' · ')}<br>salva em ${q.toLocaleDateString('pt-BR')} às ${q.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
       </div>
       <div class="salva-acoes">${atual
-        ? '<button class="btn small" data-pdf="1">Baixar PDF</button>'
+        ? '<button class="btn small" data-pdf="1">Baixar PDF</button><button class="btn ghost small" data-editar="1">Editar</button>'
         : '<button class="btn ghost small" data-abrir="' + k + '">Abrir</button>'}
         <button class="btn ghost small salva-excluir" data-excluir="${k}" title="Excluir esta escala">Excluir</button></div>
     </div>`;
@@ -909,7 +909,13 @@ function pintarSalvas(){
       await carregarPeriodoSalvo(); pintarSalvas();
     };
   });
-  cx.querySelectorAll('[data-excluir]').forEach(b=>{
+  cx.querySelectorAll('[data-editar]').forEach(b=>{
+        b.onclick = () => {
+                const grade = document.getElementById('grade');
+                if (grade) grade.scrollIntoView({behavior:'smooth', block:'start'});
+        };
+  });
+    cx.querySelectorAll('[data-excluir]').forEach(b=>{
     b.onclick = ()=> excluirSalva(+b.dataset.excluir);
   });
 }
