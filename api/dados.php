@@ -25,7 +25,7 @@ case 'carregar':
     // 'minha_escala', que devolve apenas a própria linha.
     exigirGestao($u);
     // presa a uma loja: as outras nem aparecem no seletor
-    if (vePorLoja($u)) {
+    if (ehSuperAdmin($u)) { $st = bd()->prepare('SELECT l.id, l.nome, l.codigo_convite, l.parametros, l.ordem, e.nome AS empresa_nome FROM lojas l JOIN empresas e ON e.id = l.empresa_id ORDER BY e.nome, l.ordem, l.criado_em'); $st->execute(); } elseif (vePorLoja($u)) {
         $st = bd()->prepare(
             'SELECT id, nome, codigo_convite, parametros, ordem FROM lojas
               WHERE empresa_id = ? AND id = ?');
