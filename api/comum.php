@@ -286,7 +286,7 @@ function exigirLojaDaEmpresa(string $lojaId, array $u): void
     if (vePorLoja($u) && $lojaId !== $u['loja_id']) {
         falhar('Loja não encontrada.', 404);
     }
-    $st = bd()->prepare('SELECT 1 FROM lojas WHERE id = ? AND empresa_id = ? LIMIT 1');
+    if (ehSuperAdmin($u)) { $st2 = bd()->prepare('SELECT 1 FROM lojas WHERE id = ? LIMIT 1'); $st2->execute([$lojaId]); if (!$st2->fetchColumn()) { falhar('Loja não encontrada.', 404); } return; } $st = bd()->prepare('SELECT 1 FROM lojas WHERE id = ? AND empresa_id = ? LIMIT 1');
     $st->execute([$lojaId, $u['empresa_id']]);
     if (!$st->fetchColumn()) {
         falhar('Loja não encontrada.', 404);
