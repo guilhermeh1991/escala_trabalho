@@ -42,7 +42,9 @@ input,select{font:inherit}
   font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
 #pop-cel .pc-aplicar{padding:7px 12px;border:0;border-radius:6px;background:var(--texto);color:#fff;
   font-size:12.5px;font-weight:500;cursor:pointer}
-#pop-cel .pc-dias{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+#pop-cel .pc-dias{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px}
+#pop-cel .pc-dias .pc-dia{padding:4px 0}
+#pop-cel .pc-obs{font-size:10.5px;color:#8A9995;margin:-4px 0 8px;line-height:1.4}
 #pop-cel .pc-dia{padding:4px 9px;border:1px solid var(--linha);border-radius:20px;background:#fff;
   font-size:11.5px;color:var(--fraco);cursor:pointer}
 #pop-cel .pc-dia:hover{border-color:var(--teal);color:var(--teal)}
@@ -126,7 +128,9 @@ table.esc tr.grupo td.hr{background:#EDF1EE}
 .ds-cel{text-align:center;border-right:1px solid var(--linha)}
 .ds-cel:last-child{border-right:0}
 .ds-cel .ds-nome{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);background:#F4F6F4;padding:6px 4px;border-bottom:1px solid var(--linha)}
-.ds-cel input{width:100%;text-align:center;border:0;padding:10px 4px;font-size:15px;font-weight:600;color:var(--texto);background:#fff}
+.ds-cel input{width:100%;text-align:center;border:0;padding:10px 4px;font-size:15px;font-weight:600;color:var(--texto);background:#fff;cursor:text}
+#min-dias .ds-cel input{background:#FAFBFB;box-shadow:inset 0 -2px 0 var(--linha)}
+#min-dias .ds-cel input:hover{background:#F4F6F4;box-shadow:inset 0 -2px 0 var(--teal)}
 .ds-cel input:focus{outline:2px solid var(--teal);outline-offset:-2px}
 .ds-cel.fds .ds-nome{background:#EDF0EE}
 .ds-cel.fds input{background:#FAFBFA}
@@ -3084,6 +3088,7 @@ function abrirPopupCelula(td){
       <div class="pc-rot" style="margin-top:8px">Aplicar também em</div>
       <div class="pc-dias">${DIA_ABREV.map((n,d)=>
         `<button class="pc-dia" data-dia="${d}">${n}</button>`).join('')}</div>
+      <div class="pc-obs">Selecionando um dia acima, a opção abaixo é ignorada.</div>
       <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
         repetir deste dia até o fim do período</label>
     </div>
@@ -3295,7 +3300,7 @@ function pintarGrade(){
          + `<td class="hr"></td><td colspan="${days.length+1}"></td></tr>`;
     }
     faixaAnterior = g;
-    h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome">${esc(c.nome)}</div><div class="cargo">${esc(c.cargo)}${c.gerente?' · gerente':''}</div></td>`;
+    h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome">${esc(c.nome)}</div><div class="cargo">${esc(c.cargo)}${c.gerente && !/GEREN/i.test(c.cargo||'')?' · gerente':''}</div></td>`;
     h += `<td class="hr">${horaEntrada(c)}</td>`;
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
