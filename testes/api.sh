@@ -27,6 +27,7 @@ mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS teste_escala; CREATE DATA
 mysql -u root -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-003-acesso-por-loja.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-004-resumo-escala.sql 2>/dev/null
 
 cat > api/config.php <<'PHP'
 <?php return [
