@@ -242,30 +242,78 @@ case 'salvar_escala':
 
     $inicio = (string)campo($dados, 'inicio', '');
     $fim    = (string)campo($dados, 'fim', '');
-    $grade  = campo($dados, 'grade');
+    $grade = campo($dados, 'grade');
     if (!$grade || !is_array($grade)) falhar('Escala vazia.');
+
+    $paramsRecebidos = campo($dados, 'parametros');
+    $resumo = normalizarResumo(campo($dados, 'resumo'), $grade, is_array($paramsRecebidos) ? $paramsRecebidos : []);
 
     $publicar = !empty($dados['publicar']) ? 1 : 0;
     $st = bd()->prepare(
-        'INSERT INTO escalas (id, loja_id, inicio, fim, grade, parametros,
-                              publicada, publicada_em, atualizado_por)
-         VALUES (?,?,?,?,?,?,?,?,?)
-         ON DUPLICATE KEY UPDATE grade = VALUES(grade),
-             parametros = VALUES(parametros),
-             publicada = GREATEST(publicada, VALUES(publicada)),
-             publicada_em = IF(VALUES(publicada) = 1 AND publicada_em IS NULL,
-                               NOW(), publicada_em),
-             atualizado_por = VALUES(atualizado_por)');
+        'INSERT INTO escalas (id, loja_id, inicio, fim, grade, parametros, resumo,
+        publicada, publicada_em, atualizado_por)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
+        ON DUPLICATE KEY UPDATE grade = VALUES(grade),
+        parametros = VALUES(parametros),
+        resumo = VALUES(resumo),
+        publicada = GREATEST(publicada, VALUES(publicada)),
+        publicada_em = IF(VALUES(publicada) = 1 AND publicada_em IS NULL,
+        NOW(), publicada_em),
+        atualizado_por = VALUES(atualizado_por)');
     $st->execute([
-        uuid(), $lojaId, $inicio, $fim,
-        json_encode($grade, JSON_UNESCAPED_UNICODE),
-        json_encode(campo($dados, 'parametros'), JSON_UNESCAPED_UNICODE),
-        $publicar, $publicar ? date('Y-m-d H:i:s') : null,
-        $u['id'],
-    ]);
+                 uuid(), $lojaId, $inicio, $fim,
+                 json_encode($grade, JSON_UNESCAPED_UNICODE),
+                 json_encode(campo($dados, 'parametros'), JSON_UNESCAPED_UNICODE),
+                 json_encode($resumo, JSON_UNESCAPED_UNICODE),
+                 $publicar, $publicar ? date('Y-m-d H:i:s') : null,
+                 $u['id'],
+                 ]);
     registrar($u['id'], $u['empresa_id'], 'escala_salva',
-        ['loja' => $lojaId, 'inicio' => $inicio, 'fim' => $fim]);
+              ['loja' => $lojaId, 'inicio' => $inicio, 'fim' => $fim]);
     responder(['ok' => true]);
+
+    // -----------------------------------------------------------------------------
+    case 'listar_escalas':
+    // -----------------------------------------------------------------------------
+    exigirGestao($u);
+$lojaId = (string)campo($dados, 'loja_id', '');
+exigirLojaDaEmpresa($lojaId, $u);
+
+$st = bd()->prepare(
+    'SELECT e.inicio, e.fim, e.grade, e.parametros, e.resumo, e.publicada,
+    e.publicada_em, e.atualizado_em, us.nome AS por
+    FROM escalas e
+    LEFT JOIN usuarios us ON us.id = e.atualizado_por
+    WHERE e.loja_id = ?
+    ORDER BY e.inicio DESC
+    LIMIT 36');
+$st->execute([$lojaId]);
+$linhas = $st->fetchAll();
+
+$escalas = array_map(function ($e) {
+    $grade = json_decode($e['grade'], true) ?: [];
+    $params = $e['parametros'] ? json_decode($e['parametros'], true) : [];
+    $resumo = $e['resumo'] ? json_decode($e['resumo'], true) : null;
+    if (!$resumo) {
+        $resumo = resumoDaGrade($grade, is_array($params) ? $params : []);
+    }
+    return [
+        'inicio' => $e['inicio'],
+        'fim' => $e['fim'],
+        'pessoas' => $resumo['pessoas'] ?? null,
+        'dias' => $resumo['dias'] ?? null,
+        'modelo' => $resumo['modelo'] ?? null,
+        'folgas' => $resumo['folgas'] ?? null,
+        'ajustes' => $resumo['ajustes'] ?? null,
+        'feridas' => $resumo['feridas'] ?? null,
+        'notas' => $resumo['notas'] ?? null,
+        'em' => $e['atualizado_em'],
+        'publicada' => (bool)$e['publicada'],
+        'por' => $e['por'],
+        ];
+}, $linhas);
+
+responder(['escalas' => $escalas]);
 
 // -----------------------------------------------------------------------------
 case 'excluir_escala':
