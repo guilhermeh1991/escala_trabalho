@@ -112,6 +112,64 @@ function uuid(): string
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($b), 4));
 }
 
+/* RESUMO DA ESCALA — guardado na coluna `escalas.resumo`. Parte dele o servidor
+consegue calcular sozinho a partir da grade; a contagem de regras feridas não,
+porque quem roda o validador é o navegador. Por isso o resumo chega pronto de
+lá — mas nada é gravado sem passar por este crivo. */
+
+/** Recalcula o resumo a partir da grade. Usado como reserva. */
+function resumoDaGrade(array $grade, array $params = []): array
+        {
+                $dias = 0;
+                $folgas = 0;
+                foreach ($grade as $linha) {
+                        if (!is_array($linha)) continue;
+                        if (count($linha) > $dias) $dias = count($linha);
+                        foreach ($linha as $cod) {
+                                if ($cod === 'X' || $cod === 'FC') $folgas++;
+                        }
+                }
+                $ajustes = 0;
+                foreach (($params['_horas'] ?? []) as $porPessoa) {
+                        if (is_array($porPessoa)) $ajustes += count($porPessoa);
+                }
+                return [
+                        'pessoas' => count($grade),
+                        'dias' => $dias,
+                        'folgas' => $folgas,
+                        'ajustes' => $ajustes,
+                        'modelo' => isset($params['modelo']) ? (string)$params['modelo'] : '5x2',
+                        'feridas' => $params['_resumo']['feridas'] ?? null,
+                        'notas' => $params['_resumo']['notas'] ?? null,
+                        ];
+        }
+
+/** Aceita apenas os campos previstos, com o tipo certo. Números que dependem só
+da grade são conferidos contra ela: se o que chegou não bater, vale a grade. */
+function normalizarResumo($recebido, array $grade, array $params = []): array
+        {
+                $calculado = resumoDaGrade($grade, $params);
+                if (!is_array($recebido)) {
+                        return $calculado;
+                }
+                $inteiroOuNulo = function ($v) {
+                        if ($v === null || $v === '') return null;
+                        return is_numeric($v) ? max(0, (int)$v) : null;
+                };
+                $modelo = isset($recebido['modelo']) ? (string)$recebido['modelo'] : $calculado['modelo'];
+                if (!in_array($modelo, ['5x2', '6x1'], true)) $modelo = '5x2';
+                
+                return [
+                        'pessoas' => $calculado['pessoas'],
+                        'dias' => $calculado['dias'],
+                        'folgas' => $calculado['folgas'],
+                        'ajustes' => $inteiroOuNulo($recebido['ajustes'] ?? null) ?? $calculado['ajustes'],
+                        'modelo' => $modelo,
+                        'feridas' => $inteiroOuNulo($recebido['feridas'] ?? null) ?? $calculado['feridas'],
+                        'notas' => $inteiroOuNulo($recebido['notas'] ?? null) ?? $calculado['notas'],
+                        ];
+        }
+
 /** Código curto de convite, sem caracteres que se confundem na leitura. */
 function codigoConvite(): string
 {
