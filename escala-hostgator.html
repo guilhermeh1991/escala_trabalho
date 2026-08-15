@@ -42,10 +42,11 @@ input,select{font:inherit}
   font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
 #pop-cel .pc-aplicar{padding:7px 12px;border:0;border-radius:6px;background:var(--texto);color:#fff;
   font-size:12.5px;font-weight:500;cursor:pointer}
-#pop-cel .pc-atalhos{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
-#pop-cel .pc-atalho{padding:4px 9px;border:1px solid var(--linha);border-radius:20px;background:#fff;
-  font-family:'JetBrains Mono',monospace;font-size:11.5px;cursor:pointer}
-#pop-cel .pc-atalho:hover{border-color:var(--teal);color:var(--teal)}
+#pop-cel .pc-dias{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+#pop-cel .pc-dia{padding:4px 9px;border:1px solid var(--linha);border-radius:20px;background:#fff;
+  font-size:11.5px;color:var(--fraco);cursor:pointer}
+#pop-cel .pc-dia:hover{border-color:var(--teal);color:var(--teal)}
+#pop-cel .pc-dia.ativo{background:var(--teal);border-color:var(--teal);color:#fff}
 #pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--fraco);cursor:pointer}
 #pop-cel .pc-repetir input{accent-color:var(--teal);width:14px;height:14px}
 #pop-cel .pc-codigos{display:grid;grid-template-columns:1fr 1fr;gap:5px}
@@ -3057,11 +3058,8 @@ function abrirPopupCelula(td){
   const atual = (horaDoDia(c, i)||'').slice(0,5) || padrao;
   const ajustada = horaAjustada(id, i);
 
-  // horários já praticados na loja, para escolher com um clique
-  const atalhos = [...new Set(loja().colabs.map(x=>(horaEntrada(x)||'').slice(0,5)).filter(Boolean))]
-                  .sort().slice(0, 6);
-
   const DIA_NOMES = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  const DIA_ABREV = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const CODIGOS = [
     ['X',  'X folga',        '#D8EDE2', '#14663F'],
     ['FC', 'FC compens.',    '#F6E7C4', '#8A5E06'],
@@ -3083,8 +3081,9 @@ function abrirPopupCelula(td){
         <input type="time" id="pc-hora" value="${atual}">
         <button class="pc-aplicar" id="pc-ok">Aplicar</button>
       </div>
-      ${atalhos.length ? `<div class="pc-atalhos">${atalhos.map(a=>
-        `<button class="pc-atalho" data-h="${a}">${a}</button>`).join('')}</div>` : ''}
+      <div class="pc-rot" style="margin-top:8px">Aplicar também em</div>
+      <div class="pc-dias">${DIA_ABREV.map((n,d)=>
+        `<button class="pc-dia" data-dia="${d}">${n}</button>`).join('')}</div>
       <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
         repetir deste dia até o fim do período</label>
     </div>
@@ -3126,9 +3125,18 @@ function abrirPopupCelula(td){
   };
 
   const porHora = (valor)=>{
-    const repetir = document.getElementById('pc-repetir').checked;
-    const ate = repetir ? S.res.days.length - 1 : i;
-    for(let k=i; k<=ate; k++){
+    const diasEscolhidos = [...pop.querySelectorAll('.pc-dia.ativo')].map(b=>+b.dataset.dia);
+    let alvos;
+    if(diasEscolhidos.length){
+      // dias da semana escolhidos: aplica em todas as ocorrências deles no período
+      alvos = S.res.days.map((d,k)=>k).filter(k=>diasEscolhidos.includes(S.res.days[k].getDay()));
+    } else {
+      const repetir = document.getElementById('pc-repetir').checked;
+      const ate = repetir ? S.res.days.length - 1 : i;
+      alvos = [];
+      for(let k=i; k<=ate; k++) alvos.push(k);
+    }
+    for(const k of alvos){
       // só mexe em dia de trabalho: folga, férias e atestado ficam como estão
       if(S.res.grid[id][k] !== '') continue;
       definirHora(id, k, valor === padrao ? null : valor);
@@ -3142,12 +3150,8 @@ function abrirPopupCelula(td){
     if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';   // voltou a trabalhar
     porHora(v);
   };
-  pop.querySelectorAll('.pc-atalho').forEach(b=>{
-    b.onclick = ()=>{
-      document.getElementById('pc-hora').value = b.dataset.h;
-      if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';
-      porHora(b.dataset.h);
-    };
+  pop.querySelectorAll('.pc-dia').forEach(b=>{
+    b.onclick = ()=> b.classList.toggle('ativo');
   });
   pop.querySelectorAll('.pc-cod').forEach(b=>{
     b.onclick = ()=>{
