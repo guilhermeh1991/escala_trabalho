@@ -127,7 +127,7 @@ case 'salvar':
                      parametros = VALUES(parametros), ordem = VALUES(ordem)');
             $st->execute([
                 $lojaId, $u['empresa_id'],
-                mb_substr((string)($loja['nome'] ?? 'Loja'), 0, 80),
+                textoLimpo($loja['nome'] ?? 'Loja', 80),
                 json_encode($loja['params'] ?? new stdClass(), JSON_UNESCAPED_UNICODE),
                 (int)($loja['_ordem'] ?? 0),
             ]);
@@ -158,10 +158,10 @@ case 'salvar':
                 }
                 $st->execute([
                     $cid, $lojaId,
-                    mb_substr((string)($c['nome'] ?? ''), 0, 80),
+                    textoLimpo($c['nome'] ?? '', 80),
                     $emailColab !== '' ? mb_strtolower($emailColab) : null,
-                    mb_substr((string)($c['cargo'] ?? 'BALCONISTA'), 0, 40),
-                    mb_substr((string)($c['horario'] ?? ''), 0, 40),
+                    textoLimpo($c['cargo'] ?? 'BALCONISTA', 40),
+                    horarioLimpo($c['horario'] ?? null),
                     !empty($c['gerente']) ? 1 : 0,
                     (($c['ativo'] ?? true) !== false) ? 1 : 0,
                     ($ff === null || $ff === '') ? null : (int)$ff,
@@ -175,7 +175,9 @@ case 'salvar':
                 $aus    = is_array($c['ausencias'] ?? null) ? $c['ausencias'] : [];
                 $idsAus = [];
                 foreach ($aus as $a) {
-                    if (empty($a['ini']) || empty($a['fim'])) continue;
+                    $ini = dataLimpa($a['ini'] ?? null);
+                    $fmA = dataLimpa($a['fim'] ?? null);
+                    if ($ini === null || $fmA === null || $fmA < $ini) continue;
                     $aid = ehUuid((string)($a['id'] ?? '')) ? $a['id'] : uuid();
                     $st2 = bd()->prepare(
                         'INSERT INTO ausencias (id, colaborador_id, tipo, ini, fim)
@@ -183,7 +185,7 @@ case 'salvar':
                          ON DUPLICATE KEY UPDATE tipo = VALUES(tipo),
                              ini = VALUES(ini), fim = VALUES(fim)');
                     $tipo = in_array($a['tipo'] ?? '', ['F','AT','LC','FC'], true) ? $a['tipo'] : 'F';
-                    $st2->execute([$aid, $cid, $tipo, $a['ini'], $a['fim']]);
+                    $st2->execute([$aid, $cid, $tipo, $ini, $fmA]);
                     $idsAus[] = $aid;
                 }
                 // apaga as ausências que saíram da lista
@@ -224,7 +226,8 @@ case 'carregar_escala':
     $st = bd()->prepare(
         'SELECT grade, parametros, publicada, atualizado_em FROM escalas
           WHERE loja_id = ? AND inicio = ? AND fim = ? LIMIT 1');
-    $st->execute([$lojaId, (string)campo($dados, 'inicio', ''), (string)campo($dados, 'fim', '')]);
+    $st->execute([$lojaId, exigirData(campo($dados, 'inicio'), 'início'),
+                           exigirData(campo($dados, 'fim'), 'fim')]);
     $e = $st->fetch();
     responder(['escala' => $e ? [
         'grid'   => json_decode($e['grade'], true),
@@ -240,13 +243,16 @@ case 'salvar_escala':
     $lojaId = (string)campo($dados, 'loja_id', '');
     exigirLojaDaEmpresa($lojaId, $u);
 
-    $inicio = (string)campo($dados, 'inicio', '');
-    $fim    = (string)campo($dados, 'fim', '');
-    $grade = campo($dados, 'grade');
-    if (!$grade || !is_array($grade)) falhar('Escala vazia.');
+    $inicio = exigirData(campo($dados, 'inicio'), 'início');
+    $fim    = exigirData(campo($dados, 'fim'), 'fim');
+    if ($fim <= $inicio) falhar('O fim precisa ser depois do início.');
+
+    $grade = gradeLimpa(campo($dados, 'grade'));
+    if (!$grade) falhar('Escala vazia.');
 
     $paramsRecebidos = campo($dados, 'parametros');
-    $resumo = normalizarResumo(campo($dados, 'resumo'), $grade, is_array($paramsRecebidos) ? $paramsRecebidos : []);
+    if (!is_array($paramsRecebidos)) $paramsRecebidos = [];
+    $resumo = normalizarResumo(campo($dados, 'resumo'), $grade, $paramsRecebidos);
 
     $publicar = !empty($dados['publicar']) ? 1 : 0;
     $st = bd()->prepare(
@@ -263,7 +269,7 @@ case 'salvar_escala':
     $st->execute([
                  uuid(), $lojaId, $inicio, $fim,
                  json_encode($grade, JSON_UNESCAPED_UNICODE),
-                 json_encode(campo($dados, 'parametros'), JSON_UNESCAPED_UNICODE),
+                 json_encode($paramsRecebidos, JSON_UNESCAPED_UNICODE),
                  json_encode($resumo, JSON_UNESCAPED_UNICODE),
                  $publicar, $publicar ? date('Y-m-d H:i:s') : null,
                  $u['id'],
@@ -322,8 +328,8 @@ case 'excluir_escala':
     $lojaId = (string)campo($dados, 'loja_id', '');
     exigirLojaDaEmpresa($lojaId, $u);
 
-    $inicio = (string)campo($dados, 'inicio', '');
-    $fim    = (string)campo($dados, 'fim', '');
+    $inicio = exigirData(campo($dados, 'inicio'), 'início');
+    $fim    = exigirData(campo($dados, 'fim'), 'fim');
 
     $st = bd()->prepare(
         'DELETE FROM escalas WHERE loja_id = ? AND inicio = ? AND fim = ?');
@@ -339,7 +345,7 @@ case 'criar_loja':
 // -----------------------------------------------------------------------------
     exigirGestao($u);
     if (vePorLoja($u)) falhar('Seu acesso é de uma loja só.', 403);
-    $nome = mb_substr(trim((string)campo($dados, 'nome', 'Nova loja')), 0, 80);
+    $nome = textoLimpo(campo($dados, 'nome', 'Nova loja'), 80);
     $id   = uuid();
     $st = bd()->prepare('SELECT COALESCE(MAX(ordem), -1) + 1 FROM lojas WHERE empresa_id = ?');
     $st->execute([$u['empresa_id']]);
