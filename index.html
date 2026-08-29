@@ -1,0 +1,3028 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quadro de Escala</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --tinta:#16232B; --tinta2:#2C3F49; --fundo:#EDF0EE; --painel:#fff; --linha:#CBD5CE;
+  --texto:#16232B; --fraco:#63736F; --teal:#0E6E6B;
+  --v-bg:#D8EDE2; --v-fg:#14663F;   /* folga */
+  --a-bg:#D7E5F0; --a-fg:#1F5580;   /* férias */
+  --m-bg:#F6E7C4; --m-fg:#8A5E06;   /* folga compensatória */
+  --r-bg:#F3DBD7; --r-fg:#96332A;   /* atestado */
+  --p-bg:#E3DDF2; --p-fg:#50407E;   /* licença */
+  --alerta:#B4453C;
+  --radius:3px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--fundo);color:var(--texto);font:15px/1.5 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.disp{font-family:Archivo,Inter,sans-serif;letter-spacing:-.01em}
+button{font:inherit;cursor:pointer}
+input,select{font:inherit}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+
+/* ---------- pop-up de edição da célula ---------- */
+.cel-editada{position:relative}
+.cel-editada::after{content:'';position:absolute;left:4px;right:4px;bottom:1px;height:2px;background:var(--teal);border-radius:1px}
+#pop-cel{position:absolute;z-index:60;width:292px;background:#fff;border:1px solid var(--linha);
+  border-radius:10px;box-shadow:0 8px 28px rgba(22,35,43,.16);overflow:hidden;font-size:13px}
+#pop-cel .pc-topo{padding:11px 14px;border-bottom:1px solid #EDF1EE;background:#F7F9F7}
+#pop-cel .pc-nome{font-weight:600;font-size:13px}
+#pop-cel .pc-data{font-size:11.5px;color:var(--fraco)}
+#pop-cel .pc-corpo{padding:12px 14px}
+#pop-cel .pc-rot{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#8A9995;margin-bottom:8px}
+#pop-cel .pc-linha{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+#pop-cel input[type=time]{flex:1;padding:7px 8px;border:1px solid var(--linha);border-radius:6px;
+  font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
+#pop-cel .pc-aplicar{padding:7px 12px;border:0;border-radius:6px;background:var(--texto);color:#fff;
+  font-size:12.5px;font-weight:500;cursor:pointer}
+#pop-cel .pc-atalhos{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+#pop-cel .pc-atalho{padding:4px 9px;border:1px solid var(--linha);border-radius:20px;background:#fff;
+  font-family:'JetBrains Mono',monospace;font-size:11.5px;cursor:pointer}
+#pop-cel .pc-atalho:hover{border-color:var(--teal);color:var(--teal)}
+#pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--fraco);cursor:pointer}
+#pop-cel .pc-repetir input{accent-color:var(--teal);width:14px;height:14px}
+#pop-cel .pc-codigos{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+#pop-cel .pc-cod{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--linha);
+  border-radius:6px;background:#fff;font-size:12px;cursor:pointer;text-align:left}
+#pop-cel .pc-cod:hover{border-color:var(--teal)}
+#pop-cel .pc-cod b{width:13px;height:13px;border-radius:3px;flex-shrink:0}
+#pop-cel .pc-rodape{padding:9px 14px;border-top:1px solid #EDF1EE;background:#F7F9F7;
+  display:flex;justify-content:space-between;align-items:center;gap:10px}
+#pop-cel .pc-link{border:0;background:none;color:var(--fraco);font-size:12px;cursor:pointer;padding:0}
+#pop-cel .pc-link:hover{color:var(--texto)}
+#pop-cel .pc-link.pc-voltar{text-decoration:underline}
+
+/* ---------- minha escala ---------- */
+.me-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.me-cartoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px}
+.me-cartao{background:#F4F6F4;border-radius:var(--radius);padding:12px 14px}
+.me-rot{font-size:12px;color:var(--fraco);margin-bottom:3px}
+.me-val{font-size:24px;font-weight:600;line-height:1.2}
+.me-val-hora{font-size:15px;font-family:'JetBrains Mono',monospace;padding-top:6px}
+.me-proximas{background:var(--v-bg);border-radius:var(--radius);padding:12px 14px;margin-bottom:20px}
+.me-proximas-rot{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--v-fg);margin-bottom:6px}
+.me-proximas-lista{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;font-weight:600;color:var(--v-fg)}
+.me-grade{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.me-cab{text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--fraco);padding-bottom:4px}
+.me-dia{background:#F7F9F7;border-radius:var(--radius);padding:8px 4px;text-align:center;min-height:50px}
+.me-dia-marcado{font-weight:600}
+.me-num{font-size:15px;font-weight:600}
+.me-hora{font-size:10.5px;color:#8A9995;font-family:'JetBrains Mono',monospace}
+.me-tipo{font-size:10px;font-weight:600;text-transform:lowercase}
+@media(max-width:620px){
+  .me-grade{gap:3px}
+  .me-dia{padding:6px 2px;min-height:44px}
+  .me-num{font-size:13px}
+  .me-tipo,.me-hora{font-size:9px}
+}
+
+/* ---------- params ---------- */
+.params-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--linha);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.pg-cel{padding:14px 16px;border-right:1px solid var(--linha);border-bottom:1px solid var(--linha);background:#fff}
+.pg-cel:nth-child(3n){border-right:0}
+.pg-cel.span2{grid-column:span 2}
+.pg-cel.span3{grid-column:span 3}
+.pg-cel label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);margin-bottom:6px}
+.pg-cel .inp{width:100%;padding:8px 10px;border:1px solid var(--linha);border-radius:var(--radius);background:#fff;font:14px/1.4 Inter,sans-serif;color:var(--texto)}
+.pg-cel .inp:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:var(--teal)}
+.pg-cel .hint{margin-top:5px;font-size:11px;color:var(--fraco);font-weight:400;text-transform:none;letter-spacing:0;line-height:1.4}
+.pg-cel .ck-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13.5px;color:var(--texto)}
+.pg-cel .ck-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--teal);cursor:pointer;flex-shrink:0}
+.dias-semana{display:grid;grid-template-columns:repeat(7,1fr);gap:0;border:1px solid var(--linha);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.ds-cel{text-align:center;border-right:1px solid var(--linha)}
+.ds-cel:last-child{border-right:0}
+.ds-cel .ds-nome{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);background:#F4F6F4;padding:6px 4px;border-bottom:1px solid var(--linha)}
+.ds-cel input{width:100%;text-align:center;border:0;padding:10px 4px;font-size:15px;font-weight:600;color:var(--texto);background:#fff}
+.ds-cel input:focus{outline:2px solid var(--teal);outline-offset:-2px}
+.ds-cel.fds .ds-nome{background:#EDF0EE}
+.ds-cel.fds input{background:#FAFBFA}
+.params-actions{display:flex;align-items:center;gap:12px;padding:4px 0}
+
+
+/* ---------- login ---------- */
+#login{min-height:100vh;display:grid;place-items:center;padding:24px;
+  background:linear-gradient(160deg,var(--tinta) 0%,#1E3238 55%,#28464A 100%)}
+.card-login{width:100%;max-width:380px;background:var(--painel);border-radius:var(--radius);padding:32px;
+  box-shadow:0 24px 60px rgba(0,0,0,.34)}
+.card-login .marca{font-family:Archivo;font-weight:800;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--teal)}
+.card-login h1{font-size:27px;font-weight:700;margin:6px 0 4px}
+.card-login p.sub{margin:0 0 24px;color:var(--fraco);font-size:13.5px}
+label{display:block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:14px 0 5px}
+.inp{width:100%;padding:10px 12px;border:1px solid var(--linha);border-radius:var(--radius);background:#fff}
+.inp:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:var(--teal)}
+.btn{background:var(--tinta);color:#fff;border:0;padding:11px 16px;border-radius:var(--radius);font-weight:600}
+.btn:hover{background:var(--teal)}
+.btn.ghost{background:transparent;color:var(--tinta);border:1px solid var(--linha)}
+.btn.ghost:hover{background:#fff;border-color:var(--teal);color:var(--teal)}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn.danger{background:transparent;border:1px solid var(--linha);color:var(--alerta)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.aviso{margin-top:14px;font-size:12.5px;color:var(--fraco);border-top:1px solid var(--linha);padding-top:12px}
+.erro{color:var(--alerta);font-size:13px;margin-top:10px;min-height:18px}
+
+/* ---------- shell ---------- */
+#app{display:none}
+header.top{background:var(--tinta);color:#fff;padding:0 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;min-height:56px}
+header.top .marca{font-family:Archivo;font-weight:800;letter-spacing:.16em;font-size:12.5px;text-transform:uppercase;color:#8FC9BE}
+header.top .sel{margin-left:auto;display:flex;gap:12px;align-items:center;font-size:13px;color:#C6D2CE}
+header.top select{background:#26383F;color:#fff;border:1px solid #3C525A;border-radius:var(--radius);
+  padding:7px 10px;font-size:13.5px;font-weight:500;max-width:220px}
+header.top .divisa{width:1px;height:22px;background:#3C525A;flex-shrink:0}
+header.top .quem{width:29px;height:29px;border-radius:50%;background:#2E4750;color:#8FC9BE;
+  display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;
+  border:1px solid #3C525A;flex-shrink:0;cursor:default;text-transform:uppercase}
+header.top .quem:focus{outline:2px solid #8FC9BE;outline-offset:2px}
+@media(max-width:560px){
+  header.top{padding:0 12px;gap:10px}
+  header.top .marca{font-size:11px;letter-spacing:.12em}
+  header.top .sel{gap:8px}
+  header.top select{max-width:130px;font-size:12.5px}
+  header.top .divisa{display:none}
+}
+nav.tabs{background:var(--tinta2);display:flex;gap:2px;padding:0 20px;overflow-x:auto}
+nav.tabs button{background:transparent;border:0;color:#B9C8C5;padding:11px 15px;font-size:13.5px;font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs button[aria-current="true"]{color:#fff;border-bottom-color:#8FC9BE}
+main{padding:20px;max-width:1900px;margin:0 auto}
+.view{display:none}
+.view[data-ativa="true"]{display:block}
+.painel{background:var(--painel);border:1px solid var(--linha);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+.painel h2{font-size:17px;margin:0 0 4px}
+.painel .desc{color:var(--fraco);font-size:13px;margin:0 0 16px}
+.barra{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.grade-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px 16px}
+.grade-form label{margin-top:0}
+
+/* ---------- tabela escala ----------
+   As duas primeiras colunas ficam presas na rolagem horizontal. As larguras
+   são declaradas aqui em variáveis e usadas TANTO na largura da coluna QUANTO
+   no deslocamento da coluna seguinte — antes o deslocamento era um número
+   solto, e quando um nome comprido esticava a coluna, a coluna ENTRA subia
+   por cima e escondia o primeiro dia. */
+.esc-quadro{position:relative}
+.scroll{overflow:auto;border:1px solid var(--linha);background:#fff;max-height:72vh;
+  scrollbar-color:#B9C6C0 #EDF1EE;scrollbar-width:thin}
+.scroll::-webkit-scrollbar{height:12px;width:12px}
+.scroll::-webkit-scrollbar-track{background:#EDF1EE}
+.scroll::-webkit-scrollbar-thumb{background:#B9C6C0;border-radius:6px;border:3px solid #EDF1EE}
+.scroll::-webkit-scrollbar-thumb:hover{background:#94A59E}
+
+table.esc{--w-nome:168px;--w-hora:60px;
+  border-collapse:separate;border-spacing:0;font-size:12px;white-space:nowrap}
+table.esc th,table.esc td{border-right:1px solid #E4E9E5;border-bottom:1px solid #E4E9E5;padding:0}
+table.esc thead th{position:sticky;top:0;z-index:3;background:#F4F6F4;font-weight:600;color:var(--fraco);
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:5px 4px;text-align:center;
+  height:24px;box-sizing:border-box}
+table.esc thead tr.datas th{top:24px;font-family:'JetBrains Mono',monospace;font-size:11px;
+  color:var(--texto);letter-spacing:0;text-transform:none}
+
+/* coluna 1 — nome e cargo */
+table.esc th.fixa,table.esc td.fixa{position:sticky;left:0;z-index:2;background:#fff;text-align:left;
+  padding:5px 9px;width:var(--w-nome);min-width:var(--w-nome);max-width:var(--w-nome);
+  box-sizing:border-box;overflow:hidden}
+table.esc thead th.fixa{z-index:5;background:#F4F6F4}
+table.esc td.fixa .nome{font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis}
+table.esc td.fixa .cargo{color:var(--fraco);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
+
+/* coluna 2 — horário de entrada. O left vem da largura da coluna 1. */
+table.esc th.hr,table.esc td.hr{position:sticky;left:var(--w-nome);z-index:2;background:#fff;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--fraco);padding:0 6px;text-align:center;
+  width:var(--w-hora);min-width:var(--w-hora);max-width:var(--w-hora);box-sizing:border-box}
+table.esc thead th.hr{z-index:5;background:#F4F6F4}
+
+/* sombra na divisa, para ficar claro que a tabela corre para o lado */
+table.esc th.hr::after,table.esc td.hr::after{content:'';position:absolute;top:0;right:0;bottom:0;
+  width:6px;transform:translateX(100%);pointer-events:none;
+  background:linear-gradient(to right,rgba(22,35,43,.10),transparent)}
+td.cel{text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;width:38px;min-width:38px;height:30px;cursor:pointer;user-select:none}
+td.cel:hover{outline:2px solid var(--teal);outline-offset:-2px}
+td.cel.fds{background:#F7F9F7}
+td.cel[data-cod="X"]{background:var(--v-bg);color:var(--v-fg);font-weight:600}
+td.cel[data-cod="FC"]{background:var(--m-bg);color:var(--m-fg);font-weight:600}
+td.cel[data-cod="F"]{background:var(--a-bg);color:var(--a-fg);font-weight:600}
+td.cel[data-cod="AT"]{background:var(--r-bg);color:var(--r-fg);font-weight:600}
+td.cel[data-cod="LC"]{background:var(--p-bg);color:var(--p-fg);font-weight:600}
+tr.sep td{height:6px;background:var(--fundo);border:0}
+tr.sep td.fixa,tr.sep td.hr{background:var(--fundo);border:0}
+tfoot td{font-size:11px;text-align:center;font-family:'JetBrains Mono',monospace;background:#F4F6F4;height:24px}
+tfoot td{position:sticky;bottom:0;z-index:3}
+tfoot td.fixa{position:sticky;left:0;z-index:5;font-family:Inter;font-weight:600;font-size:11px;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--fraco);background:#F4F6F4}
+tfoot td.hr{position:sticky;left:var(--w-nome);z-index:5;background:#F4F6F4}
+tfoot td.furo{background:var(--r-bg);color:var(--r-fg);font-weight:700}
+tfoot td.leve{background:var(--m-bg);color:var(--m-fg);font-weight:600}
+th.domingo{color:var(--v-fg)}
+.legenda{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--fraco);margin:12px 0 0}
+.legenda span b{display:inline-block;width:16px;height:12px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.chip{display:inline-block;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600;background:#E7EDE9;color:var(--fraco)}
+.chip.ok{background:var(--v-bg);color:var(--v-fg)}
+.chip.mal{background:var(--r-bg);color:var(--r-fg)}
+ul.alertas{list-style:none;margin:0;padding:0;max-height:230px;overflow:auto}
+ul.alertas li{padding:6px 0;border-bottom:1px solid #EDF0EE;font-size:13px;display:flex;gap:8px}
+ul.alertas li b{min-width:120px;font-weight:600}
+table.simples{width:100%;border-collapse:collapse;font-size:13.5px}
+table.simples th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--fraco);border-bottom:1px solid var(--linha);padding:7px 8px}
+table.simples td{border-bottom:1px solid #EDF0EE;padding:6px 8px}
+table.simples td input,table.simples td select{width:100%;border:1px solid transparent;background:transparent;padding:4px 5px;border-radius:2px}
+table.simples td input:hover,table.simples td select:hover{border-color:var(--linha);background:#fff}
+table.simples td input:focus,table.simples td select:focus{outline:2px solid var(--teal);outline-offset:0;background:#fff}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.cols2{grid-template-columns:1fr}}
+.vazio{color:var(--fraco);font-size:13.5px;padding:18px 0;text-align:center}
+@page{size:A4 landscape;margin:8mm}
+@media print{
+  header.top,nav.tabs,.barra,.painel.naoimprime,.cols2{display:none!important}
+  body{background:#fff}
+  main{padding:0;max-width:none}
+  .painel{border:0;padding:0;margin:0}
+  .scroll{max-height:none;overflow:visible;border:0}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="login">
+  <div class="card-login">
+    <div class="marca">Quadro de escala</div>
+
+    <!-- ENTRAR -->
+    <div id="tela-entrar">
+      <h1>Entrar</h1>
+      <p class="sub">Acesse com o seu e-mail e senha.</p>
+      <label for="in-email">E-mail</label>
+      <input id="in-email" class="inp" type="email" autocomplete="username" inputmode="email">
+      <label for="in-senha">Senha</label>
+      <input id="in-senha" class="inp" type="password" autocomplete="current-password">
+      <div class="erro" id="erro-entrar"></div>
+      <button class="btn" style="width:100%;margin-top:6px" id="btn-entrar">Entrar</button>
+      <div class="aviso">
+        <a href="#" data-ir="cadastro">Criar uma conta</a> &nbsp;·&nbsp;
+        <a href="#" data-ir="recuperar">Esqueci minha senha</a>
+      </div>
+    </div>
+
+    <!-- CRIAR CONTA -->
+    <div id="tela-cadastro" style="display:none">
+      <h1>Criar conta</h1>
+      <p class="sub">Você recebe um e-mail para confirmar o endereço.</p>
+      <div id="cd-form">
+        <label for="cd-nome">Seu nome</label>
+        <input id="cd-nome" class="inp" autocomplete="name">
+        <label for="cd-email">E-mail</label>
+        <input id="cd-email" class="inp" type="email" autocomplete="email" inputmode="email">
+        <label for="cd-senha">Senha</label>
+        <input id="cd-senha" class="inp" type="password" autocomplete="new-password" maxlength="64">
+        <div id="cd-medidor"></div>
+        <label for="cd-senha2">Repita a senha</label>
+        <input id="cd-senha2" class="inp" type="password" autocomplete="new-password" maxlength="64">
+        <div class="erro" id="erro-cadastro"></div>
+        <button class="btn" style="width:100%;margin-top:6px" id="btn-cadastrar">Criar conta</button>
+        <div class="aviso" style="font-size:11.5px">
+          Sem exigência de maiúscula, número ou símbolo — o que protege é o tamanho.
+          A senha é conferida contra bases de vazamentos sem sair do seu navegador.
+        </div>
+      </div>
+      <div id="cd-enviado" style="display:none">
+        <p style="font-size:14px;line-height:1.6">Enviamos um link de confirmação para
+          <b id="cd-email-mostrado"></b>. Abra o e-mail e clique no link para ativar a conta.</p>
+      </div>
+      <div class="aviso"><a href="#" data-ir="entrar">Voltar para entrar</a></div>
+    </div>
+
+    <!-- RECUPERAR -->
+    <div id="tela-recuperar" style="display:none">
+      <h1>Recuperar senha</h1>
+      <div id="rc-form">
+        <p class="sub">Enviaremos um link para você definir uma nova senha.</p>
+        <label for="rc-email">E-mail</label>
+        <input id="rc-email" class="inp" type="email" autocomplete="email" inputmode="email">
+        <div class="erro" id="erro-recuperar"></div>
+        <button class="btn" style="width:100%;margin-top:6px" id="btn-recuperar">Enviar link</button>
+      </div>
+      <div id="rc-enviado" style="display:none">
+        <p style="font-size:14px;line-height:1.6">Se existir conta com esse e-mail, o link chegará
+          em instantes. Confira também a caixa de spam.</p>
+      </div>
+      <div class="aviso"><a href="#" data-ir="entrar">Voltar para entrar</a></div>
+    </div>
+
+    <!-- NOVA SENHA -->
+    <div id="tela-novaSenha" style="display:none">
+      <h1>Nova senha</h1>
+      <p class="sub">Escolha a senha que passará a valer.</p>
+      <label for="ns-senha">Nova senha</label>
+      <input id="ns-senha" class="inp" type="password" autocomplete="new-password" maxlength="64">
+      <div id="ns-medidor"></div>
+      <label for="ns-senha2">Repita a nova senha</label>
+      <input id="ns-senha2" class="inp" type="password" autocomplete="new-password" maxlength="64">
+      <div class="erro" id="erro-nova-senha"></div>
+      <button class="btn" style="width:100%;margin-top:6px" id="btn-nova-senha">Salvar nova senha</button>
+    </div>
+
+    <!-- VÍNCULO COM EMPRESA -->
+    <div id="tela-vinculo" style="display:none">
+      <h1>Sua empresa</h1>
+      <p class="sub">Crie uma empresa nova ou entre em uma já existente.</p>
+      <label for="vn-empresa">Nome da empresa</label>
+      <input id="vn-empresa" class="inp" placeholder="Drogaria Bauru">
+      <button class="btn" style="width:100%;margin-top:10px" id="btn-criar-empresa">Criar empresa</button>
+      <div style="display:flex;align-items:center;gap:10px;margin:20px 0 6px">
+        <div style="flex:1;height:1px;background:var(--linha)"></div>
+        <span style="font-size:11.5px;color:var(--fraco)">ou</span>
+        <div style="flex:1;height:1px;background:var(--linha)"></div>
+      </div>
+      <label for="vn-codigo">Código de convite</label>
+      <input id="vn-codigo" class="inp" placeholder="A1B2C3D4" style="text-transform:uppercase">
+      <button class="btn ghost" style="width:100%;margin-top:10px" id="btn-entrar-convite">Entrar com código</button>
+      <div class="erro" id="erro-vinculo"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <header class="top">
+    <div class="marca">Quadro de escala</div>
+    <div class="sel">
+      <select id="sel-loja" aria-label="Loja"></select>
+      <span class="divisa" aria-hidden="true"></span>
+      <span id="sync-estado" style="font-size:12px"></span><span id="quem" class="quem" tabindex="0"></span>
+      <button class="btn ghost small" id="btn-sair" style="border-color:#3C525A;color:#C6D2CE;background:transparent">Sair</button>
+    </div>
+  </header>
+  <nav class="tabs">
+    <button data-view="escala" aria-current="true">Escala</button>
+    <button data-view="equipe">Equipe</button>
+    <button data-view="params">Parâmetros</button>
+    <button data-view="usuarios">Acessos</button>
+  </nav>
+  <main>
+
+    <!-- ESCALA -->
+    <section class="view" data-view="escala" data-ativa="true">
+      <div class="painel naoimprime">
+        <div class="barra">
+          <label style="margin:0">Início<input type="date" id="p-inicio" class="inp" style="width:150px"></label>
+          <label style="margin:0">Fim<input type="date" id="p-fim" class="inp" style="width:150px"></label>
+          <button class="btn" id="btn-gerar">Gerar escala</button>
+          <button class="btn ghost" id="btn-salvar">Salvar</button>
+          <button class="btn ghost" id="btn-xlsx">Baixar planilha</button>
+          <button class="btn ghost" id="btn-print">Imprimir</button>
+          <span id="status-salvo" class="chip"></span>
+        </div>
+        <div id="resumo-cobertura"></div>
+      </div>
+
+      <div class="painel">
+        <div class="scroll" id="grade"></div>
+        <div class="legenda">
+          <span><b style="background:var(--v-bg);border:1px solid var(--v-fg)"></b>X folga</span>
+          <span><b style="background:var(--m-bg);border:1px solid var(--m-fg)"></b>FC compensatória</span>
+          <span><b style="background:var(--a-bg);border:1px solid var(--a-fg)"></b>F férias</span>
+          <span><b style="background:var(--r-bg);border:1px solid var(--r-fg)"></b>AT atestado</span>
+          <span><b style="background:var(--p-bg);border:1px solid var(--p-fg)"></b>LC licença</span>
+          <span><b style="background:var(--m-bg);border:1px solid var(--m-fg)"></b>rodapé amarelo: abaixo do alvo, tolerado</span>
+          <span><b style="background:var(--r-bg);border:1px solid var(--r-fg)"></b>rodapé vermelho: abaixo do mínimo</span>
+          <span style="margin-left:auto">Clique na célula para trocar o código.</span>
+        </div>
+      </div>
+
+      <div class="cols2 naoimprime">
+        <div class="painel">
+          <h2>Pendências</h2>
+          <p class="desc" id="cont-alertas"></p>
+          <ul class="alertas" id="lista-alertas"></ul>
+        </div>
+        <div class="painel">
+          <h2>Fechamento por colaborador</h2>
+          <p class="desc">Folgas, domingos e maior sequência trabalhada no período.</p>
+          <div style="max-height:260px;overflow:auto"><table class="simples" id="tab-resumo"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EQUIPE -->
+    <section class="view" data-view="equipe">
+      <div class="painel">
+        <h2>Equipe da loja</h2>
+        <p class="desc"><b>E-mail de acesso</b>: preenchendo o e-mail da pessoa, ela cria a própria conta e passa a ver <b>apenas a escala dela</b> — sem acesso à equipe nem à escala dos colegas. Gerente folga todo sábado e domingo. <b>Folga fixa</b>: em “variável” o sistema escolhe o melhor dia para cada semana; escolhendo um dia, a folga daquela pessoa cai sempre nele — no 6x1 é a folga da semana, no 5x2 é o par que passa a incluir esse dia. “Dom. trabalhados” diz quantos domingos a pessoa já trabalhou seguidos no fim do mês anterior.</p>
+        <div class="barra"><button class="btn small" id="btn-add-colab">Adicionar colaborador</button></div>
+        <div style="overflow:auto"><table class="simples" id="tab-equipe"></table></div>
+      </div>
+      <div class="painel">
+        <h2>Ausências programadas</h2>
+        <p class="desc">Férias, atestado e licença entram como bloco fixo e o gerador não mexe nesses dias.</p>
+        <div class="barra"><button class="btn small" id="btn-add-aus">Adicionar ausência</button></div>
+        <div style="overflow:auto"><table class="simples" id="tab-aus"></table></div>
+      </div>
+    </section>
+
+    <!-- PARÂMETROS -->
+    <section class="view" data-view="params">
+
+      <div class="painel">
+        <h2>Regras de folga</h2>
+        <p class="desc">Valem para a loja selecionada. O gerador respeita estes números como limite rígido.</p>
+
+        <div class="params-grid">
+          <!-- linha 1: modelo e ciclo de domingos -->
+          <div class="pg-cel">
+            <label>Modelo de escala</label>
+            <select id="r-modelo" class="inp">
+              <option value="5x2">5x2 — duas folgas por semana</option>
+              <option value="6x1">6x1 — uma folga por semana</option>
+            </select>
+            <div class="hint">No 6x1, o domingo do ciclo vem por cima da folga semanal.</div>
+          </div>
+          <div class="pg-cel">
+            <label>Ciclo de domingos</label>
+            <select id="r-ciclo" class="inp">
+              <option value="2">Trabalha 1 domingo, folga 1</option>
+              <option value="3">Trabalha 2 domingos, folga 1</option>
+              <option value="4">Trabalha 3 domingos, folga 1</option>
+            </select>
+            <div class="hint" id="hint-ciclo"></div>
+          </div>
+          <div class="pg-cel">
+            <label>Máx. dias seguidos trabalhados</label>
+            <input type="number" id="r-maxseq" class="inp" min="3" max="12">
+            <div class="hint">Nenhum colaborador passa desse limite.</div>
+          </div>
+
+          <!-- linha 2: semana, cobertura -->
+          <div class="pg-cel">
+            <label>Semana conta de</label>
+            <select id="r-semana" class="inp">
+              <option value="P">Blocos de 7 a partir do dia 11</option>
+              <option value="0">Domingo a sábado</option>
+              <option value="1">Segunda a domingo</option>
+            </select>
+            <div class="hint">Define onde começa e termina cada semana de folgas.</div>
+          </div>
+          <div class="pg-cel">
+            <label>Mín. de caixas por dia</label>
+            <input type="number" id="r-mincaixa" class="inp" min="0" max="12">
+          </div>
+          <div class="pg-cel">
+            <label>Mín. de balcão por dia</label>
+            <input type="number" id="r-minbalcao" class="inp" min="0" max="15">
+          </div>
+
+          <!-- linha 3: farmacêutico, subgerente, prioridade -->
+          <div class="pg-cel">
+            <label>Farmacêuticos na loja (alvo)</label>
+            <input type="number" id="r-minfarma" class="inp" min="0" max="5">
+            <div class="hint">1 é tolerado em último caso · 0 o sistema evita ao máximo</div>
+          </div>
+          <div class="pg-cel">
+            <label>Subgerentes na loja (mín.)</label>
+            <input type="number" id="r-minsubger" class="inp" min="0" max="4">
+            <div class="hint">Recomendado: pelo menos 1 todos os dias.</div>
+          </div>
+          <div class="pg-cel">
+            <label>Quando não couber tudo</label>
+            <select id="r-prioridade" class="inp">
+              <option value="par">Priorizar descanso do colaborador</option>
+              <option value="equilibrado">Equilibrar as duas coisas</option>
+              <option value="equipe">Priorizar equipe na loja</option>
+            </select>
+          </div>
+
+          <!-- linha 4: fim de semana (span3) -->
+          <div class="pg-cel span3" style="border-bottom:0">
+            <label>Fim de semana</label>
+            <div class="ck-row">
+              <input type="checkbox" id="r-subger">
+              <span>Reforçar o subgerente no sábado e no domingo (exige ao menos 1 presente mesmo com folga marcada)</span>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:0 0 8px">Mínimo de pessoas na loja, por dia da semana</h3>
+        <p class="desc" style="margin-bottom:12px">É o alvo que o gerador persegue ao distribuir as folgas: dias de maior movimento recebem menos folga. Zero desativa o controle para aquele dia.</p>
+        <div class="dias-semana" id="min-dias"></div>
+
+        <div class="params-actions">
+          <button class="btn" id="btn-salvar-params">Salvar parâmetros</button>
+          <span class="chip" id="status-params"></span>
+        </div>
+      </div>
+
+      <div class="painel">
+        <h2>Como o gerador decide</h2>
+        <ol style="font-size:13.5px;color:var(--tinta2);line-height:1.75;margin:0;padding-left:20px">
+          <li>Trava férias, atestados e licenças. Só isso é intocável — todo o resto tem peso.</li>
+          <li>Gerente folga em todos os sábados e domingos, sem outra regra.</li>
+          <li>No <b>5x2</b>, procura duas folgas por semana em dias seguidos. No <b>6x1</b>, uma folga por semana — e na semana em que cai o domingo do ciclo a pessoa folga duas vezes, porque a folga da semana e a do domingo são direitos separados.</li>
+          <li>Para cada pessoa, monta todas as combinações possíveis de folga de cada semana e escolhe a sequência do mês inteiro de menor custo. Não decide semana a semana: colar o fim de semana depende do que foi feito na semana anterior.</li>
+          <li>As exigências da lei viajam dentro dessa conta com peso em outra ordem de grandeza, de propósito: a soma de todos os furos de cobertura de um mês inteiro ainda é menor que uma única infração legal. São elas o limite de dias seguidos trabalhados e o teto de domingos seguidos (Lei 10.101/2000: no máximo dois).</li>
+          <li>Depois vêm, nesta ordem: ficar sem nenhum farmacêutico (quase proibido), manter o subgerente na loja, chegar a dois farmacêuticos, o mínimo do dia da semana, o mínimo de caixa e balcão, e o equilíbrio entre os dias.</li>
+          <li>Refaz o plano de cada pessoa em quatro rodadas, cada uma enxergando a escala dos outros já montada. Sem isso, quem é planejado primeiro fica com os melhores dias.</li>
+          <li>O que não coube aparece em Pendências, separado entre regra ferida e observação.</li>
+        </ol>
+      </div>
+      <div class="painel">
+        <h2>O que o sistema não inventa</h2>
+        <p class="desc" style="margin:0">Dois farmacêuticos por dia com três no quadro é apertado: cada um precisa folgar em dias que os outros dois trabalham. Nas suas lojas isso fecha em 28 a 31 dias do mês, e o rodapé marca em amarelo o dia que ficou com um só. Loja com um farmacêutico só não tem como dar folga a ele e manter cobertura: o sistema concede a folga a que ele tem direito e marca o dia em vermelho, para você combinar substituição. O mesmo vale para subgerente único no fim de semana. Escala de uma folga por semana (6x1) tem uma limitação de matemática: com semanas fixas, o dia de folga só consegue andar para trás, nunca para frente, sem estourar o limite de dias seguidos.</p>
+      </div>
+    </section>
+
+    <!-- USUÁRIOS -->
+    <section class="view" data-view="usuarios">
+      <div class="painel">
+        <h2>Quem acessa o sistema</h2>
+        <p class="desc">Cada pessoa entra com o próprio e-mail e senha. As senhas ficam
+          no serviço de autenticação, com hash forte e salt — este aplicativo nunca as vê.</p>
+        <div style="display:flex;gap:28px;flex-wrap:wrap;margin:16px 0 20px">
+          <div>
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);margin-bottom:4px">Empresa</div>
+            <div id="nome-empresa" style="font-size:15px;font-weight:600">—</div>
+          </div>
+          <div>
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);margin-bottom:4px">Código de convite</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span id="codigo-convite" class="mono" style="font-size:15px;font-weight:600;letter-spacing:.08em">—</span>
+              <button class="btn ghost small" id="copiar-codigo">Copiar</button>
+            </div>
+          </div>
+        </div>
+        <p class="desc">Para dar acesso a alguém: peça que crie a conta na tela de entrada
+          e informe este código quando o sistema pedir a empresa.</p>
+        <div id="lista-acessos" style="margin-top:14px"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   MOTOR DE ESCALA - regras de folga
+   ============================================================ */
+
+const DIA_NOME = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+const DIA_ABREV = ['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
+
+function parseISO(s){ const p = String(s).split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); }
+function ymd(d){ const m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${dd}`; }
+function ddmm(d){ return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); }
+function addDays(d,n){ const x=new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
+
+function listDays(ini, fim){
+  const out=[]; let d=parseISO(ini); const f=parseISO(fim);
+  while(d<=f){ out.push(new Date(d.getTime())); d=addDays(d,1); }
+  return out;
+}
+
+function grupoDe(c){
+  if(c.gerente) return 'gerencia';
+  const cargo = (c.cargo||'').toUpperCase();
+  if(cargo.includes('CAIXA')) return 'caixa';
+  return 'balcao';
+}
+function isFarma(c){ return (c.cargo||'').toUpperCase().includes('FARMA'); }
+function isSubger(c){ const x=(c.cargo||'').toUpperCase(); return x.includes('SUBGER') || x.startsWith('SUB/'); }
+function turnoDe(c){
+  const m = /(\d{1,2}):(\d{2})/.exec(c.horario||'');
+  if(!m) return 'flex';
+  const h = +m[1];
+  if(h < 10) return 'abertura';
+  if(h < 14) return 'intermediario';
+  return 'fechamento';
+}
+function horaEntrada(c){
+  const m = /(\d{1,2}):(\d{2})/.exec(c.horario||'');
+  return m ? (m[1].padStart(2,'0')+':'+m[2]) : '--:--';
+}
+
+/* ---------- ausências fixas (férias, atestado, licença) ---------- */
+function ausenciaEm(c, d){
+  const s = ymd(d);
+  for(const a of (c.ausencias||[])){
+    if(a.ini <= s && s <= (a.fim||a.ini)) return a.tipo;
+  }
+  return null;
+}
+
+/* ============================================================
+   GERAÇÃO
+   params = {inicio, fim, inicioSemana(0=dom,1=seg), folgasSemana,
+             cicloDomingo, maxSeq, minCaixa, minBalcao, farmaPorTurno}
+   ============================================================ */
+function gerarEscala(colabs, params){
+  const days = listDays(params.inicio, params.fim);
+  const N = days.length;
+  const P = Object.assign({inicioSemana:0, folgasSemana:2, cicloDomingo:3, maxSeq:6,
+                           minCaixa:2, minBalcao:3, minFarma:2, minSubger:1, subgerFds:true}, params);
+
+  const AUS_INI = ['F','AT','LC'];
+  const ativos = colabs.filter(c=>c.ativo!==false);
+  const grid = {};
+  ativos.forEach(c=>{
+    grid[c.id] = days.map(d => ausenciaEm(c,d) || null);   // null = a definir; '' = trabalha
+  });
+
+  /* ---- semanas ---- */
+  const semanas = [];
+  if(P.inicioSemana === 'P'){
+    for(let i=0;i<N;i+=7) semanas.push({ini:i, fim:Math.min(i+6,N-1), idx:semanas.length});
+  } else {
+    let i = 0;
+    while(i < N){
+      let j = i;
+      while(j+1 < N && days[j+1].getDay() !== P.inicioSemana) j++;
+      semanas.push({ini:i, fim:j, idx:semanas.length});
+      i = j+1;
+    }
+  }
+  semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
+
+  /* ---- alvo de folgas por dia: espalhar em vez de empilhar ---- */
+  let previsto = 0;
+  const semanasCompletas = () => semanas.filter(s2=>s2.dias.length>=7).length;
+  const semanasParciais  = () => semanas.filter(s2=>s2.dias.length>=3 && s2.dias.length<7).length;
+  ativos.forEach(c=>{
+    if(c.gerente){ previsto += days.filter(d=>d.getDay()===0||d.getDay()===6).length; }
+    else { previsto += P.folgasSemana * semanasCompletas() + semanasParciais(); }
+  });
+  const alvoDia    = previsto / N;
+
+  /* Se o usuário não informou o mínimo por dia da semana, o motor deduz um alvo
+     plano a partir da própria capacidade: sem isso ele não tem noção de demanda
+     diária e empilha folga no mesmo dia. */
+  let minDiaEfetivo = P.minDia || null;
+  if(!minDiaEfetivo){
+    let disponivelTotal = 0;
+    days.forEach((d,i)=>{ disponivelTotal += ativos.filter(c=>!AUS_INI.includes(grid[c.id][i])).length; });
+    const capacidadeMedia = (disponivelTotal - previsto) / N;
+    const alvoPlano = Math.max(1, Math.floor(capacidadeMedia));
+    minDiaEfetivo = {0:alvoPlano,1:alvoPlano,2:alvoPlano,3:alvoPlano,4:alvoPlano,5:alvoPlano,6:alvoPlano};
+    P.minDiaAuto = alvoPlano;
+  }
+  const tetoRigido = Math.max(2, Math.ceil(alvoDia) + (P.tetoExtra != null ? P.tetoExtra : 1));
+
+  /* ---- capacidade por dia (quantos podem folgar sem furar o mínimo) ---- */
+  function disponiveis(i, grupo){
+    return ativos.filter(c => grupoDe(c)===grupo && grid[c.id][i]!== 'F' && grid[c.id][i]!=='AT' && grid[c.id][i]!=='LC').length;
+  }
+  function trabalhando(i, grupo){
+    return ativos.filter(c => grupoDe(c)===grupo && (grid[c.id][i]===null || grid[c.id][i]==='')).length;
+  }
+  function farmaTrabalhando(i){
+    return ativos.filter(c => isFarma(c) && (grid[c.id][i]===null||grid[c.id][i]==='')).length;
+  }
+
+  function subgerTrabalhando(i){
+    return ativos.filter(c => isSubger(c) && (grid[c.id][i]===null||grid[c.id][i]==='')).length;
+  }
+  /* Só é bloqueio rígido o que torna a atribuição impossível: o dia já estar ocupado
+     por férias, atestado ou licença. Todo o resto é custo com peso, em ordem de
+     prioridade. Isso evita o beco sem saída do farmacêutico único, que antes ficava
+     impedido de folgar em qualquer dia do mês. */
+  function bloqueioRigido(c, i){
+    if(i<0 || i>=N || grid[c.id][i] !== null) return true;
+    if(totalTrabalhando(i) - 1 < 1) return true;        // loja não pode ficar vazia
+    return false;
+  }
+  // pesos das restrições que podem ser furadas, da mais grave para a menos
+  const PRIORIDADE = {par:{curva:400}, equilibrado:{curva:800, teto:250}, equipe:{curva:1800, teto:400}};
+  const ajustePrioridade = PRIORIDADE[P.prioridade] || PRIORIDADE.par;
+  /* Pesos em faixas separadas por ordem de grandeza. A soma de todos os custos de
+     cobertura de um mês precisa continuar menor que uma única infração legal —
+     senão o motor "compra" a infração para salvar a cobertura, que foi o erro
+     encontrado nas simulações do 6x1. */
+  const PESO = Object.assign({
+    // faixa 1: obrigação legal
+    estouroSeq: 200000,        // passar do limite de dias seguidos trabalhados
+    pulaDomingo: 150000,       // trabalhar mais domingos seguidos do que o ciclo permite
+    // faixa 2: regra da casa
+    soDomingo: 30000,          // no 6x1, ficar sem a folga da semana por causa do domingo
+    diaFixo: 25000,            // não respeitar o dia de folga fixa escolhido para a pessoa
+    domingoAncorado: 28000,    // furar o domingo de folga que o usuário fixou na data
+    // faixa 3: cobertura da loja
+    farmaCritico: 5000, farmaAlvo: 900, subger: 1400, subgerFds: 900,
+    curva: 400, equipe: 600, teto: 150, outroDomingo: 450,
+    // faixa 4: qualidade da escala
+    extraFolga: 700, extraFolgaSolta: 1600, blocoLongo: 500, bonusDomColado: 250,
+    solto: 95, avulso: 130, separado: 210, domAvulso: 60
+  }, ajustePrioridade, P.pesos||{});
+  function custoSuave(c, i){
+    let custo = 0;
+    /* Farmacêutico: o alvo é dois na loja. Ficar com um é tolerado em último caso,
+       e por isso custa; ficar sem nenhum é quase proibido. */
+    if(isFarma(c)){
+      const depois = farmaTrabalhando(i) - 1;
+      const alvo = P.minFarma != null ? P.minFarma : 2;
+      if(depois < alvo) custo += (alvo - depois) * PESO.farmaAlvo;
+      if(depois < 1)    custo += PESO.farmaCritico;
+    }
+    /* Subgerente: um na loja todo dia, com reforço no fim de semana. */
+    if(isSubger(c)){
+      const depois = subgerTrabalhando(i) - 1;
+      const alvoSg = P.minSubger != null ? P.minSubger : 1;
+      if(depois < alvoSg){
+        custo += (alvoSg - depois) * PESO.subger;
+        const wd = days[i].getDay();
+        if(P.subgerFds && (wd===0 || wd===6)) custo += PESO.subgerFds;
+      }
+    }
+    custo += deficitDoDia(i, true) * PESO.curva;
+    const g = grupoDe(c);
+    if(g === 'caixa'  && trabalhando(i,'caixa')  - 1 < P.minCaixa)
+      custo += (P.minCaixa  - (trabalhando(i,'caixa')-1))  * PESO.equipe;
+    if(g === 'balcao' && trabalhando(i,'balcao') - 1 < P.minBalcao)
+      custo += (P.minBalcao - (trabalhando(i,'balcao')-1)) * PESO.equipe;
+    const excesso = folgasTotaisNoDia(i) + 1 - tetoRigido;
+    if(excesso > 0) custo += excesso * PESO.teto;       // cresce a cada folga a mais no dia
+    return custo;
+  }
+  function folgasNoDia(i, grupo){
+    return ativos.filter(c=>grupoDe(c)===grupo && grid[c.id][i]==='X').length;
+  }
+  function folgasTotaisNoDia(i){
+    return ativos.filter(c=>grid[c.id][i]==='X').length;
+  }
+  function totalTrabalhando(i){
+    return ativos.filter(c=>grid[c.id][i]===null || grid[c.id][i]==='').length;
+  }
+  // quanto o dia fica abaixo do mínimo daquele dia da semana (0 = dentro do combinado)
+  function deficitDoDia(i, jaContando){
+    if(!minDiaEfetivo) return 0;
+    const alvo = Number(minDiaEfetivo[days[i].getDay()] || 0);
+    if(!alvo) return 0;
+    const d = alvo - (totalTrabalhando(i) - (jaContando?1:0));
+    return d > 0 ? d : 0;
+  }
+
+  /* ---- 1) GERENTES: folga todo sábado e domingo ---- */
+  ativos.filter(c=>c.gerente).forEach(c=>{
+    days.forEach((d,i)=>{
+      if(grid[c.id][i]===null && (d.getDay()===0 || d.getDay()===6)) grid[c.id][i]='X';
+    });
+  });
+
+  /* ---- 2) domingos de folga (a cada N domingos trabalhados, 1 folga) ---- */
+  const domingos = [];
+  days.forEach((d,i)=>{ if(d.getDay()===0) domingos.push(i); });
+
+  const contadorOffset = {caixa:0, balcao:0, gerencia:0};
+  const domFolga = {};   // id -> Set de índices
+  /* Quem teve o 1º domingo informado por data. Para essas pessoas o ciclo
+     deixa de ser preferência e passa a ser regra: a data marcada é o domingo
+     de folga, e os seguintes saem dela somando o ciclo. Sem isso o motor
+     trocava o domingo por outro quando a cobertura ficava mais barata. */
+  const domAncorado = {};
+
+  /* Converte uma data ISO para o índice do domingo correspondente no período,
+     ou null se estiver fora do intervalo. */
+  function indiceDomingo(isoDate){
+    if(!isoDate) return null;
+    const [y,m,d] = String(isoDate).split('-').map(Number);
+    const alvo = new Date(y, m-1, d);
+    const idx = days.findIndex(dd => dd.getFullYear()===alvo.getFullYear()
+      && dd.getMonth()===alvo.getMonth() && dd.getDate()===alvo.getDate()
+      && dd.getDay()===0);
+    return idx >= 0 ? idx : null;
+  }
+
+  ativos.filter(c=>!c.gerente).forEach(c=>{
+    const g = grupoDe(c);
+    let primeiro;
+
+    if(c.primeiroDomingo){
+      domAncorado[c.id] = true;
+      /* Usuário informou o primeiro domingo de folga: âncora exata. */
+      const ancora = indiceDomingo(c.primeiroDomingo);
+      if(ancora != null){
+        /* o índice dentro de domingos[] que contém ancora */
+        const posNaLista = domingos.indexOf(ancora);
+        primeiro = posNaLista >= 0 ? posNaLista : 0;
+      } else {
+        /* domingo informado fora do período: calcular a distância e
+           extrapolá-la para dentro do período */
+        const [y,m,d] = String(c.primeiroDomingo).split('-').map(Number);
+        const alvoDt = new Date(y, m-1, d);
+        const difMs  = days[domingos[0]].getTime() - alvoDt.getTime();
+        const difSem = Math.round(difMs / (7*24*3600*1000));
+        const resto  = ((difSem % P.cicloDomingo) + P.cicloDomingo) % P.cicloDomingo;
+        primeiro = (P.cicloDomingo - resto) % P.cicloDomingo;
+      }
+    } else if(Number.isInteger(c.domTrabConsec)){
+      primeiro = Math.max(0, (P.cicloDomingo-1) - c.domTrabConsec);
+    } else {
+      primeiro = contadorOffset[g] % P.cicloDomingo;
+    }
+    contadorOffset[g]++;
+    const set = new Set();
+    for(let k=primeiro; k<domingos.length; k+=P.cicloDomingo) set.add(domingos[k]);
+    domFolga[c.id] = set;
+  });
+
+  /* ---- 3) folgas: cadeia do mês inteiro por colaborador (programação dinâmica) ----
+     Escolher semana a semana não fecha: para colar sábado ou segunda no domingo de folga,
+     a semana anterior também precisa ter folgado perto do fim de semana. Então, para cada
+     pessoa, montamos todas as opções de cada semana e escolhemos a combinação de menor
+     custo que respeite o limite de dias seguidos de ponta a ponta. ---- */
+  const diag = {tipos:{}, escolhas:{}, semOpcao:0, relaxou:0};
+  const naoGerentes = ativos.filter(c=>!c.gerente);
+  const ritmo = {}, slotBase = {}, desdeFolga = {}, domInicial = {};
+  naoGerentes.forEach((c,k)=>{
+    domInicial[c.id] = k % Math.max(1, (params.cicloDomingo||3));
+    ritmo[c.id] = Math.max(3, P.maxSeq - 1 - (k % 3));
+    slotBase[c.id] = k % 6;
+    desdeFolga[c.id] = (c.diasDesdeFolga!=null && c.diasDesdeFolga!=='')
+      ? Number(c.diasDesdeFolga) : (k % Math.max(2, P.maxSeq - 1));
+  });
+
+  const AUSENTE = ['F','AT','LC'];
+  const DESCANSO = ['X','FC'].concat(AUSENTE);
+  const ehFolga = (c,i) => i>=0 && i<N && DESCANSO.includes(grid[c.id][i]);
+
+  // maior sequência de descanso que a opção cria (olhando também para fora da semana)
+  function maiorBloco(c, novos){
+    const conj = new Set(novos);
+    const descansa = i => i>=0 && i<N && (conj.has(i) || DESCANSO.includes(grid[c.id][i]));
+    let maior = 0;
+    novos.forEach(i=>{
+      let a=i; while(descansa(a-1)) a--;
+      let b=i; while(descansa(b+1)) b++;
+      maior = Math.max(maior, b-a+1);
+    });
+    return maior;
+  }
+  function pesoBalanceamento(c, dias){
+    let n = 0;
+    dias.forEach(i=>{
+      const fg = folgasNoDia(i, grupoDe(c)), ft = folgasTotaisNoDia(i);
+      n += (fg+1)*(fg+1)*4 + (ft+1)*(ft+1)*1;      // espalha só quando a curva não manda
+      if(P.pesoDia && P.pesoDia[days[i].getDay()]) n += Number(P.pesoDia[days[i].getDay()]);
+      if(ft === 0) n -= 45;
+    });
+    return n;
+  }
+
+  /* Todas as formas de fechar a semana para essa pessoa.
+     O domingo deixou de ser pré-fixado: a lei ("no máximo 2 domingos seguidos
+     trabalhados") virou restrição da própria cadeia, e o domingo preferido de
+     cada um é só um desempate para a equipe não folgar toda no mesmo domingo. */
+  function opcoesDaSemana(c, sem){
+    const fixos = sem.dias.filter(i => DESCANSO.includes(grid[c.id][i]));
+    const jaX   = sem.dias.filter(i => grid[c.id][i]==='X').length;
+    const nDias = sem.dias.length;
+    const ausentes = sem.dias.filter(i => AUSENTE.includes(grid[c.id][i])).length;
+    const domSemana = sem.dias.filter(i => days[i].getDay()===0);
+    const meuDomingo = domSemana.find(i => domFolga[c.id] && domFolga[c.id].has(i));
+
+    const marcar = (novos) => {
+      const dias = fixos.concat(novos).sort((a,b)=>a-b);
+      // domingos da semana em que a pessoa NÃO trabalha
+      const domFolgado = domSemana.filter(i => dias.includes(i) || AUSENTE.includes(grid[c.id][i]));
+      return {dias, novos, domSemana: domSemana.length, domFolgado: domFolgado.length};
+    };
+
+    /* 6x1: a folga da semana e a folga de domingo são direitos separados —
+       na semana em que cai o domingo do ciclo, a pessoa folga duas vezes. */
+    if(P.modelo === '6x1')
+      return opcoes6x1(c, sem, {fixos, jaX, nDias, ausentes, domSemana, marcar, meuDomingo});
+
+    let alvo = nDias>=7 ? P.folgasSemana : (nDias>=3 ? 1 : 0);
+    const semOpcao = [Object.assign({tipo:'fixo', custo:0}, marcar([]))];
+    if(ausentes >= nDias - 1) return semOpcao;
+    const faltam = Math.max(0, alvo - jaX);
+    const ok = i => sem.dias.includes(i) && !bloqueioRigido(c,i);
+    if(faltam === 0){
+      // semana já fechada: normalmente não se mexe. Mas em semana curta ou na última,
+      // deixa a opção de uma folga a mais, que é o que evita a ponta de 7 dias no fim do mês.
+      if(nDias >= 7 && sem.idx < semanas.length-1) return semOpcao;
+      const extras = sem.dias.filter(ok).map(i =>
+        Object.assign({tipo:'avulso', extra:'ponta', custo:0}, marcar([i])));
+      return semOpcao.concat(extras.map(o=>{
+        let custo = PESO.extraFolga;
+        o.novos.forEach(i=>{
+          custo += custoSuave(c,i);
+          if(days[i].getDay()===0 && i!==meuDomingo) custo += PESO.outroDomingo;
+        });
+        custo += pesoBalanceamento(c, o.novos);
+        if(ehFolga(c,o.novos[0]-1) || ehFolga(c,o.novos[0]+1)) custo -= 120;
+        return Object.assign({}, o, {custo});
+      }));
+    }
+    const brutas = [];
+
+    if(faltam >= 2){
+      for(let k=0;k<sem.dias.length-1;k++){
+        const a=sem.dias[k], b=sem.dias[k+1];
+        if(b===a+1 && ok(a) && ok(b)) brutas.push({novos:[a,b], tipo:'par'});
+      }
+      if(brutas.length===0){
+        const livres = sem.dias.filter(ok);
+        for(let x=0;x<livres.length;x++)
+          for(let y=x+1;y<livres.length;y++)
+            brutas.push({novos:[livres[x],livres[y]], tipo:'separado'});
+      }
+      /* Dia de folga fixa: se o dia escolhido não puder formar par (por cair na
+         virada da semana, por exemplo), vale mais dar as duas folgas separadas
+         do que inflar a semana com um terceiro dia. */
+      const diaFixoPessoa = (c.folgaFixa != null && c.folgaFixa !== '') ? Number(c.folgaFixa) : null;
+      if(diaFixoPessoa != null){
+        const oDia = sem.dias.filter(i => days[i].getDay()===diaFixoPessoa && ok(i));
+        oDia.forEach(f=>{
+          sem.dias.forEach(i=>{
+            if(i===f || !ok(i) || Math.abs(i-f)===1) return;
+            brutas.push({novos:[Math.min(i,f), Math.max(i,f)], tipo:'separado'});
+          });
+        });
+      }
+    }
+    if(brutas.length===0) sem.dias.filter(ok).forEach(i=>brutas.push({novos:[i], tipo:'avulso'}));
+    if(brutas.length===0) return semOpcao;
+
+    // variantes com um dia a mais, para quando a cadeia dos dias seguidos não fecha
+    const comExtra = [];
+    if(faltam >= 2){
+      brutas.slice(0,10).forEach(o=>{
+        sem.dias.forEach(i=>{
+          if(o.novos.includes(i) || !ok(i)) return;
+          const colado = o.novos.some(j=>Math.abs(j-i)===1);
+          comExtra.push({novos:o.novos.concat([i]).sort((a,b)=>a-b), tipo:o.tipo,
+                         extra: colado?'colado':'solto'});
+        });
+      });
+    }
+    brutas.push(...comExtra);
+
+    return brutas.map(o=>{
+      const info = marcar(o.novos);
+      let custo = (o.tipo==='separado' ? PESO.separado : o.tipo==='avulso' ? PESO.avulso : 0);
+      if(o.extra) custo += (o.extra==='colado' ? PESO.extraFolga : PESO.extraFolgaSolta);
+
+      o.novos.forEach(i=>{
+        custo += custoSuave(c,i);
+        if(days[i].getDay()===0 && i !== meuDomingo) custo += PESO.outroDomingo;
+      });
+
+      /* Domingo fixado pelo usuário: só cede quando o dia está bloqueado por
+         ausência. Fora isso, é regra. */
+      if(domAncorado[c.id] && meuDomingo != null
+         && !info.dias.includes(meuDomingo)
+         && !AUSENTE.includes(grid[c.id][meuDomingo])) custo += PESO.domingoAncorado;
+
+      // par que inclui o domingo dele: é o formato que a regra pede
+      if(meuDomingo != null && o.novos.includes(meuDomingo) && o.tipo==='par') custo -= PESO.bonusDomColado;
+      // metade cola no sábado, metade na segunda, senão a segunda fica deserta
+      if(o.novos.length>=2 && o.novos.includes(meuDomingo)){
+        const pegaSegunda = o.novos.includes(meuDomingo+1);
+        const querSegunda = ((slotBase[c.id] + sem.idx) % 2 === 1);
+        if(pegaSegunda !== querSegunda) custo += 55;
+      }
+      custo += pesoBalanceamento(c, o.novos);
+      const bloco = maiorBloco(c, o.novos);
+      if(bloco >= 4) custo += (bloco - 3) * (PESO.blocoLongo || 500);
+      const fixo = (c.folgaFixa != null && c.folgaFixa !== '') ? Number(c.folgaFixa) : null;
+      if(fixo != null){
+        // no 5x2 o par de folgas precisa incluir o dia escolhido
+        const temODia = o.novos.some(i => days[i].getDay() === fixo);
+        const cabeNaSemana = sem.dias.some(i => days[i].getDay() === fixo && !AUSENTE.includes(grid[c.id][i]));
+        if(!temODia && cabeNaSemana && o.novos.length) custo += PESO.diaFixo;
+      } else if(o.tipo==='par' && !o.novos.some(i=>days[i].getDay()===0)){
+        const desejado = (slotBase[c.id] + sem.idx) % Math.max(1, nDias-3);
+        custo += Math.abs((o.novos[0] - sem.ini) - desejado) * 18;
+      }
+      if(o.novos.length===1 && (ehFolga(c,o.novos[0]-1) || ehFolga(c,o.novos[0]+1))) custo -= 80;
+      return Object.assign({tipo:o.tipo, extra:o.extra, custo}, info);
+    });
+  }
+
+  /* Opções de uma semana no modelo 6x1: uma folga na semana e, quando for a vez
+     do domingo dele, o domingo por cima — sem exigência de dias colados. */
+  function opcoes6x1(c, sem, ctx){
+    const {fixos, jaX, nDias, ausentes, domSemana, marcar} = ctx;
+    const semOpcao = [Object.assign({tipo:'fixo', custo:0}, marcar([]))];
+    if(ausentes >= nDias - 1) return semOpcao;
+
+    const ok = i => sem.dias.includes(i) && !bloqueioRigido(c,i);
+    const domingo = domSemana.find(i => ok(i));
+    const domJaFolga = domSemana.some(i => DESCANSO.includes(grid[c.id][i]));
+    const comuns = sem.dias.filter(i => ok(i) && days[i].getDay() !== 0);
+    const alvoSemana = nDias >= 7 ? 1 : (nDias >= 3 ? 1 : 0);
+    const faltamSemana = Math.max(0, alvoSemana - jaX);
+
+    const brutas = [];
+    if(faltamSemana >= 1){
+      comuns.forEach(i => brutas.push({novos:[i], tipo:'semanal'}));
+      // mesma folga da semana somada ao domingo do ciclo
+      if(domingo != null && !domJaFolga)
+        comuns.forEach(i => brutas.push({novos:[i, domingo].sort((a,b)=>a-b), tipo:'semanal-e-domingo'}));
+      // só o domingo: atende a semana, mas perde a folga comum — último caso
+      if(domingo != null && !domJaFolga) brutas.push({novos:[domingo], tipo:'so-domingo'});
+      if(!comuns.length && domingo != null && !domJaFolga) brutas.push({novos:[domingo], tipo:'so-domingo'});
+    } else if(domingo != null && !domJaFolga){
+      // a semana já tem a folga comum; falta encaixar o domingo do ciclo
+      brutas.push({novos:[domingo], tipo:'domingo-do-ciclo'});
+      brutas.push({novos:[], tipo:'fixo'});
+    }
+    if(!brutas.length) return semOpcao;
+
+    // variantes com um dia a mais, quando a cadeia dos dias seguidos não fecha
+    const extras = [];
+    brutas.slice(0,10).forEach(o=>{
+      if(!o.novos.length) return;
+      sem.dias.forEach(i=>{
+        if(o.novos.includes(i) || !ok(i) || days[i].getDay()===0) return;
+        extras.push({novos:o.novos.concat([i]).sort((a,b)=>a-b), tipo:o.tipo, extra:'solto'});
+      });
+    });
+    brutas.push(...extras);
+
+    const slotFixo = slotBase[c.id] % Math.max(1, nDias);
+    const fixo = (c.folgaFixa != null && c.folgaFixa !== '') ? Number(c.folgaFixa) : null;
+    return brutas.map(o=>{
+      const info = marcar(o.novos);
+      let custo = 0;
+      // quem tem folga fixa no domingo já cumpre a folga da semana no próprio domingo
+      if(o.tipo === 'so-domingo' && fixo !== 0) custo += PESO.soDomingo;
+      if(o.tipo === 'domingo-do-ciclo')  custo += 0;
+      if(o.tipo === 'fixo' && !o.novos.length) custo += PESO.pulaDomingo;   // deixar o domingo passar
+      if(o.extra) custo += PESO.extraFolgaSolta;
+      o.novos.forEach(i=>{
+        custo += custoSuave(c,i);
+        if(days[i].getDay()===0 && i !== ctx.meuDomingo) custo += 0;   // no 6x1 o domingo é do ciclo, não penaliza
+      });
+      custo += pesoBalanceamento(c, o.novos);
+      if(domAncorado[c.id] && ctx.meuDomingo != null
+         && !info.dias.includes(ctx.meuDomingo)
+         && !AUSENTE.includes(grid[c.id][ctx.meuDomingo])) custo += PESO.domingoAncorado;
+
+      if(fixo != null){
+        // dia de folga escolhido para a pessoa: só cede quando não há alternativa
+        const temODia = o.novos.some(i => days[i].getDay() === fixo);
+        const cabeNaSemana = sem.dias.some(i => days[i].getDay() === fixo && !AUSENTE.includes(grid[c.id][i]));
+        if(!temODia && cabeNaSemana && o.novos.length) custo += PESO.diaFixo;
+      } else {
+        const comum = o.novos.find(i => days[i].getDay() !== 0);
+        if(comum != null) custo += Math.abs((comum - sem.ini) - slotFixo) * 22;
+      }
+      return Object.assign({tipo:o.tipo, extra:o.extra, custo}, info);
+    });
+  }
+
+  function intervaloOk(a, b){ return (b - a - 1) <= P.maxSeq; }
+
+  /* Planeja o mês inteiro de uma pessoa: escolhe, entre todas as combinações
+     semanais, a de menor custo que respeite o limite de dias seguidos. */
+  function planejar(c){
+    const maxDomSeguidos = Math.max(1, P.cicloDomingo - 1);
+    const domIni = Number.isInteger(c.domTrabConsec) ? c.domTrabConsec : (domInicial[c.id] || 0);
+    const chave = (ult, dom, run) => ult + '|' + dom + '|' + run;
+    const u0 = -1 - (desdeFolga[c.id]||0), d0 = Math.min(domIni, maxDomSeguidos);
+    let estados = new Map([[chave(u0,d0,0), {custo:0, caminho:[], ult:u0, dom:d0, run:0}]]);
+
+    semanas.forEach(sem=>{
+      const opcoes = opcoesDaSemana(c, sem);
+      const proximos = new Map();
+      const guardar = (ult, dom, run, custo, caminho)=>{
+        const k = chave(ult,dom,run);
+        const atual = proximos.get(k);
+        if(!atual || custo < atual.custo) proximos.set(k, {custo, caminho, ult, dom, run});
+      };
+      /* Nada é descartado: as duas exigências legais (no máximo maxSeq dias
+         seguidos e no máximo cicloDomingo-1 domingos seguidos) entram como custo
+         altíssimo. Assim a cadeia sempre existe e o motor escolhe, quando não há
+         saída limpa, a combinação que infringe o mínimo possível. */
+      const passo = (st, op)=>{
+        let extra = 0;
+        let dom = st.dom;
+        if(op.domSemana > 0){
+          if(op.domFolgado > 0) dom = 0;
+          else {
+            dom = st.dom + 1;
+            if(dom > maxDomSeguidos){ extra += PESO.pulaDomingo * (dom - maxDomSeguidos); dom = maxDomSeguidos + 1; }
+          }
+        }
+        if(op.dias.length === 0){ guardar(st.ult, dom, 0, st.custo + extra, st.caminho.concat([op])); return; }
+        const excede = (a,b) => Math.max(0, (b - a - 1) - P.maxSeq);
+        extra += excede(st.ult, op.dias[0]) * PESO.estouroSeq;
+        for(let k=1;k<op.dias.length;k++) extra += excede(op.dias[k-1], op.dias[k]) * PESO.estouroSeq;
+
+        // blocos de descanso: o par no fim de uma semana pode encostar no par
+        // da semana seguinte e virar 4 dias seguidos parados
+        const blocos = [];
+        let atual = 1;
+        for(let k=1;k<op.dias.length;k++){
+          if(op.dias[k] === op.dias[k-1]+1) atual++;
+          else { blocos.push(atual); atual = 1; }
+        }
+        blocos.push(atual);
+        if(op.dias[0] === st.ult + 1) blocos[0] += st.run;
+        blocos.forEach(b=>{ if(b >= 4) extra += (b-3) * PESO.blocoLongo; });
+        const run = Math.min(5, blocos[blocos.length-1]);
+
+        guardar(op.dias[op.dias.length-1], dom, run, st.custo + op.custo + extra, st.caminho.concat([op]));
+      };
+      estados.forEach(st => opcoes.forEach(op => passo(st, op)));
+      if(!proximos.size){ diag.relaxou++; return; }
+      estados = proximos;
+    });
+    // ponta final: os dias trabalhados entre a última folga e o fim do período
+    let melhorFim = null, melhorNota = Infinity;
+    estados.forEach(st=>{
+      const ponta = Math.max(0, (N - st.ult - 1) - P.maxSeq);
+      const nota = st.custo + ponta * PESO.estouroSeq;
+      if(nota < melhorNota){ melhorNota = nota; melhorFim = st; }
+    });
+    return melhorFim;
+  }
+  function aplicar(c, plano){
+    if(!plano) return;
+    plano.caminho.forEach(op=>op.novos.forEach(i=>{ if(grid[c.id][i]===null) grid[c.id][i]='X'; }));
+    diag.escolhas[c.id] = plano.caminho.map(op=>op.tipo);
+  }
+  function limpar(c){
+    for(let i=0;i<N;i++) if(grid[c.id][i]==='X') grid[c.id][i]=null;
+  }
+
+  /* Ordem de partida: quem tem menos saída decide primeiro (farmacêutico e
+     subgerente únicos são os mais travados). */
+  const dificuldade = c => (isFarma(c) ? 1000/Math.max(1,ativos.filter(isFarma).length) : 0)
+                         + (isSubger(c) ? 800/Math.max(1,ativos.filter(isSubger).length) : 0)
+                         + ((c.ausencias||[]).length * 50);
+  const ordemInicial = naoGerentes.slice().sort((a,b)=>dificuldade(b)-dificuldade(a));
+  ordemInicial.forEach(c=>{ aplicar(c, planejar(c)); });
+
+  /* Rodadas de replanejamento: cada pessoa é retirada e reencaixada vendo a escala
+     dos outros já montada. Corrige a vantagem de quem foi planejado primeiro.
+     É o passo de reparo/busca local que a literatura de rostering usa. */
+  const rodadas = P.rodadas != null ? P.rodadas : 4;
+  for(let r=0; r<rodadas; r++){
+    let mudou = false;
+    // ordem alternada a cada rodada, para não privilegiar sempre os mesmos
+    const ordem = naoGerentes.slice();
+    for(let k=0;k<(r % Math.max(1,ordem.length));k++) ordem.push(ordem.shift());
+    ordem.forEach(c=>{
+      const antes = grid[c.id].slice();
+      limpar(c);
+      const plano = planejar(c);
+      aplicar(c, plano);
+      if(grid[c.id].some((v,i)=>v!==antes[i])) mudou = true;
+    });
+    diag.rodadas = r+1;
+    if(!mudou) break;
+  }
+
+  /* ---- 4) reparo: sequências acima do máximo (desloca o bloco de folga, sem separá-lo) ---- */
+  const semanaDe = i => semanas.find(s2 => i>=s2.ini && i<=s2.fim);
+  ativos.forEach(c=>{
+    if(c.gerente) return;
+    const arr = grid[c.id];
+    const descansa = i => i<0 || ['X','F','FC','AT','LC'].includes(arr[i]);
+    for(let passe=0; passe<4; passe++){
+      let seq = desdeFolga[c.id] || 0, alvo = -1;
+      for(let i=0;i<N;i++){
+        if(descansa(i)){ seq=0; continue; }
+        seq++;
+        if(seq > P.maxSeq){ alvo = i; break; }
+      }
+      if(alvo<0) break;
+      // acha o próximo bloco de folga e tenta trazê-lo para dentro da sequência
+      let a = -1; for(let i=alvo+1;i<N;i++){ if(arr[i]==='X'){ a=i; break; } }
+      if(a<0) break;
+      let b=a; while(b+1<N && arr[b+1]==='X') b++;
+      let temDomingoDele = false;
+      for(let i=a;i<=b;i++) if(days[i].getDay()===0 && domFolga[c.id] && domFolga[c.id].has(i)) temDomingoDele = true;
+      if(temDomingoDele) break;
+      const sem = semanaDe(a);
+      let moveu = false;
+      for(let k=alvo; k>=Math.max(sem.ini, alvo-P.maxSeq+1); k--){
+        const destino = []; for(let d=0; d<=b-a; d++) destino.push(k+d);
+        if(destino.some(i=> i>=N || (arr[i]!==null && arr[i]!=='X'))) continue;
+        for(let i=a;i<=b;i++) arr[i]=null;
+        let ok = destino.every(i=> !bloqueioRigido(c,i));
+        if(!ok){ for(let i=a;i<=b;i++) arr[i]='X'; continue; }
+        destino.forEach(i=>arr[i]='X');
+        moveu = true; break;
+      }
+      if(!moveu) break;
+    }
+  });
+
+  /* ---- 5) fecha: null vira dia trabalhado ---- */
+  ativos.forEach(c=>{ for(let i=0;i<N;i++) if(grid[c.id][i]===null) grid[c.id][i]=''; });
+
+  return {days, grid, semanas, ativos, params:P, diag, desdeFolga};
+}
+
+/* ============================================================
+   VALIDAÇÃO
+   ============================================================ */
+function validar(res, colabs){
+  const {days, grid, semanas, params:P} = res;
+  const desdeFolgaGer = res.desdeFolga || {};
+  const N = days.length;
+  const ativos = res.ativos;
+  const alertas = [];
+  const porColab = {};
+
+  ativos.forEach(c=>{
+    const av = [];
+    const arr = grid[c.id];
+    const folga = i => ['X','F','FC','AT','LC'].includes(arr[i]);
+
+    // 1) folgas por semana
+    semanas.forEach(s=>{
+      if(s.dias.length<7) return;
+      const n = s.dias.filter(i=>arr[i]==='X'||arr[i]==='FC').length;
+      const ferias = s.dias.filter(i=>arr[i]==='F'||arr[i]==='AT'||arr[i]==='LC').length;
+      if(ferias>=5) return;
+      if(!c.gerente && n < P.folgasSemana)
+        av.push({tipo:'folgas-semana', nivel:'regra', txt:`Semana de ${ddmm(days[s.ini])}: ${n} folga(s), mínimo ${P.folgasSemana}`});
+    });
+
+    // 2) sequência máxima
+    let seq = desdeFolgaGer[c.id] != null ? desdeFolgaGer[c.id]
+            : ((c.diasDesdeFolga!=null)?Number(c.diasDesdeFolga):0);
+    let pior=0, quando=null;
+    for(let i=0;i<N;i++){
+      if(folga(i)){ seq=0; continue; }
+      seq++; if(seq>pior){ pior=seq; quando=days[i]; }
+    }
+    if(pior > P.maxSeq) av.push({tipo:'sequencia', nivel:'regra', txt:`${pior} dias seguidos sem folga (até ${ddmm(quando)}), máximo ${P.maxSeq}`});
+
+    // 3) domingos
+    const dom = [];
+    days.forEach((d,i)=>{ if(d.getDay()===0) dom.push(i); });
+    const domTrab = dom.filter(i=>arr[i]===''), domFol = dom.filter(i=>arr[i]!=='');
+    let corrida=0, avisouDom=false;
+    dom.forEach(i=>{
+      if(arr[i]===''){
+        corrida++;
+        if(corrida > P.cicloDomingo-1 && !avisouDom){
+          av.push({tipo:'domingo', nivel:'regra',
+                   txt:`${corrida} domingos seguidos trabalhados até ${ddmm(days[i])} — a lei permite no máximo ${P.cicloDomingo-1}`});
+          avisouDom = true;
+        }
+      } else { corrida=0; avisouDom=false; }
+    });
+
+    // 3b) dia de folga fixa
+    if(c.folgaFixa != null && c.folgaFixa !== ''){
+      const diaFixo = Number(c.folgaFixa);
+      semanas.forEach(s2=>{
+        if(s2.dias.length < 7) return;
+        const cabe = s2.dias.filter(i=>days[i].getDay()===diaFixo && !['F','AT','LC'].includes(arr[i]));
+        if(!cabe.length) return;                       // semana de férias, não se cobra
+        const folgou = cabe.some(i=>arr[i]==='X' || arr[i]==='FC');
+        if(!folgou) av.push({tipo:'dia-fixo', nivel:'regra',
+          txt:`Folga fixa em ${DIA_NOME[diaFixo]}: a semana de ${ddmm(days[s2.ini])} não teve folga nesse dia`});
+      });
+    }
+
+    // 4) folgas isoladas (fora do domingo)
+    const semanaParcial = new Set();
+    semanas.forEach(s2=>{ if(s2.dias.length<7) s2.dias.forEach(i=>semanaParcial.add(i)); });
+    if(!c.gerente && P.modelo !== '6x1'){
+      for(let i=0;i<N;i++){
+        if(arr[i]!=='X' || semanaParcial.has(i)) continue;
+        const antes = i>0 && folga(i-1), depois = i<N-1 && folga(i+1);
+        if(antes || depois || days[i].getDay()===0) continue;
+        const sem = semanas.find(s2=>i>=s2.ini && i<=s2.fim);
+        const temPar = sem && sem.dias.some(k=>arr[k]==='X' && (folga(k+1) || folga(k-1)));
+        if(temPar){
+          av.push({tipo:'avulsa', nivel:'nota',
+            txt:`${ddmm(days[i])} (${DIA_NOME[days[i].getDay()]}) é folga avulsa — a semana já tem o par, este dia entrou para não passar de ${P.maxSeq} dias seguidos`});
+        } else {
+          av.push({tipo:'isolada', nivel:'regra',
+            txt:`Folga isolada em ${ddmm(days[i])} (${DIA_NOME[days[i].getDay()]}) e a semana não tem nenhum par de folgas`});
+        }
+      }
+    }
+
+    porColab[c.id] = {av, domTrab:domTrab.length, domFolga:domFol.length, pior,
+                      totalFolgas: arr.filter(v=>v==='X'||v==='FC').length};
+    av.forEach(a=>alertas.push({colab:c.nome, ...a}));
+  });
+
+  // cobertura por dia
+  const cobertura = days.map((d,i)=>{
+    const cx = ativos.filter(c=>grupoDe(c)==='caixa' && grid[c.id][i]==='').length;
+    const bl = ativos.filter(c=>grupoDe(c)==='balcao' && grid[c.id][i]==='').length;
+    const gr = ativos.filter(c=>grupoDe(c)==='gerencia' && grid[c.id][i]==='').length;
+    const fa = ativos.filter(c=>isFarma(c) && grid[c.id][i]==='').length;
+    const falta = [], leve = [];
+    if(cx < P.minCaixa) falta.push(`caixa ${cx}/${P.minCaixa}`);
+    if(bl < P.minBalcao) falta.push(`balcão ${bl}/${P.minBalcao}`);
+    const alvoFa = P.minFarma != null ? P.minFarma : 2;
+    const faDisp = ativos.filter(c=>isFarma(c) && !['F','AT','LC'].includes(grid[c.id][i])).length;
+    if(faDisp >= 1 && fa < 1) falta.push('SEM farmacêutico');
+    else if(faDisp >= alvoFa && fa < alvoFa) leve.push(`farmacêutico ${fa}/${alvoFa}`);
+    if(P.minDia){
+      const alvoDiaSem = Number(P.minDia[d.getDay()] || 0);
+      if(alvoDiaSem && (cx+bl+gr) < alvoDiaSem) falta.push(`equipe ${cx+bl+gr}/${alvoDiaSem}`);
+    }
+    const sg = ativos.filter(c=>isSubger(c) && grid[c.id][i]==='').length;
+    const sgDisp = ativos.filter(c=>isSubger(c) && !['F','AT','LC'].includes(grid[c.id][i])).length;
+    const alvoSg = P.minSubger != null ? P.minSubger : 1;
+    if(sgDisp >= alvoSg && sg < alvoSg) falta.push(`subgerente ${sg}/${alvoSg}`);
+    if(falta.length) alertas.push({colab:'—', tipo:'cobertura', nivel:'regra', txt:`${ddmm(d)}: ${falta.join(', ')}`});
+    if(leve.length)  alertas.push({colab:'—', tipo:'cobertura-leve', nivel:'nota', txt:`${ddmm(d)}: ${leve.join(', ')} (tolerado)`});
+    return {cx, bl, gr, fa, sg, total:cx+bl+gr, falta, leve};
+  });
+
+  return {alertas, porColab, cobertura};
+}
+
+if(typeof module !== 'undefined' && typeof module.exports !== 'undefined') module.exports = {gerarEscala, validar, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, DIA_NOME, DIA_ABREV};
+
+
+/* =========================================================================
+   GERADOR DE .XLSX EM JAVASCRIPT PURO
+   Monta o pacote OOXML na mão (ZIP sem compressão + XML). Não depende de
+   biblioteca externa, então funciona offline. Abre no LibreOffice Calc,
+   no Excel e no Google Sheets.
+   ========================================================================= */
+
+/* ---------- CRC32, exigido pelo formato ZIP ---------- */
+const TABELA_CRC = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = TABELA_CRC[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+/* ---------- ZIP com entradas armazenadas (método 0) ---------- */
+function zipar(arquivos) {
+  const cod = (typeof TextEncoder !== 'undefined')
+    ? (s => new TextEncoder().encode(s))
+    : (s => Uint8Array.from(Buffer.from(s, 'utf8')));
+
+  const partes = [], central = [];
+  let deslocamento = 0;
+
+  const u16 = n => [n & 0xFF, (n >>> 8) & 0xFF];
+  const u32 = n => [n & 0xFF, (n >>> 8) & 0xFF, (n >>> 16) & 0xFF, (n >>> 24) & 0xFF];
+
+  arquivos.forEach(({ nome, conteudo }) => {
+    const dados = cod(conteudo);
+    const nomeBytes = cod(nome);
+    const crc = crc32(dados);
+    // data fixa (1980-01-01) mantém o arquivo reproduzível
+    const hora = 0, data = 33;
+
+    const cabecalho = [].concat(
+      [0x50, 0x4B, 0x03, 0x04], u16(20), u16(0x0800), u16(0),
+      u16(hora), u16(data), u32(crc), u32(dados.length), u32(dados.length),
+      u16(nomeBytes.length), u16(0)
+    );
+    partes.push(new Uint8Array(cabecalho), nomeBytes, dados);
+
+    central.push([].concat(
+      [0x50, 0x4B, 0x01, 0x02], u16(20), u16(20), u16(0x0800), u16(0),
+      u16(hora), u16(data), u32(crc), u32(dados.length), u32(dados.length),
+      u16(nomeBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0),
+      u32(deslocamento)
+    ), nomeBytes);
+
+    deslocamento += cabecalho.length + nomeBytes.length + dados.length;
+  });
+
+  const centralBytes = [];
+  central.forEach(p => {
+    if (Array.isArray(p)) centralBytes.push(new Uint8Array(p));
+    else centralBytes.push(p);
+  });
+  const tamanhoCentral = centralBytes.reduce((a, b) => a + b.length, 0);
+
+  const fim = new Uint8Array([].concat(
+    [0x50, 0x4B, 0x05, 0x06], u16(0), u16(0),
+    u16(arquivos.length), u16(arquivos.length),
+    u32(tamanhoCentral), u32(deslocamento), u16(0)
+  ));
+
+  const todas = partes.concat(centralBytes, [fim]);
+  const total = todas.reduce((a, b) => a + b.length, 0);
+  const saida = new Uint8Array(total);
+  let p = 0;
+  todas.forEach(b => { saida.set(b, p); p += b.length; });
+  return saida;
+}
+
+/* ---------- XML ---------- */
+function xesc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+function colLetra(n) {                    // 1 -> A, 27 -> AA
+  let s = '';
+  while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+
+/* =========================================================================
+   Monta a planilha.
+   plan = {
+     aba: 'Escala',
+     titulo: 'texto da linha 1',
+     subtitulo: 'texto da célula ao lado',
+     colunas: [larguras...],
+     congelar: {coluna: 3, linha: 4},
+     linhas: [ [ {v, e} | 'texto' | null, ... ], ... ]     // e = nome do estilo
+   }
+   ========================================================================= */
+const ESTILOS = [
+  // ordem importa: o índice é o id usado nas células
+  { nome: 'normal' },
+  { nome: 'titulo',    negrito: true, tamanho: 14 },
+  { nome: 'subtitulo', cor: '556660', tamanho: 10 },
+  { nome: 'cabecalho', negrito: true, corTexto: 'FFFFFF', fundo: '16232B', centro: true, borda: true, tamanho: 9 },
+  { nome: 'data',      negrito: true, fundo: 'E7EDE9', centro: true, borda: true, tamanho: 9 },
+  { nome: 'dataFds',   negrito: true, fundo: 'CFDCD5', centro: true, borda: true, tamanho: 9 },
+  { nome: 'nome',      negrito: true, borda: true, tamanho: 10 },
+  { nome: 'cargo',     cor: '556660', borda: true, tamanho: 9 },
+  { nome: 'hora',      centro: true, borda: true, tamanho: 9 },
+  { nome: 'trabalha',  centro: true, borda: true, tamanho: 9, corTexto: '7A8A85' },
+  { nome: 'trabalhaFds', centro: true, borda: true, tamanho: 9, corTexto: '7A8A85', fundo: 'F2F5F3' },
+  { nome: 'folga',     centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'D8EDE2', corTexto: '14663F' },
+  { nome: 'ferias',    centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'D7E5F0', corTexto: '1F5580' },
+  { nome: 'compensa',  centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'F6E7C4', corTexto: '8A5E06' },
+  { nome: 'atestado',  centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'F3DBD7', corTexto: '96332A' },
+  { nome: 'licenca',   centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'E3DDF2', corTexto: '50407E' },
+  { nome: 'rotulo',    negrito: true, borda: true, tamanho: 9, fundo: 'E7EDE9' },
+  { nome: 'conta',     centro: true, borda: true, tamanho: 9, fundo: 'F4F6F4' },
+  { nome: 'contaFuro', centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'F3DBD7', corTexto: '96332A' },
+  { nome: 'contaLeve', centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'F6E7C4', corTexto: '8A5E06' },
+  { nome: 'legenda',   cor: '556660', tamanho: 9 },
+];
+const idEstilo = {};
+ESTILOS.forEach((e, i) => idEstilo[e.nome] = i);
+
+function montarEstilosXml() {
+  const fontes = ESTILOS.map(e =>
+    `<font><sz val="${e.tamanho || 11}"/><color rgb="FF${e.corTexto || e.cor || '16232B'}"/>` +
+    `<name val="Calibri"/>${e.negrito ? '<b/>' : ''}</font>`).join('');
+  const preenchimentos = '<fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+    ESTILOS.map(e => e.fundo
+      ? `<fill><patternFill patternType="solid"><fgColor rgb="FF${e.fundo}"/><bgColor indexed="64"/></patternFill></fill>`
+      : '<fill><patternFill patternType="none"/></fill>').join('');
+  const bordaFina = '<left style="thin"><color rgb="FFD4DBD7"/></left><right style="thin"><color rgb="FFD4DBD7"/></right>' +
+                    '<top style="thin"><color rgb="FFD4DBD7"/></top><bottom style="thin"><color rgb="FFD4DBD7"/></bottom>';
+  const bordas = '<border><left/><right/><top/><bottom/><diagonal/></border><border>' + bordaFina + '<diagonal/></border>';
+  const xfs = ESTILOS.map((e, i) =>
+    `<xf numFmtId="0" fontId="${i}" fillId="${e.fundo ? i + 2 : 0}" borderId="${e.borda ? 1 : 0}" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">` +
+    `<alignment horizontal="${e.centro ? 'center' : 'left'}" vertical="center"/></xf>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="${ESTILOS.length}">${fontes}</fonts>
+<fills count="${ESTILOS.length + 2}">${preenchimentos}</fills>
+<borders count="2">${bordas}</borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="${ESTILOS.length}">${xfs}</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+}
+
+function gerarXLSX(plan) {
+  const linhas = plan.linhas || [];
+  const cols = (plan.colunas || []).map((l, i) =>
+    `<col min="${i + 1}" max="${i + 1}" width="${l}" customWidth="1"/>`).join('');
+
+  const linhasXml = linhas.map((cels, r) => {
+    const n = r + 1;
+    const cs = (cels || []).map((cel, c) => {
+      if (cel == null || cel === '') return '';
+      const obj = (typeof cel === 'object') ? cel : { v: cel };
+      const ref = colLetra(c + 1) + n;
+      const est = idEstilo[obj.e] != null ? idEstilo[obj.e] : 0;
+      if (obj.n != null && obj.n !== '' && !isNaN(obj.n))
+        return `<c r="${ref}" s="${est}"><v>${Number(obj.n)}</v></c>`;
+      return `<c r="${ref}" s="${est}" t="inlineStr"><is><t xml:space="preserve">${xesc(obj.v)}</t></is></c>`;
+    }).join('');
+    return `<row r="${n}"${plan.alturas && plan.alturas[r] ? ` ht="${plan.alturas[r]}" customHeight="1"` : ''}>${cs}</row>`;
+  }).join('');
+
+  const cong = plan.congelar
+    ? `<pane xSplit="${plan.congelar.coluna}" ySplit="${plan.congelar.linha}" topLeftCell="${colLetra(plan.congelar.coluna + 1)}${plan.congelar.linha + 1}" activePane="bottomRight" state="frozen"/>`
+    : '';
+  const merges = (plan.merges || []).length
+    ? `<mergeCells count="${plan.merges.length}">${plan.merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>`
+    : '';
+  const ultimaCol = colLetra(Math.max(1, (plan.colunas || []).length));
+
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+<sheetViews><sheetView workbookViewId="0" showGridLines="0" tabSelected="1">${cong}</sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="15"/>
+<cols>${cols}</cols>
+<sheetData>${linhasXml}</sheetData>
+${merges}
+<printOptions horizontalCentered="1"/>
+<pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/>
+<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>
+</worksheet>`;
+
+  const arquivos = [
+    { nome: '[Content_Types].xml', conteudo: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>` },
+    { nome: '_rels/.rels', conteudo: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>` },
+    { nome: 'xl/workbook.xml', conteudo: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="${xesc(plan.aba || 'Escala').slice(0,31)}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>` },
+    { nome: 'xl/_rels/workbook.xml.rels', conteudo: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>` },
+    { nome: 'xl/styles.xml', conteudo: montarEstilosXml() },
+    { nome: 'xl/worksheets/sheet1.xml', conteudo: sheet },
+  ];
+  return zipar(arquivos);
+}
+
+
+
+
+/* ============================================================
+   MINHA ESCALA — visão individual do colaborador
+   Recebe do servidor apenas a própria linha. A extração acontece
+   no PHP: se viesse a grade inteira, bastaria abrir as ferramentas
+   do navegador para ler a escala de todo mundo.
+   ============================================================ */
+
+const CORES_TIPO = {
+  folga:    ['#D8EDE2', '#04342C', '#085041'],
+  ferias:   ['#D7E5F0', '#042C53', '#185FA5'],
+  atestado: ['#F3DBD7', '#501313', '#A32D2D'],
+  licenca:  ['#E3DDF2', '#26215C', '#534AB7'],
+  trabalho: ['', '', '']
+};
+const DIAS_CURTO = ['dom','seg','ter','qua','qui','sex','sáb'];
+
+function dataBR(iso){
+  if(!iso) return '';
+  const [a,m,d] = iso.split('-');
+  return `${d}/${m}`;
+}
+
+async function pintarMinhaEscala(periodo){
+  const cx = $('#minha-escala');
+  if(!cx) return;
+  cx.innerHTML = `<p class="vazio">Carregando…</p>`;
+
+  let r;
+  try{
+    r = await chamar('minha.php', Object.assign({acao:'minha_escala'}, periodo || {}));
+  }catch(e){
+    cx.innerHTML = `<div class="painel"><p class="vazio">${esc(erroAmigavel(e))}</p></div>`;
+    return;
+  }
+
+  const c = r.colaborador || {};
+  const e = r.escala;
+
+  // seletor de período, quando houver mais de um publicado
+  let seletor = '';
+  try{
+    const p = await chamar('minha.php', {acao:'meus_periodos'});
+    if((p.periodos||[]).length > 1){
+      seletor = `<select id="sel-periodo" class="inp" style="width:auto;font-size:13px">${
+        p.periodos.map(x=>{
+          const sel = e && x.inicio===e.inicio && x.fim===e.fim ? ' selected' : '';
+          return `<option value="${x.inicio}_${x.fim}"${sel}>${dataBR(x.inicio)} a ${dataBR(x.fim)}</option>`;
+        }).join('')}</select>`;
+    }
+  }catch(err){}
+
+  if(!e){
+    cx.innerHTML = `
+      <div class="painel">
+        <div class="me-topo">
+          <div>
+            <h2 style="margin:0">${esc(c.nome || 'Minha escala')}</h2>
+            <p class="desc" style="margin:2px 0 0">${esc(c.cargo||'')}${c.loja?' · '+esc(c.loja):''}</p>
+          </div>
+          ${seletor}
+        </div>
+        <p class="vazio" style="padding:32px 0">${esc(r.aviso || 'Nada publicado ainda.')}</p>
+      </div>`;
+    ligarSeletorPeriodo();
+    return;
+  }
+
+  const resumo = r.resumo || {folgas:0, trabalhados:0, proximas:[]};
+
+  // calendário: alinhar a primeira semana pelo dia da semana
+  const vazios = e.dias.length ? e.dias[0].semana : 0;
+  const celulas = [];
+  for(let i=0;i<vazios;i++) celulas.push('<div></div>');
+  e.dias.forEach(d=>{
+    const [bg, fg, sec] = CORES_TIPO[d.tipo] || CORES_TIPO.trabalho;
+    const trabalho = d.tipo === 'trabalho';
+    const rotulo = trabalho
+      ? `<div class="me-hora">${esc((d.rotulo||'').slice(0,5))}</div>`
+      : `<div class="me-tipo" style="color:${sec}">${esc(d.rotulo.toLowerCase())}</div>`;
+    celulas.push(`
+      <div class="me-dia${trabalho?'':' me-dia-marcado'}" style="${bg?`background:${bg}`:''}">
+        <div class="me-num" style="${fg?`color:${fg}`:''}">${d.dia}</div>
+        ${rotulo}
+      </div>`);
+  });
+
+  cx.innerHTML = `
+    <div class="painel">
+      <div class="me-topo">
+        <div>
+          <h2 style="margin:0">${esc(c.nome||'')}</h2>
+          <p class="desc" style="margin:2px 0 0">${esc(c.cargo||'')}${c.loja?' · '+esc(c.loja):''}</p>
+        </div>
+        ${seletor}
+      </div>
+      <p class="desc" style="margin:6px 0 18px">
+        ${dataBR(e.inicio)} a ${dataBR(e.fim)}${e.publicada_em
+          ? ' · publicada em ' + new Date(e.publicada_em.replace(' ','T')).toLocaleDateString('pt-BR')
+          : ''}
+      </p>
+
+      <div class="me-cartoes">
+        <div class="me-cartao"><div class="me-rot">Folgas no período</div><div class="me-val">${resumo.folgas}</div></div>
+        <div class="me-cartao"><div class="me-rot">Dias de trabalho</div><div class="me-val">${resumo.trabalhados}</div></div>
+        <div class="me-cartao"><div class="me-rot">Meu horário</div><div class="me-val me-val-hora">${esc(c.horario||'—')}</div></div>
+      </div>
+
+      ${(resumo.proximas||[]).length ? `
+        <div class="me-proximas">
+          <div class="me-proximas-rot">Próximas folgas</div>
+          <div class="me-proximas-lista">
+            ${resumo.proximas.map(d=>`<span>${DIAS_CURTO[d.semana]} ${String(d.dia).padStart(2,'0')}/${String(d.mes).padStart(2,'0')}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+      <div class="me-grade">
+        ${DIAS_CURTO.map(d=>`<div class="me-cab">${d}</div>`).join('')}
+        ${celulas.join('')}
+      </div>
+
+      <div class="legenda" style="margin-top:16px">
+        <span><b style="background:#D8EDE2"></b>folga</span>
+        <span><b style="background:#D7E5F0"></b>férias</span>
+        <span><b style="background:#F3DBD7"></b>atestado</span>
+        <span><b style="background:#E3DDF2"></b>licença</span>
+        <span><b style="background:#F4F6F4;border:1px solid var(--linha)"></b>trabalho</span>
+      </div>
+    </div>
+
+    <div class="painel">
+      <h2>Confira e avise</h2>
+      <p class="desc" style="margin:0">A escala acima é a que está publicada para a sua loja. Se
+      algum dia estiver diferente do combinado, fale com o responsável pela escala — a alteração
+      é feita por ele e aparece aqui em seguida.</p>
+    </div>`;
+
+  ligarSeletorPeriodo();
+}
+
+function ligarSeletorPeriodo(){
+  const s = $('#sel-periodo');
+  if(!s) return;
+  s.onchange = ()=>{
+    const [inicio, fim] = s.value.split('_');
+    pintarMinhaEscala({inicio, fim});
+  };
+}
+
+/* Ajusta a interface ao papel de quem entrou. */
+function aplicarPapel(){
+  const papel = (SESSAO.usuario && SESSAO.usuario.papel) || 'gestor';
+  const soMinha = papel === 'colaborador';
+
+  $$('nav.tabs button').forEach(b=>{
+    const paraTodos = b.dataset.view === 'minha';
+    b.style.display = (soMinha && !paraTodos) ? 'none' : '';
+  });
+
+  // colaborador não escolhe loja nem período de geração
+  const sel = $('#sel-loja');
+  if(sel) sel.parentElement.style.display = soMinha ? 'none' : '';
+
+  const abaMinha = $$('nav.tabs button').find(b=>b.dataset.view === 'minha');
+  if(abaMinha) abaMinha.style.display = SESSAO.usuario && SESSAO.usuario.colaborador_id ? '' : 'none';
+
+  if(soMinha){
+    irPara('minha');
+    pintarMinhaEscala();
+  }
+}
+
+function irPara(view){
+  $$('nav.tabs button').forEach(x=>x.setAttribute('aria-current', String(x.dataset.view===view)));
+  $$('.view').forEach(v=>v.dataset.ativa = String(v.dataset.view===view));
+}
+
+
+/* ============================================================
+   CONFIGURAÇÃO
+   Se a pasta api/ estiver ao lado deste arquivo, não precisa mexer.
+   ============================================================ */
+const CONFIG = { API: 'api' };
+
+/* ============================================================
+   ACESSO E ARMAZENAMENTO — API PHP na HostGator
+   Mesma interface da versão Supabase: a tela continua chamando
+   store.get e store.set sem saber o que há por baixo.
+   ============================================================ */
+
+const API = CONFIG.API || 'api';
+const SESSAO = { usuario: null, empresa: null, csrf: null };
+
+async function chamar(arquivo, dados){
+  const r = await fetch(`${API}/${arquivo}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: Object.assign(
+      {'Content-Type': 'application/json'},
+      SESSAO.csrf ? {'X-CSRF': SESSAO.csrf} : {}
+    ),
+    body: JSON.stringify(dados)
+  });
+  const texto = await r.text();
+  let corpo;
+  try { corpo = JSON.parse(texto); }
+  catch(e){
+    // O servidor não devolveu JSON — quase sempre é erro do PHP saindo como
+    // texto ou HTML. Mostrar o começo da resposta poupa horas de adivinhação.
+    const trecho = texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+    console.error('Resposta não-JSON de ' + arquivo + ' (HTTP ' + r.status + '):', texto.slice(0, 2000));
+    throw new Error(
+      'O servidor respondeu algo inesperado (HTTP ' + r.status + ').' +
+      (trecho ? ' Ele disse: "' + trecho + '"' : ' A resposta veio vazia.') +
+      ' Abra api/diagnostico.php para o relatório completo.'
+    );
+  }
+  if(corpo && corpo.csrf) SESSAO.csrf = corpo.csrf;
+  if(!r.ok) throw new Error(corpo.erro || 'Falha na comunicação.');
+  return corpo;
+}
+
+const auth  = (dados) => chamar('auth.php', dados);
+const dadosApi = (dados) => chamar('dados.php', dados);
+
+/* ---------- regras de senha (NIST SP 800-63B-4) ----------
+   Iguais às do servidor. Aqui servem para avisar antes de enviar;
+   quem decide é o PHP, porque validação só no navegador não vale nada. */
+const SENHA_MIN = 12;
+const SENHA_RECOMENDADA = 15;
+const SENHA_MAX = 64;
+
+async function senhaVazada(senha){
+  try{
+    const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(senha));
+    const hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+    const r = await fetch('https://api.pwnedpasswords.com/range/' + hash.slice(0,5), {headers:{'Add-Padding':'true'}});
+    if(!r.ok) return 0;
+    const txt = await r.text();
+    for(const linha of txt.split('\n')){
+      const [suf, qtd] = linha.trim().split(':');
+      if(suf === hash.slice(5)) return parseInt(qtd, 10) || 0;
+    }
+    return 0;
+  }catch(e){ return 0; }
+}
+
+function avaliarSenha(senha, email){
+  const problemas = [];
+  const n = [...senha].length;
+  if(n < SENHA_MIN) problemas.push(`Use pelo menos ${SENHA_MIN} caracteres (tem ${n}).`);
+  if(n > SENHA_MAX) problemas.push(`Máximo de ${SENHA_MAX} caracteres.`);
+  const baixa = senha.toLowerCase(), e = (email||'').trim().toLowerCase();
+  if(e && baixa.includes(e)) problemas.push('Não use o seu e-mail na senha.');
+  const local = e.split('@')[0] || '';
+  if(local.length >= 3 && baixa.includes(local)) problemas.push('Não use o seu e-mail na senha.');
+  ['escala','farmacia','drogaria','123456','senha','password','qwerty']
+    .forEach(p=>{ if(baixa.includes(p)) problemas.push(`Evite "${p}" na senha.`); });
+  if(/^(.)\1+$/.test(senha)) problemas.push('Não repita o mesmo caractere.');
+  return {ok: problemas.length === 0, problemas, n};
+}
+
+function forcaSenha(senha){
+  const n = [...senha].length;
+  const variedade = (/[a-z]/.test(senha)?1:0) + (/[A-Z]/.test(senha)?1:0)
+                  + (/[0-9]/.test(senha)?1:0) + (/[^a-zA-Z0-9]/.test(senha)?1:0);
+  if(n === 0) return {nivel:0, txt:'', cor:'var(--linha)'};
+  if(n < SENHA_MIN) return {nivel:1, txt:'curta demais', cor:'var(--alerta)'};
+  if(n < SENHA_RECOMENDADA) return {nivel:2, txt:'aceitável', cor:'#A8730B'};
+  if(variedade >= 2) return {nivel:4, txt:'forte', cor:'var(--v-fg)'};
+  return {nivel:3, txt:'boa', cor:'var(--v-fg)'};
+}
+
+function erroAmigavel(e){
+  return (e && e.message) || 'Não foi possível concluir. Tente de novo.';
+}
+
+/* ============================================================
+   SINCRONIZAÇÃO
+   ============================================================ */
+const DB = {
+  async carregarEmpresa(){
+    const r = await auth({acao:'sessao'});
+    SESSAO.usuario = r.usuario || null;
+    SESSAO.empresa = r.empresa || null;
+    SESSAO.perfil  = r.usuario || null;     // nome usado pela tela
+    return r;
+  },
+  async carregarLojas(){
+    const r = await dadosApi({acao:'carregar'});
+    return r.lojas || {};
+  },
+  async salvarLojas(lojas){
+    await dadosApi({acao:'salvar', lojas});
+  },
+  async carregarEscala(lojaId, inicio, fim){
+    const r = await dadosApi({acao:'carregar_escala', loja_id:lojaId, inicio, fim});
+    if(!r.escala) return null;
+    // os horários ajustados viajam dentro de parametros; separá-los na volta
+    const params = Object.assign({}, r.escala.params || {});
+    const horas = params._horas || {};
+    delete params._horas;
+    return Object.assign({}, r.escala, {inicio, fim, params, horas});
+  },
+  async salvarEscala(lojaId, inicio, fim, grade, params, horas){
+    const p = Object.assign({}, params || {}, {_horas: horas || {}});
+    await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:p});
+  },
+  async criarLoja(nome, params){
+    const r = await dadosApi({acao:'criar_loja', nome, params});
+    return r.id;
+  },
+  async listarAcessos(){
+    const r = await auth({acao:'listar_acessos'});
+    return r.acessos || [];
+  },
+  async registrar(){ /* o servidor registra sozinho */ }
+};
+
+/* ---------- store: mesma interface de sempre ---------- */
+let _timerSync = null, _pendente = null, _sincronizando = false;
+const store = {
+  async get(chave){
+    if(chave === 'escala:lojas') return await DB.carregarLojas();
+    if(chave.startsWith('escala:grade:')){
+      const [, , , lojaId, periodo] = chave.split(':');
+      const [inicio, fim] = (periodo||'').split('_');
+      if(!lojaId || !inicio || !fim) return null;
+      try { return await DB.carregarEscala(lojaId, inicio, fim); }
+      catch(e){ return null; }
+    }
+    return null;
+  },
+  async set(chave, valor){
+    if(chave === 'escala:lojas'){
+      _pendente = valor;
+      marcarSync('salvando');
+      clearTimeout(_timerSync);
+      _timerSync = setTimeout(async ()=>{
+        if(_sincronizando){ _timerSync = setTimeout(()=>store.set(chave, _pendente), 600); return; }
+        _sincronizando = true;
+        try{ await DB.salvarLojas(_pendente); marcarSync('salvo'); }
+        catch(e){ marcarSync('erro', erroAmigavel(e)); }
+        finally{ _sincronizando = false; }
+      }, 700);
+      return;
+    }
+    if(chave.startsWith('escala:grade:')){
+      const [, , , lojaId, periodo] = chave.split(':');
+      const [inicio, fim] = (periodo||'').split('_');
+      try{
+        await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas);
+        marcarSync('salvo');
+      }catch(e){ marcarSync('erro', erroAmigavel(e)); }
+    }
+  }
+};
+
+function marcarSync(estado, msg){
+  const el = document.getElementById('sync-estado');
+  if(!el) return;
+  const mapa = {salvando:['Salvando…','#C6D2CE'], salvo:['Tudo salvo','#8FC9BE'], erro:[msg||'Erro ao salvar','#E9A79F']};
+  const [txt, cor] = mapa[estado] || ['',''];
+  el.textContent = txt; el.style.color = cor;
+  if(estado === 'salvo') setTimeout(()=>{ if(el.textContent === txt) el.textContent = ''; }, 2500);
+}
+
+
+/* ============================================================
+   DADOS INICIAIS (extraídos da planilha ESCALA_GERAL_BAURU)
+   ============================================================ */
+function seedLojas(){
+  const mk = (l)=>l.map((r,i)=>({nome:r[0], cargo:r[1], horario:r[2],
+                                 gerente:!!r[3], ativo:true, domTrabConsec:null, diasDesdeFolga:0,
+                                 folgaFixa:null, ausencias:[]}));
+  return {
+    '330':{
+      nome:'Loja 330',
+      colabs: mk([
+        ['GUILHERME','GERENTE','07:00 AS 16:20',true],
+        ['RENATA','SUBGERENTE','10:00 AS 18:20'],
+        ['QUESNEL','SUBGERENTE','14:40 AS 23:00'],
+        ['ROBERTA','FARMACÊUTICO','07:00 AS 15:20'],
+        ['PRISCILA','FARMACÊUTICO','11:00 AS 19:20'],
+        ['MIANGUE','FARMACÊUTICO','14:40 AS 23:00'],
+        ['JESSICA','BALCONISTA','08:00 AS 16:20'],
+        ['LUCAS ARAUJO','BALCONISTA','10:00 AS 18:20'],
+        ['MIRIÃ','CAIXA','07:00 AS 15:20'],
+        ['JULIA','CAIXA','11:00 AS 19:20'],
+        ['GIANE','CAIXA','13:00 AS 21:20'],
+        ['LUCAS HATEWA','CAIXA','14:40 AS 23:00'],
+        ['LORENZO','AX. LOJA','09:00 AS 18:00'],
+      ]),
+      params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:'P', minCaixa:2, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
+               minDia:{0:7, 1:7, 2:9, 3:9, 4:9, 5:9, 6:9}}
+    },
+    '332':{
+      nome:'Loja 332',
+      colabs: mk([
+        ['MAYARA','GERENTE','07:00 AS 16:20',true],
+        ['MIRIAN','SUB/FARMA','07:00 AS 15:20'],
+        ['VANDERLEIA','SUBGERENTE','14:40 AS 23:00'],
+        ['EDUARDA','SUBGERENTE','14:40 AS 23:00'],
+        ['LETICIA','FARMACÊUTICO','11:00 AS 19:20'],
+        ['ANA PAULA','FARMACÊUTICO','14:40 AS 23:00'],
+        ['MARIA','BALCONISTA','09:00 AS 18:00'],
+        ['ANNA','BALCONISTA','12:00 AS 20:20'],
+        ['RAQUEL','CAIXA','07:00 AS 15:20'],
+        ['NICOLE','CAIXA','07:00 AS 15:20'],
+        ['FELIPE','CAIXA','13:00 AS 21:20'],
+        ['ELOISA','CAIXA','14:40 AS 23:00'],
+        ['ESMERALDA','CAIXA','14:40 AS 23:00'],
+        ['ALINE','CAIXA','14:40 AS 23:00'],
+        ['LIVIA','REPOSITOR','08:00 AS 17:00'],
+        ['ROSA','AX. LOJA','08:00 AS 17:00'],
+      ]),
+      params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:'P', minCaixa:3, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
+               minDia:{0:9, 1:9, 2:11, 3:9, 4:11, 5:9, 6:11}}
+    }
+  };
+}
+
+/* ============================================================
+   FLUXO DE ACESSO
+   ============================================================ */
+const S = {usuario:null, lojas:null, loja:null, res:null, val:null, salvo:true};
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const CODES = ['','X','FC','F','AT','LC'];
+
+function mostrarTela(nome){
+  ['entrar','cadastro','recuperar','novaSenha','vinculo'].forEach(t=>{
+    const el = document.getElementById('tela-'+t);
+    if(el) el.style.display = (t===nome) ? 'block' : 'none';
+  });
+  $('#login').style.display = nome === 'app' ? 'none' : 'grid';
+  $('#app').style.display   = nome === 'app' ? 'block' : 'none';
+}
+function erroEm(id, msg){ const el=$(id); if(el) el.textContent = msg || ''; }
+
+/* ---------- medidor de senha ---------- */
+function ligarMedidor(inputId, medidorId, emailId){
+  const inp = $(inputId), med = $(medidorId);
+  if(!inp || !med) return;
+  inp.addEventListener('input', ()=>{
+    const f = forcaSenha(inp.value);
+    const email = emailId ? ($(emailId)?.value || '') : '';
+    const av = avaliarSenha(inp.value, email);
+    med.innerHTML = `
+      <div style="display:flex;gap:3px;margin:6px 0 4px">
+        ${[1,2,3,4].map(i=>`<div style="height:3px;flex:1;border-radius:2px;background:${i<=f.nivel?f.cor:'var(--linha)'}"></div>`).join('')}
+      </div>
+      <div style="font-size:11.5px;color:${f.nivel>=3?'var(--v-fg)':'var(--fraco)'}">
+        ${inp.value ? f.txt : ''}${inp.value && f.nivel<3 ? ` · ${SENHA_RECOMENDADA}+ caracteres é o recomendado` : ''}
+      </div>
+      ${av.problemas.length && inp.value ? `<div style="font-size:11.5px;color:var(--alerta);margin-top:3px">${av.problemas[0]}</div>` : ''}`;
+  });
+}
+
+/* ---------- entrar ---------- */
+async function fazerEntrar(){
+  const email = $('#in-email').value.trim().toLowerCase();
+  const senha = $('#in-senha').value;
+  const btn = $('#btn-entrar');
+  if(!email || !senha){ erroEm('#erro-entrar', 'Informe e-mail e senha.'); return; }
+  btn.disabled = true; btn.textContent = 'Entrando…'; erroEm('#erro-entrar','');
+  try{ await auth({acao:'entrar', email, senha}); }
+  catch(e){ btn.disabled=false; btn.textContent='Entrar'; erroEm('#erro-entrar', erroAmigavel(e)); return; }
+  btn.disabled = false; btn.textContent = 'Entrar';
+  await aposLogin();
+}
+
+/* ---------- criar conta ---------- */
+async function fazerCadastro(){
+  const nome  = $('#cd-nome').value.trim();
+  const email = $('#cd-email').value.trim().toLowerCase();
+  const senha = $('#cd-senha').value;
+  const conf  = $('#cd-senha2').value;
+  const btn = $('#btn-cadastrar');
+  erroEm('#erro-cadastro','');
+
+  if(nome.length < 2){ erroEm('#erro-cadastro','Informe seu nome.'); return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ erroEm('#erro-cadastro','E-mail inválido.'); return; }
+  const av = avaliarSenha(senha, email);
+  if(!av.ok){ erroEm('#erro-cadastro', av.problemas[0]); return; }
+  if(senha !== conf){ erroEm('#erro-cadastro','As senhas não são iguais.'); return; }
+
+  btn.disabled = true; btn.textContent = 'Verificando senha…';
+  const vazamentos = await senhaVazada(senha);
+  if(vazamentos > 0){
+    btn.disabled = false; btn.textContent = 'Criar conta';
+    erroEm('#erro-cadastro', `Esta senha aparece em ${vazamentos.toLocaleString('pt-BR')} vazamentos conhecidos. Escolha outra.`);
+    return;
+  }
+
+  btn.textContent = 'Criando conta…';
+  try{ await auth({acao:'cadastrar', nome, email, senha}); }
+  catch(e){ btn.disabled=false; btn.textContent='Criar conta'; erroEm('#erro-cadastro', erroAmigavel(e)); return; }
+  btn.disabled = false; btn.textContent = 'Criar conta';
+  $('#cd-form').style.display = 'none';
+  $('#cd-enviado').style.display = 'block';
+  $('#cd-email-mostrado').textContent = email;
+}
+
+/* ---------- recuperar senha ---------- */
+async function fazerRecuperar(){
+  const email = $('#rc-email').value.trim().toLowerCase();
+  const btn = $('#btn-recuperar');
+  if(!email){ erroEm('#erro-recuperar','Informe o e-mail.'); return; }
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try{ await auth({acao:'recuperar', email}); }catch(e){}
+  btn.disabled = false; btn.textContent = 'Enviar link';
+  // resposta igual mesmo se o e-mail não existir, para não revelar cadastros
+  $('#rc-form').style.display = 'none';
+  $('#rc-enviado').style.display = 'block';
+}
+
+/* ---------- definir nova senha (voltando do link) ---------- */
+async function fazerNovaSenha(){
+  const senha = $('#ns-senha').value, conf = $('#ns-senha2').value;
+  const btn = $('#btn-nova-senha');
+  erroEm('#erro-nova-senha','');
+  const av = avaliarSenha(senha, SESSAO.usuario?.email || '');
+  if(!av.ok){ erroEm('#erro-nova-senha', av.problemas[0]); return; }
+  if(senha !== conf){ erroEm('#erro-nova-senha','As senhas não são iguais.'); return; }
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  const vaz = await senhaVazada(senha);
+  if(vaz > 0){
+    btn.disabled = false; btn.textContent = 'Salvar nova senha';
+    erroEm('#erro-nova-senha', `Esta senha aparece em ${vaz.toLocaleString('pt-BR')} vazamentos. Escolha outra.`);
+    return;
+  }
+  const token = new URLSearchParams(location.search).get('redefinir') || '';
+  try{ await auth({acao:'redefinir', token, senha}); }
+  catch(e){ btn.disabled=false; btn.textContent='Salvar nova senha'; erroEm('#erro-nova-senha', erroAmigavel(e)); return; }
+  btn.disabled = false; btn.textContent = 'Salvar nova senha';
+  history.replaceState({}, '', location.pathname);
+  await aposLogin();
+}
+
+/* ---------- vínculo com empresa ---------- */
+async function criarEmpresa(){
+  const nome = $('#vn-empresa').value.trim();
+  const btn = $('#btn-criar-empresa');
+  erroEm('#erro-vinculo','');
+  if(nome.length < 2){ erroEm('#erro-vinculo','Informe o nome da empresa.'); return; }
+  btn.disabled = true; btn.textContent = 'Criando…';
+  try{ await auth({acao:'criar_empresa', nome}); }
+  catch(e){ btn.disabled=false; btn.textContent='Criar empresa'; erroEm('#erro-vinculo', erroAmigavel(e)); return; }
+  await DB.carregarEmpresa();
+  await semearLojas();
+  btn.disabled = false; btn.textContent = 'Criar empresa';
+  await abrirApp();
+}
+
+async function entrarPorConvite(){
+  const cod = $('#vn-codigo').value.trim();
+  const btn = $('#btn-entrar-convite');
+  erroEm('#erro-vinculo','');
+  if(!cod){ erroEm('#erro-vinculo','Informe o código.'); return; }
+  btn.disabled = true; btn.textContent = 'Entrando…';
+  try{ await auth({acao:'entrar_por_convite', codigo: cod}); }
+  catch(e){ btn.disabled=false; btn.textContent='Entrar com código'; erroEm('#erro-vinculo', erroAmigavel(e)); return; }
+  btn.disabled = false; btn.textContent = 'Entrar com código';
+  await DB.carregarEmpresa();
+  await abrirApp();
+}
+
+/* semeia as duas lojas de exemplo na primeira vez */
+async function semearLojas(){
+  const base = seedLojas();
+  const novas = {};
+  for(const [, l] of Object.entries(base)){
+    const id = await DB.criarLoja(l.nome, l.params);
+    novas[id] = {nome: l.nome, params: l.params, _ordem: Object.keys(novas).length,
+                 colabs: l.colabs.map(c=>({nome:c.nome, cargo:c.cargo, horario:c.horario,
+                                           gerente:!!c.gerente, ativo:true, ausencias:[]}))};
+  }
+  await DB.salvarLojas(novas);
+}
+
+/* ---------- pós-login ---------- */
+async function aposLogin(){
+  let r;
+  try{ r = await DB.carregarEmpresa(); }
+  catch(e){ erroEm('#erro-entrar', erroAmigavel(e)); mostrarTela('entrar'); return; }
+  if(!r.logado){ mostrarTela('entrar'); return; }
+  if(!SESSAO.usuario || !SESSAO.usuario.empresa_id){ mostrarTela('vinculo'); return; }
+  await abrirApp();
+}
+
+async function abrirApp(){
+  mostrarTela('app');
+  pintarIdentidade({
+    nome:    SESSAO.usuario.nome,
+    email:   SESSAO.usuario.email,
+    papel:   SESSAO.usuario.papel,
+    empresa: SESSAO.empresa ? SESSAO.empresa.nome : ''
+  });
+  S.lojas = await store.get('escala:lojas');
+  if(!S.lojas || !Object.keys(S.lojas).length){
+    await semearLojas();
+    S.lojas = await store.get('escala:lojas');
+  }
+  S.loja = Object.keys(S.lojas)[0];
+  montar();
+  pintarAcessos();
+  aplicarPapel();
+}
+
+/* ---------- sair ---------- */
+async function sair(){
+  try{ await auth({acao:'sair'}); }catch(e){}
+  location.reload();
+}
+
+/* ---------- aba de acessos ---------- */
+async function pintarAcessos(){
+  const cx = $('#lista-acessos');
+  if(!cx) return;
+  $('#codigo-convite').textContent = SESSAO.empresa?.codigo_convite || '—';
+  $('#nome-empresa').textContent = SESSAO.empresa?.nome || '—';
+  try{
+    const gente = await DB.listarAcessos();
+    cx.innerHTML = `<table class="simples"><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Último acesso</th></tr></thead><tbody>${
+      gente.map(p=>`<tr><td>${esc(p.nome||'—')}</td><td>${esc(p.email||'')}</td><td>${esc(p.papel)}</td>
+        <td class="mono">${p.ultimo_acesso ? new Date(p.ultimo_acesso.replace(' ','T')).toLocaleDateString('pt-BR') : '—'}</td></tr>`).join('')
+    }</tbody></table>`;
+  }catch(e){ cx.innerHTML = `<p class="vazio">${esc(erroAmigavel(e))}</p>`; }
+}
+
+/* ---------- ligação dos botões ---------- */
+function ligarAcesso(){
+  $('#btn-entrar').onclick = fazerEntrar;
+  $('#in-senha').addEventListener('keydown', e=>{ if(e.key==='Enter') fazerEntrar(); });
+  $('#btn-cadastrar').onclick = fazerCadastro;
+  $('#btn-recuperar').onclick = fazerRecuperar;
+  $('#btn-nova-senha').onclick = fazerNovaSenha;
+  $('#btn-criar-empresa').onclick = criarEmpresa;
+  $('#btn-entrar-convite').onclick = entrarPorConvite;
+  $('#btn-sair').onclick = sair;
+  $$('[data-ir]').forEach(a=>a.onclick = e=>{ e.preventDefault(); mostrarTela(a.dataset.ir); });
+  ligarMedidor('#cd-senha', '#cd-medidor', '#cd-email');
+  ligarMedidor('#ns-senha', '#ns-medidor', null);
+  $('#copiar-codigo')?.addEventListener('click', ()=>{
+    navigator.clipboard?.writeText(SESSAO.empresa?.codigo_convite || '');
+    $('#copiar-codigo').textContent = 'Copiado';
+    setTimeout(()=>$('#copiar-codigo').textContent = 'Copiar', 1800);
+  });
+}
+
+/* ---------- início ---------- */
+async function iniciar(){
+  ligarAcesso();
+  const params = new URLSearchParams(location.search);
+
+  // volta do link de confirmação de e-mail
+  const tokenConf = params.get('confirmar');
+  if(tokenConf){
+    try{
+      await auth({acao:'sessao'});                 // pega o token CSRF
+      await auth({acao:'confirmar', token: tokenConf});
+      history.replaceState({}, '', location.pathname);
+      await aposLogin();
+      return;
+    }catch(e){
+      mostrarTela('entrar');
+      erroEm('#erro-entrar', erroAmigavel(e));
+      return;
+    }
+  }
+
+  // volta do link de recuperação de senha
+  if(params.get('redefinir')){
+    try{ await auth({acao:'sessao'}); }catch(e){}
+    mostrarTela('novaSenha');
+    return;
+  }
+
+  try{
+    const r = await DB.carregarEmpresa();
+    if(r.logado){ await aposLogin(); } else { mostrarTela('entrar'); }
+  }catch(e){
+    mostrarTela('entrar');
+    erroEm('#erro-entrar', erroAmigavel(e));
+  }
+}
+
+
+/* ---------- navegação ---------- */
+$$('nav.tabs button').forEach(b=>b.onclick=()=>{
+  $$('nav.tabs button').forEach(x=>x.setAttribute('aria-current', String(x===b)));
+  $$('.view').forEach(v=>v.dataset.ativa = String(v.dataset.view===b.dataset.view));
+});
+
+/* ---------- montagem ---------- */
+function montar(){
+  const sel = $('#sel-loja'); sel.innerHTML='';
+  Object.keys(S.lojas).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=S.lojas[k].nome; sel.appendChild(o); });
+  sel.value = S.loja;
+  sel.onchange = async ()=>{ S.loja = sel.value; await carregarPeriodoSalvo(); pintarParams(); pintarEquipe(); pintarAus(); };
+  const hoje = new Date();
+  const ini = new Date(hoje.getFullYear(), hoje.getMonth()+1, 11);
+  const fim = new Date(hoje.getFullYear(), hoje.getMonth()+2, 10);
+  $('#p-inicio').value = ymd(ini); $('#p-fim').value = ymd(fim);
+  pintarParams(); pintarEquipe(); pintarAus(); carregarPeriodoSalvo();
+}
+const loja = ()=>S.lojas[S.loja];
+const chaveGrade = ()=>`escala:grade:${S.loja}:${$('#p-inicio').value}_${$('#p-fim').value}`;
+
+/* ---------- parâmetros ---------- */
+const DIAS_SEM = ['dom','seg','ter','qua','qui','sex','sáb'];
+function pintarMinDias(){
+  const p = loja().params;
+  const md = p.minDia || {};
+  const FDS = new Set([0,6]);
+  $('#min-dias').innerHTML = DIAS_SEM.map((d,k)=>
+    `<div class="ds-cel${FDS.has(k)?' fds':''}">
+       <div class="ds-nome">${d}</div>
+       <input type="number" min="0" max="30" data-md="${k}" value="${md[k]!=null?md[k]:0}">
+     </div>`).join('');
+  $$('#min-dias input').forEach(el=>el.onchange=()=>{});
+}
+function lerMinDias(){
+  const md = {};
+  $$('#min-dias input').forEach(el=>{ md[el.dataset.md] = +el.value || 0; });
+  return md;
+}
+function pintarParams(){
+  pintarMinDias();
+  const p = loja().params;
+  $('#r-modelo').value = p.modelo || (p.folgasSemana===1 ? '6x1' : '5x2');
+  $('#r-ciclo').value=p.cicloDomingo; avisoCiclo(); $('#r-maxseq').value=p.maxSeq;
+  $('#r-semana').value=String(p.inicioSemana); $('#r-mincaixa').value=p.minCaixa; $('#r-minbalcao').value=p.minBalcao;
+  $('#r-minfarma').value=p.minFarma; $('#r-minsubger').value = p.minSubger!=null?p.minSubger:1;
+  $('#r-subger').checked = p.subgerFds!==false;
+  $('#r-prioridade').value = p.prioridade || 'par';
+}
+$('#r-ciclo').onchange = avisoCiclo;
+$('#btn-salvar-params').onclick = async ()=>{
+  const modelo = $('#r-modelo').value;
+  loja().params = {modelo, folgasSemana: modelo==='6x1' ? 1 : 2,
+    cicloDomingo:+$('#r-ciclo').value, maxSeq:+$('#r-maxseq').value,
+    inicioSemana:($('#r-semana').value==='P'?'P':+$('#r-semana').value), minCaixa:+$('#r-mincaixa').value, minBalcao:+$('#r-minbalcao').value, minFarma:+$('#r-minfarma').value, minSubger:+$('#r-minsubger').value,
+    subgerFds:$('#r-subger').checked, minDia:lerMinDias(), prioridade:$('#r-prioridade').value};
+  await store.set('escala:lojas', S.lojas);
+  $('#status-params').textContent='Parâmetros salvos'; $('#status-params').className='chip ok';
+  setTimeout(()=>$('#status-params').textContent='',2500);
+};
+
+/* ---------- equipe ---------- */
+const MESES_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function domingosDe(ano, mes){
+  const out=[]; let d=new Date(ano, mes, 1);
+  while(d.getDay()!==0) d.setDate(d.getDate()+1);
+  let n=1;
+  while(d.getMonth()===mes){
+    const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    out.push({iso, label:n+'º dom ('+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+')' });
+    d.setDate(d.getDate()+7); n++;
+  }
+  return out;
+}
+function renderDomPicker(c){
+  const hoje=new Date();
+  const selData=c.primeiroDomingo||'';
+  let defAno=hoje.getFullYear(), defMes=hoje.getMonth();
+  if(selData){ defAno=+selData.slice(0,4); defMes=+selData.slice(5,7)-1; }
+  else if($('#p-inicio')&&$('#p-inicio').value){
+    const p=new Date($('#p-inicio').value+'T12:00');
+    if(!isNaN(p)){ defAno=p.getFullYear(); defMes=p.getMonth(); }
+  }
+  const mesesOpts=Array.from({length:14},(_,k)=>{
+    const d2=new Date(hoje.getFullYear(), hoje.getMonth()-1+k);
+    const v=d2.getFullYear()+'-'+String(d2.getMonth()).padStart(2,'0');
+    const sel=(d2.getFullYear()===defAno&&d2.getMonth()===defMes)?' selected':'';
+    return `<option value="${v}"${sel}>${MESES_PT[d2.getMonth()]} ${d2.getFullYear()}</option>`;
+  }).join('');
+  const domOpts=domingosDe(defAno,defMes)
+    .map(o=>`<option value="${o.iso}"${o.iso===selData?' selected':''}>${o.label}</option>`).join('');
+  return `<div style="display:flex;gap:4px;align-items:flex-start;flex-direction:column">
+    <select class="dom-mes inp" style="width:100%;font-size:12px;padding:4px 6px">${mesesOpts}</select>
+    <select class="dom-dia inp" data-f="primeiroDomingo" style="width:100%;font-size:12px;padding:4px 6px">
+      <option value="">— automático —</option>${domOpts}
+    </select>
+  </div>`;
+}
+function bindDomPicker(tr,c){
+  const mes$=tr.querySelector('.dom-mes');
+  const dia$=tr.querySelector('.dom-dia');
+  if(!mes$||!dia$) return;
+  mes$.onchange=async()=>{
+    const [ano,mes]=mes$.value.split('-').map(Number);
+    const atual=dia$.value;
+    dia$.innerHTML='<option value="">— automático —</option>'+
+      domingosDe(ano,mes).map(o=>`<option value="${o.iso}"${o.iso===atual?' selected':''}>${o.label}</option>`).join('');
+  };
+  dia$.onchange=async()=>{
+    c.primeiroDomingo=dia$.value||null;
+    await store.set('escala:lojas',S.lojas);
+  };
+}
+const CARGOS = ['GERENTE','SUBGERENTE','SUB/FARMA','FARMACÊUTICO','BALCONISTA','CAIXA','AX. LOJA','REPOSITOR'];
+const DIAS_SEMANA_NOME = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+function pintarEquipe(){
+  const t = $('#tab-equipe');
+  t.innerHTML = `<thead><tr><th>Nome</th><th>Cargo</th><th>Horário</th><th style="width:70px">Gerente</th>
+    <th style="width:118px">Folga fixa</th>
+    <th style="width:190px">1º domingo de folga</th>
+    <th style="width:60px">Ativo</th><th style="width:40px"></th></tr></thead><tbody></tbody>`;
+  const tb = t.querySelector('tbody');
+  loja().colabs.forEach((c,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input value="${esc(c.nome)}" data-f="nome"></td>
+      <td><select data-f="cargo">${CARGOS.map(x=>`<option${x===c.cargo?' selected':''}>${x}</option>`).join('')}</select></td>
+      <td><input value="${esc(c.horario||'')}" data-f="horario" placeholder="07:00 AS 15:20"></td>
+      <td style="text-align:center"><input type="checkbox" data-f="gerente" ${c.gerente?'checked':''}></td>
+      <td><select data-f="folgaFixa"><option value="">variável</option>${DIAS_SEMANA_NOME.map((d,k)=>
+          `<option value="${k}"${String(c.folgaFixa)===String(k)?' selected':''}>${d}</option>`).join('')}</select></td>
+      <td>${renderDomPicker(c)}</td>
+      <td style="text-align:center"><input type="checkbox" data-f="ativo" ${c.ativo!==false?'checked':''}></td>
+      <td><button class="btn danger small" title="Remover">×</button></td>`;
+    tr.querySelectorAll('[data-f]').forEach(el=>{
+      el.onchange = async ()=>{
+        const f = el.dataset.f;
+        let v = el.type==='checkbox' ? el.checked : el.value;
+        if(f==='folgaFixa') v = v===''? null : +v;
+        if(f==='primeiroDomingo') v = v==='' ? null : v;
+        c[f]=v; await store.set('escala:lojas', S.lojas); pintarAus();
+      };
+    });
+    bindDomPicker(tr, c);
+    tr.querySelector('button').onclick = async ()=>{
+      if(!confirm(`Remover ${c.nome} da equipe?`)) return;
+      loja().colabs.splice(i,1); await store.set('escala:lojas', S.lojas); pintarEquipe(); pintarAus();
+    };
+    tb.appendChild(tr);
+  });
+}
+$('#btn-add-colab').onclick = async ()=>{
+  loja().colabs.push({id:'n'+Date.now(), nome:'NOVO COLABORADOR', cargo:'BALCONISTA', horario:'09:00 AS 18:00',
+                      gerente:false, ativo:true, domTrabConsec:null, diasDesdeFolga:0, folgaFixa:null, ausencias:[]});
+  await store.set('escala:lojas', S.lojas); pintarEquipe();
+};
+
+/* ---------- ausências ---------- */
+function pintarAus(){
+  const t = $('#tab-aus');
+  const linhas = [];
+  loja().colabs.forEach(c=>(c.ausencias||[]).forEach((a,idx)=>linhas.push({c,a,idx})));
+  t.innerHTML = `<thead><tr><th>Colaborador</th><th style="width:130px">Tipo</th><th style="width:150px">De</th><th style="width:150px">Até</th><th style="width:40px"></th></tr></thead><tbody></tbody>`;
+  const tb = t.querySelector('tbody');
+  if(!linhas.length){ tb.innerHTML = `<tr><td colspan="5" class="vazio">Nenhuma ausência lançada.</td></tr>`; return; }
+  const TIPOS = {F:'Férias', AT:'Atestado', LC:'Licença', FC:'Folga compensatória'};
+  linhas.forEach(({c,a,idx})=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(c.nome)}</td>
+      <td><select data-f="tipo">${Object.keys(TIPOS).map(k=>`<option value="${k}"${k===a.tipo?' selected':''}>${TIPOS[k]}</option>`).join('')}</select></td>
+      <td><input type="date" data-f="ini" value="${a.ini||''}"></td>
+      <td><input type="date" data-f="fim" value="${a.fim||''}"></td>
+      <td><button class="btn danger small">×</button></td>`;
+    tr.querySelectorAll('[data-f]').forEach(el=>el.onchange=async()=>{ a[el.dataset.f]=el.value; await store.set('escala:lojas',S.lojas); });
+    tr.querySelector('button').onclick = async ()=>{ c.ausencias.splice(idx,1); await store.set('escala:lojas',S.lojas); pintarAus(); };
+    tb.appendChild(tr);
+  });
+}
+$('#btn-add-aus').onclick = async ()=>{
+  const nomes = loja().colabs.map(c=>c.nome);
+  const q = prompt('Ausência para quem?\n\n'+nomes.join(', '));
+  if(!q) return;
+  const c = loja().colabs.find(x=>x.nome.toLowerCase().includes(q.trim().toLowerCase()));
+  if(!c){ alert('Não encontrei esse nome na equipe.'); return; }
+  c.ausencias = c.ausencias||[];
+  c.ausencias.push({tipo:'F', ini:$('#p-inicio').value, fim:$('#p-fim').value});
+  await store.set('escala:lojas', S.lojas); pintarAus();
+  $$('nav.tabs button').find(b=>b.dataset.view==='equipe').click();
+};
+
+/* ============================================================
+   GERAR / PINTAR GRADE
+   ============================================================ */
+$('#btn-gerar').onclick = ()=>{
+  const p = Object.assign({}, loja().params, {inicio:$('#p-inicio').value, fim:$('#p-fim').value});
+  if(!p.inicio || !p.fim || p.inicio>=p.fim){ alert('Confira o período: a data final precisa ser depois da inicial.'); return; }
+  S.res = gerarEscala(loja().colabs, p);
+  S.res.horas = {};
+  S.val = validar(S.res, loja().colabs);
+  S.salvo = false; pintarGrade();
+};
+$('#btn-salvar').onclick = async ()=>{
+  if(!S.res) return;
+  const dados = {inicio:$('#p-inicio').value, fim:$('#p-fim').value, grid:S.res.grid, params:S.res.params,
+                 horas:S.res.horas||{}, ordem:S.res.ativos.map(c=>c.id)};
+  await store.set(chaveGrade(), dados);
+  S.salvo = true; marcarSalvo();
+};
+async function carregarPeriodoSalvo(){
+  S.res=null; S.val=null;
+  const d = await store.get(chaveGrade());
+  if(d){
+    const p = Object.assign({}, loja().params, d.params||{}, {inicio:d.inicio, fim:d.fim});
+    const base = gerarEscala(loja().colabs, p);
+    Object.keys(d.grid).forEach(id=>{ if(base.grid[id]) base.grid[id] = d.grid[id]; });
+    base.horas = d.horas || {};
+    S.res = base; S.val = validar(S.res, loja().colabs); S.salvo = true;
+  }
+  pintarGrade();
+}
+function marcarSalvo(){
+  const el = $('#status-salvo');
+  if(!S.res){ el.textContent=''; return; }
+  el.textContent = S.salvo ? 'Salvo' : 'Não salvo';
+  el.className = 'chip ' + (S.salvo?'ok':'mal');
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+/* As duas primeiras colunas ficam presas na rolagem horizontal. O quanto a
+   segunda precisa se deslocar depende da largura REAL da primeira, que muda
+   conforme o nome mais longo da equipe e a fonte que o navegador carregou.
+   Cravar o número no CSS foi o que escondia os primeiros dias atrás das
+   colunas fixas — aqui a medida é tirada do próprio desenho da página. */
+function ajustarColunasFixas(box){
+  const tabela = box.querySelector('table.esc');
+  if(!tabela) return;
+
+  const medir = ()=>{
+    const primeira = tabela.querySelector('thead th.fixa');
+    if(!primeira) return;
+    const larg = Math.round(primeira.getBoundingClientRect().width);
+    if(larg > 0) tabela.style.setProperty('--w-nome', larg + 'px');
+    // a grade recém-montada sempre começa no primeiro dia do período
+    box.scrollLeft = 0;
+  };
+
+  medir();
+  // as fontes podem chegar depois e mudar a largura; remede quando chegarem
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(medir).catch(()=>{});
+  requestAnimationFrame(medir);
+
+  if(window.ResizeObserver && !box._observando){
+    const alvo = tabela.querySelector('thead th.fixa');
+    if(alvo){
+      new ResizeObserver(medir).observe(alvo);
+      box._observando = true;
+    }
+  }
+}
+
+
+/* ============================================================
+   HORÁRIOS AJUSTADOS POR DIA
+   O motor distingue "trabalha" de "folga" pela célula estar vazia.
+   Por isso o horário ajustado NÃO vai para dentro da grade: fica
+   num mapa à parte. Assim a validação e a contagem de cobertura
+   continuam funcionando sem saber que o horário mudou.
+   ============================================================ */
+function mapaHoras(){
+  if(!S.res) return {};
+  if(!S.res.horas) S.res.horas = {};
+  return S.res.horas;
+}
+function horaAjustada(id, i){
+  const m = mapaHoras()[id];
+  return (m && m[i] != null) ? m[i] : null;
+}
+function horaDoDia(c, i){
+  const a = horaAjustada(c.id, i);
+  return a != null ? a : horaEntrada(c);
+}
+function definirHora(id, i, valor){
+  const m = mapaHoras();
+  if(valor == null){ if(m[id]){ delete m[id][i]; if(!Object.keys(m[id]).length) delete m[id]; } return; }
+  if(!m[id]) m[id] = {};
+  m[id][i] = valor;
+}
+
+/* ---------- pop-up de edição da célula ---------- */
+function fecharPopupCelula(){
+  const p = document.getElementById('pop-cel');
+  if(p) p.remove();
+  document.removeEventListener('keydown', _escFecha, true);
+  document.removeEventListener('click', _foraFecha, true);
+}
+function _escFecha(e){ if(e.key === 'Escape'){ e.stopPropagation(); fecharPopupCelula(); } }
+function _foraFecha(e){
+  const p = document.getElementById('pop-cel');
+  if(p && !p.contains(e.target)) fecharPopupCelula();
+}
+
+function abrirPopupCelula(td){
+  fecharPopupCelula();
+  const id = td.dataset.id, i = +td.dataset.i;
+  const c = S.res.ativos.find(x=>x.id===id);
+  if(!c) return;
+  const dia = S.res.days[i];
+  const cod = S.res.grid[id][i];
+  const padrao = (horaEntrada(c)||'').slice(0,5) || '09:00';
+  const atual = (horaDoDia(c, i)||'').slice(0,5) || padrao;
+  const ajustada = horaAjustada(id, i);
+
+  // horários já praticados na loja, para escolher com um clique
+  const atalhos = [...new Set(loja().colabs.map(x=>(horaEntrada(x)||'').slice(0,5)).filter(Boolean))]
+                  .sort().slice(0, 6);
+
+  const DIA_NOMES = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  const CODIGOS = [
+    ['X',  'X folga',        '#D8EDE2', '#14663F'],
+    ['FC', 'FC compens.',    '#F6E7C4', '#8A5E06'],
+    ['F',  'F férias',       '#D7E5F0', '#1F5580'],
+    ['AT', 'AT atestado',    '#F3DBD7', '#96332A'],
+    ['LC', 'LC licença',     '#E3DDF2', '#50407E']
+  ];
+
+  const pop = document.createElement('div');
+  pop.id = 'pop-cel';
+  pop.innerHTML = `
+    <div class="pc-topo">
+      <div class="pc-nome">${esc(c.nome)}</div>
+      <div class="pc-data">${DIA_NOMES[dia.getDay()]}, ${ddmm(dia)}</div>
+    </div>
+    <div class="pc-corpo">
+      <div class="pc-rot">Trabalha — horário de entrada</div>
+      <div class="pc-linha">
+        <input type="time" id="pc-hora" value="${atual}">
+        <button class="pc-aplicar" id="pc-ok">Aplicar</button>
+      </div>
+      ${atalhos.length ? `<div class="pc-atalhos">${atalhos.map(a=>
+        `<button class="pc-atalho" data-h="${a}">${a}</button>`).join('')}</div>` : ''}
+      <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
+        repetir deste dia até o fim do período</label>
+    </div>
+    <div class="pc-corpo" style="padding-top:0">
+      <div class="pc-rot">Não trabalha</div>
+      <div class="pc-codigos">
+        ${CODIGOS.map(([k,rot,bg,fg],n)=>
+          `<button class="pc-cod" data-cod="${k}"${n===4?' style="grid-column:span 2"':''}>
+             <b style="background:${bg};border:1px solid ${fg}"></b>${rot}</button>`).join('')}
+      </div>
+    </div>
+    <div class="pc-rodape">
+      ${(cod!=='' || ajustada!=null)
+        ? `<button class="pc-link pc-voltar" id="pc-limpar">Voltar ao padrão (${padrao})</button>`
+        : '<span></span>'}
+      <button class="pc-link" id="pc-fechar">Fechar</button>
+    </div>`;
+
+  document.body.appendChild(pop);
+
+  // posicionar junto da célula, sem sair da janela
+  const r = td.getBoundingClientRect();
+  const lp = pop.getBoundingClientRect();
+  let esq = r.left + window.scrollX;
+  let topo = r.bottom + window.scrollY + 6;
+  if(esq + lp.width > window.scrollX + document.documentElement.clientWidth - 10)
+    esq = window.scrollX + document.documentElement.clientWidth - lp.width - 10;
+  if(esq < window.scrollX + 8) esq = window.scrollX + 8;
+  if(r.bottom + lp.height + 12 > document.documentElement.clientHeight)
+    topo = r.top + window.scrollY - lp.height - 6;
+  pop.style.left = esq + 'px';
+  pop.style.top  = Math.max(window.scrollY + 8, topo) + 'px';
+
+  const aplicar = ()=>{
+    S.val = validar(S.res, loja().colabs);
+    S.salvo = false;
+    fecharPopupCelula();
+    pintarGrade();
+  };
+
+  const porHora = (valor)=>{
+    const repetir = document.getElementById('pc-repetir').checked;
+    const ate = repetir ? S.res.days.length - 1 : i;
+    for(let k=i; k<=ate; k++){
+      // só mexe em dia de trabalho: folga, férias e atestado ficam como estão
+      if(S.res.grid[id][k] !== '') continue;
+      definirHora(id, k, valor === padrao ? null : valor);
+    }
+    aplicar();
+  };
+
+  document.getElementById('pc-ok').onclick = ()=>{
+    const v = document.getElementById('pc-hora').value;
+    if(!v) return;
+    if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';   // voltou a trabalhar
+    porHora(v);
+  };
+  pop.querySelectorAll('.pc-atalho').forEach(b=>{
+    b.onclick = ()=>{
+      document.getElementById('pc-hora').value = b.dataset.h;
+      if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';
+      porHora(b.dataset.h);
+    };
+  });
+  pop.querySelectorAll('.pc-cod').forEach(b=>{
+    b.onclick = ()=>{
+      const repetir = document.getElementById('pc-repetir').checked;
+      const ate = repetir ? S.res.days.length - 1 : i;
+      for(let k=i; k<=ate; k++){
+        S.res.grid[id][k] = b.dataset.cod;
+        definirHora(id, k, null);
+        if(!repetir) break;
+      }
+      aplicar();
+    };
+  });
+  const limpar = document.getElementById('pc-limpar');
+  if(limpar) limpar.onclick = ()=>{
+    S.res.grid[id][i] = '';
+    definirHora(id, i, null);
+    aplicar();
+  };
+  document.getElementById('pc-fechar').onclick = fecharPopupCelula;
+
+  setTimeout(()=>{
+    document.addEventListener('keydown', _escFecha, true);
+    document.addEventListener('click', _foraFecha, true);
+  }, 0);
+}
+
+
+/* Identidade de quem esta conectado.
+   O cabecalho mostrava "nome · papel · empresa" sempre. Quando a pessoa usa o
+   mesmo nome para a loja, a empresa e o proprio usuario — que e o caso comum
+   em rede pequena — isso virava a mesma palavra tres vezes. Agora o circulo
+   traz so a inicial, e o texto completo, ja sem repeticoes, fica no tooltip. */
+const NOME_PAPEL = {admin:'administrador', gestor:'gestor', leitor:'leitor', colaborador:'colaborador'};
+
+function pintarIdentidade(dados){
+  const el = document.getElementById('quem');
+  if(!el) return;
+  const d = dados || {};
+  const nome = (d.nome || d.email || '').trim();
+  const papel = NOME_PAPEL[d.papel] || d.papel || '';
+  const empresa = (d.empresa || '').trim();
+
+  // inicial do circulo
+  el.textContent = (nome || empresa || '?').trim().charAt(0) || '?';
+
+  // tooltip: junta as partes descartando as repetidas
+  const vistas = new Set();
+  const partes = [];
+  [nome, papel, empresa].forEach(v=>{
+    const chave = (v||'').toLowerCase();
+    if(!chave || vistas.has(chave)) return;
+    vistas.add(chave); partes.push(v);
+  });
+  if(d.email && !vistas.has((d.email||'').toLowerCase())) partes.push(d.email);
+  const txt = partes.join(' · ');
+  el.title = txt;
+  el.setAttribute('aria-label', 'Conectado como ' + txt);
+}
+
+
+/* O valor do campo é o tamanho do ciclo: 3 quer dizer "folga a cada 3
+   domingos", ou seja, trabalha 2 e folga 1. O rótulo antigo dizia
+   "3 domingos trabalhados", o que dava a entender o contrário. */
+function avisoCiclo(){
+  const el = document.getElementById('hint-ciclo');
+  const sel = document.getElementById('r-ciclo');
+  if(!el || !sel) return;
+  const v = +sel.value;
+  const trabalhados = v - 1;
+  if(trabalhados >= 3){
+    el.innerHTML = '<b style="color:var(--alerta)">Fora da lei.</b> A Lei 10.101/2000 admite '
+                 + 'no máximo 2 domingos seguidos trabalhados.';
+  } else if(trabalhados === 2){
+    el.textContent = 'É o limite da Lei 10.101/2000: no máximo 2 domingos seguidos trabalhados.';
+  } else {
+    el.textContent = 'Mais folgas de domingo do que a lei exige. Precisa de equipe maior no fim de semana.';
+  }
+}
+
+function pintarGrade(){
+  marcarSalvo();
+  const box = $('#grade');
+  if(!S.res){ box.innerHTML = `<div class="vazio" style="padding:48px">Escolha o período e clique em <b>Gerar escala</b>.</div>`;
+    $('#lista-alertas').innerHTML=''; $('#cont-alertas').textContent=''; $('#tab-resumo').innerHTML='';
+    $('#resumo-cobertura').innerHTML=''; return; }
+  const {days, grid, ativos} = S.res;
+  const P = S.res.params;
+
+  let h = '<table class="esc"><thead><tr><th class="fixa">Colaborador</th><th class="hr">Entra</th>';
+  days.forEach(d=>{ h += `<th class="${d.getDay()===0?'domingo':''}">${DIA_ABREV[d.getDay()]}</th>`; });
+  h += '<th>Folgas</th></tr><tr class="datas"><th class="fixa"></th><th class="hr"></th>';
+  days.forEach(d=>{ h += `<th class="${d.getDay()===0?'domingo':''}">${ddmm(d)}</th>`; });
+  h += '<th></th></tr></thead><tbody>';
+
+  let grupoAnterior = null;
+  ativos.forEach(c=>{
+    const g = grupoDe(c);
+    if(grupoAnterior!==null && g!==grupoAnterior)
+      h += `<tr class="sep"><td class="fixa"></td><td class="hr"></td><td colspan="${days.length+1}"></td></tr>`;
+    grupoAnterior = g;
+    h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome">${esc(c.nome)}</div><div class="cargo">${esc(c.cargo)}${c.gerente?' · gerente':''}</div></td>`;
+    h += `<td class="hr">${horaEntrada(c)}</td>`;
+    days.forEach((d,i)=>{
+      const cod = grid[c.id][i];
+      const mudou = cod==='' && horaAjustada(c.id, i) != null;
+      const txt = cod==='' ? horaDoDia(c, i).slice(0,5) : cod;
+      const cls = 'cel' + (d.getDay()===0||d.getDay()===6?' fds':'') + (mudou?' cel-editada':'');
+      const conteudo = cod===''
+        ? `<span style="color:${mudou?'var(--texto)':'#8A9995'};${mudou?'font-weight:600':''}">${txt}</span>`
+        : txt;
+      h += `<td class="${cls}" data-cod="${cod}" data-i="${i}" data-id="${c.id}">${conteudo}</td>`;
+    });
+    h += `<td class="cel" style="cursor:default;font-weight:600">${grid[c.id].filter(v=>v==='X'||v==='FC').length}</td></tr>`;
+  });
+  h += '</tbody><tfoot>';
+  const cob = S.val.cobertura;
+  const linhaFoot = (rot, f, min) => {
+    let s = `<tr><td class="fixa">${rot}</td><td class="hr"></td>`;
+    cob.forEach(c=>{ const v=f(c); s += `<td class="${min!=null&&v<min?'furo':''}">${v}</td>`; });
+    return s + '<td></td></tr>';
+  };
+  h += linhaFoot('Caixa', c=>c.cx, P.minCaixa);
+  h += linhaFoot('Balcão', c=>c.bl, P.minBalcao);
+  h += (function(){
+    const alvo = P.minFarma != null ? P.minFarma : 2;
+    let s = `<tr><td class="fixa">Farmacêutico</td><td class="hr"></td>`;
+    cob.forEach(c=>{
+      const cls = c.fa < 1 ? 'furo' : (c.fa < alvo ? 'leve' : '');
+      s += `<td class="${cls}">${c.fa}</td>`;
+    });
+    return s + '<td></td></tr>';
+  })();
+  h += linhaFoot('Subgerente', c=>c.sg!=null?c.sg:0, P.minSubger!=null?P.minSubger:1);
+  h += (function(){
+    const alvo = P.minDia || {};
+    let s = `<tr><td class="fixa">Total na loja</td><td class="hr"></td>`;
+    cob.forEach((c,i)=>{
+      const a = Number(alvo[days[i].getDay()] || 0);
+      s += `<td class="${a && c.total < a ? 'furo':''}">${c.total}${a?`<span style="color:#9AA7A2">/${a}</span>`:''}</td>`;
+    });
+    return s + '<td></td></tr>';
+  })();
+  h += (function(){
+    let s = `<tr><td class="fixa">De folga</td><td class="hr"></td>`;
+    days.forEach((d,i)=>{
+      const n = ativos.filter(c=>grid[c.id][i]==='X'||grid[c.id][i]==='FC').length;
+      s += `<td style="color:var(--v-fg)">${n}</td>`;
+    });
+    return s + '<td></td></tr>';
+  })();
+  h += '</tfoot></table>';
+  box.innerHTML = h;
+  ajustarColunasFixas(box);
+
+  box.querySelectorAll('td.cel[data-i]').forEach(td=>{
+    td.onclick = (ev)=>{ ev.stopPropagation(); abrirPopupCelula(td); };
+  });
+
+  // pendências
+  const al = S.val.alertas;
+  const regras = al.filter(a=>a.nivel!=='nota'), notas = al.filter(a=>a.nivel==='nota');
+  $('#cont-alertas').textContent = regras.length
+    ? `${regras.length} regra(s) ferida(s)` + (notas.length?` e ${notas.length} observação(ões).`:'.')
+    : (notas.length ? `Regras fechadas, com ${notas.length} observação(ões).` : 'Nenhuma regra ferida nesta escala.');
+  $('#lista-alertas').innerHTML = al.length
+    ? regras.concat(notas).map(a=>`<li${a.nivel==='nota'?' style="color:var(--fraco)"':''}><b${a.nivel!=='nota'?' style="color:var(--alerta)"':''}>${esc(a.colab)}</b><span>${esc(a.txt)}</span></li>`).join('')
+    : `<li style="color:var(--v-fg)">Todas as regras de folga fecharam.</li>`;
+
+  // resumo
+  let r = `<thead><tr><th>Colaborador</th><th>Folgas</th><th>Dom. folga</th><th>Dom. trab.</th><th>Máx. seguidos</th><th>Situação</th></tr></thead><tbody>`;
+  ativos.forEach(c=>{
+    const v = S.val.porColab[c.id];
+    const ok = v.av.length===0;
+    r += `<tr><td>${esc(c.nome)}</td><td class="mono">${v.totalFolgas}</td><td class="mono">${v.domFolga}</td><td class="mono">${v.domTrab}</td>
+      <td class="mono">${v.pior}</td><td><span class="chip ${ok?'ok':'mal'}">${ok?'ok':v.av.length+' ajuste(s)'}</span></td></tr>`;
+  });
+  $('#tab-resumo').innerHTML = r+'</tbody>';
+
+  // faixa de cobertura
+  const furos = cob.filter(c=>c.falta.length).length;
+  const minTot = Math.min(...cob.map(c=>c.total)), maxTot = Math.max(...cob.map(c=>c.total));
+  $('#resumo-cobertura').innerHTML = `<div style="font-size:13.5px;color:var(--fraco)">
+    Período de <b class="mono">${ddmm(days[0])}</b> a <b class="mono">${ddmm(days[days.length-1])}</b> ·
+    ${days.length} dias · ${ativos.length} pessoas ·
+    equipe em loja variando de <b>${minTot}</b> a <b>${maxTot}</b> por dia ·
+    ${furos? `<span style="color:var(--alerta)"><b>${furos}</b> dia(s) abaixo do mínimo</span>` : 'todos os dias no mínimo'}</div>`;
+}
+
+/* ---------- exportações ---------- */
+
+// dados da grade num formato só, usado pela planilha e pela impressão
+function dadosDaEscala(){
+  const {days, grid, ativos} = S.res, P = S.res.params, cob = S.val.cobertura;
+  const alvo = P.minDia || {};
+  const alvoFa = P.minFarma != null ? P.minFarma : 2;
+  const alvoSg = P.minSubger != null ? P.minSubger : 1;
+  return {days, grid, ativos, P, cob, alvo, alvoFa, alvoSg,
+          periodo: ddmm(days[0]) + '/' + days[0].getFullYear() + ' a ' + ddmm(days[days.length-1]) + '/' + days[days.length-1].getFullYear()};
+}
+
+function planilhaDaEscala(D, nomeLoja, idLoja){
+  const {days, grid, ativos, P, cob} = D;
+  const estiloCod = {'X':'folga','FC':'compensa','F':'ferias','AT':'atestado','LC':'licenca'};
+
+  const linhas = [];
+  linhas.push([{v:'ESCALA — '+nomeLoja, e:'titulo'}, null, null, {v:D.periodo, e:'subtitulo'}]);
+  linhas.push([{v:'X folga · FC folga compensatória · F férias · AT atestado · LC licença', e:'legenda'}]);
+  linhas.push([{v:'COLABORADOR',e:'cabecalho'},{v:'ENTRA',e:'cabecalho'},{v:'CARGO',e:'cabecalho'}]
+    .concat(days.map(d=>({v:DIA_ABREV[d.getDay()], e:'cabecalho'}))));
+  linhas.push([null,null,null].concat(days.map(d=>({v:ddmm(d), e:(d.getDay()===0||d.getDay()===6)?'dataFds':'data'}))));
+
+  ativos.forEach(c=>{
+    const l = [{v:c.nome, e:'nome'}, {v:horaEntrada(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
+    days.forEach((d,i)=>{
+      const cod = grid[c.id][i];
+      const fds = (d.getDay()===0 || d.getDay()===6);
+      if(cod === '') l.push({v: horaDoDia(c, i), e: fds ? 'trabalhaFds' : 'trabalha'});
+      else l.push({v: cod, e: estiloCod[cod] || 'trabalha'});
+    });
+    linhas.push(l);
+  });
+
+  linhas.push([]);
+  const conta = (rot, valor, limite, leve)=>{
+    const l = [{v:rot, e:'rotulo'}, null, null];
+    cob.forEach((c,i)=>{
+      const n = valor(c, i);
+      const lim = typeof limite === 'function' ? limite(c,i) : limite;
+      let e = 'conta';
+      if(lim != null && n < lim) e = 'contaFuro';
+      else if(leve != null && n < (typeof leve === 'function' ? leve(c,i) : leve)) e = 'contaLeve';
+      l.push({n, e});
+    });
+    linhas.push(l);
+  };
+  conta('CAIXA', c=>c.cx, P.minCaixa);
+  conta('BALCÃO', c=>c.bl, P.minBalcao);
+  conta('FARMACÊUTICO', c=>c.fa, 1, D.alvoFa);
+  conta('SUBGERENTE', c=>c.sg||0, D.alvoSg);
+  conta('TOTAL NA LOJA', c=>c.total, (c,i)=>Number(D.alvo[days[i].getDay()]||0)||null);
+  conta('DE FOLGA', (c,i)=>ativos.filter(x=>grid[x.id][i]==='X'||grid[x.id][i]==='FC').length, null);
+
+  return {
+    aba: 'Escala ' + idLoja,
+    colunas: [24, 8, 15].concat(days.map(()=>4.4)),
+    congelar: {coluna:3, linha:4},
+    merges: ['A1:C1'],
+    alturas: {0:22, 2:18},
+    linhas
+  };
+}
+
+$('#btn-xlsx').onclick = ()=>{
+  if(!S.res){ alert('Gere a escala antes de baixar.'); return; }
+  const bytes = gerarXLSX(planilhaDaEscala(dadosDaEscala(), loja().nome, S.loja));
+  const nome = `escala_${S.loja}_${$('#p-inicio').value}_a_${$('#p-fim').value}.xlsx`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  a.download = nome;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+};
+
+// documento de impressão próprio: paisagem, com as cores preservadas
+function htmlDeImpressao(D, nomeLoja){
+  const {days, grid, ativos, P, cob} = D;
+  const cor = {'X':['#D8EDE2','#14663F'],'FC':['#F6E7C4','#8A5E06'],'F':['#D7E5F0','#1F5580'],
+               'AT':['#F3DBD7','#96332A'],'LC':['#E3DDF2','#50407E']};
+  let corpo = '';
+  ativos.forEach(c=>{
+    corpo += `<tr><td class="nm">${esc(c.nome)}<span>${esc(c.cargo)}</span></td><td class="hr">${horaEntrada(c)}</td>`;
+    days.forEach((d,i)=>{
+      const v = grid[c.id][i], fds = (d.getDay()===0||d.getDay()===6);
+      if(v==='') corpo += `<td class="${fds?'fds':''}"><i>${horaDoDia(c, i)}</i></td>`;
+      else { const k = cor[v]||['#fff','#000'];
+             corpo += `<td style="background:${k[0]};color:${k[1]};font-weight:700">${v}</td>`; }
+    });
+    corpo += '</tr>';
+  });
+  const rodape = (rot, f, limite, leve)=>{
+    let s = `<tr class="rp"><td class="nm">${rot}</td><td></td>`;
+    cob.forEach((c,i)=>{
+      const n = f(c,i);
+      const lim = typeof limite==='function' ? limite(c,i) : limite;
+      const lv  = typeof leve==='function' ? leve(c,i) : leve;
+      let st = '';
+      if(lim!=null && n<lim) st = 'background:#F3DBD7;color:#96332A;font-weight:700';
+      else if(lv!=null && n<lv) st = 'background:#F6E7C4;color:#8A5E06;font-weight:700';
+      s += `<td style="${st}">${n}</td>`;
+    });
+    return s + '</tr>';
+  };
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Escala ${esc(nomeLoja)}</title>
+<style>
+@page{size:A4 landscape;margin:7mm}
+*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{margin:0;font:11px/1.3 Arial,Helvetica,sans-serif;color:#16232B}
+h1{font-size:15px;margin:0 0 1px}
+p.sub{margin:0 0 7px;font-size:10px;color:#5b6b66}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+thead{display:table-header-group}
+tr{page-break-inside:avoid}
+th,td{border:1px solid #CBD5CE;padding:1px 2px;text-align:center;font-size:8px;height:15px;overflow:hidden}
+th{background:#16232B;color:#fff;font-size:7.5px;text-transform:uppercase}
+th.dt{background:#E7EDE9;color:#16232B;font-weight:700}
+th.dtf{background:#CFDCD5;color:#16232B;font-weight:700}
+td.nm{text-align:left;font-weight:700;font-size:8.5px}
+td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-transform:uppercase}
+td.hr{font-size:7.5px;color:#63736F}
+td i{font-style:normal;color:#8A9995}
+td.fds{background:#F4F7F5}
+tr.rp td{background:#F0F3F1;font-weight:600;font-size:8px}
+tr.rp td.nm{font-size:7.5px;text-transform:uppercase}
+.lg{margin-top:6px;font-size:8px;color:#5b6b66}
+.lg b{display:inline-block;width:11px;height:8px;border:1px solid #999;margin:0 3px 0 9px}
+</style></head><body>
+<h1>Escala — ${esc(nomeLoja)}</h1>
+<p class="sub">${D.periodo} &nbsp;·&nbsp; ${ativos.length} colaboradores &nbsp;·&nbsp; emitida em ${new Date().toLocaleDateString('pt-BR')}</p>
+<table>
+<colgroup><col style="width:15%"><col style="width:5%">${days.map(()=>`<col style="width:${(80/days.length).toFixed(3)}%">`).join('')}</colgroup>
+<thead>
+<tr><th>Colaborador</th><th>Entra</th>${days.map(d=>`<th>${DIA_ABREV[d.getDay()]}</th>`).join('')}</tr>
+<tr><th></th><th></th>${days.map(d=>`<th class="${(d.getDay()===0||d.getDay()===6)?'dtf':'dt'}">${ddmm(d)}</th>`).join('')}</tr>
+</thead>
+<tbody>${corpo}
+${rodape('Caixa', c=>c.cx, P.minCaixa)}
+${rodape('Balcão', c=>c.bl, P.minBalcao)}
+${rodape('Farmacêutico', c=>c.fa, 1, D.alvoFa)}
+${rodape('Subgerente', c=>c.sg||0, D.alvoSg)}
+${rodape('Total na loja', c=>c.total, (c,i)=>Number(D.alvo[days[i].getDay()]||0)||null)}
+${rodape('De folga', (c,i)=>ativos.filter(x=>grid[x.id][i]==='X'||grid[x.id][i]==='FC').length, null)}
+</tbody></table>
+<div class="lg"><b style="background:#D8EDE2"></b>X folga<b style="background:#F6E7C4"></b>FC compensatória<b style="background:#D7E5F0"></b>F férias<b style="background:#F3DBD7"></b>AT atestado<b style="background:#E3DDF2"></b>LC licença<b style="background:#F3DBD7;border-color:#96332A"></b>rodapé vermelho: abaixo do mínimo<b style="background:#F6E7C4;border-color:#8A5E06"></b>amarelo: abaixo do alvo, tolerado</div>
+</body></html>`;
+}
+
+$('#btn-print').onclick = ()=>{
+  if(!S.res){ alert('Gere a escala antes de imprimir.'); return; }
+  const html = htmlDeImpressao(dadosDaEscala(), loja().nome);
+  let imprimiu = false;
+  try{
+    const f = document.createElement('iframe');
+    f.setAttribute('aria-hidden','true');
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0;border:0';
+    document.body.appendChild(f);
+    const d = f.contentWindow.document;
+    d.open(); d.write(html); d.close();
+    setTimeout(()=>{
+      try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){}
+      setTimeout(()=>f.remove(), 3000);
+    }, 350);
+    imprimiu = true;
+  }catch(e){}
+  if(!imprimiu) baixarHtmlImpressao(html);
+};
+function baixarHtmlImpressao(html){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
+  a.download = `escala_${S.loja}_para_imprimir.html`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+
+iniciar();
+</script>
+</body>
+</html>
