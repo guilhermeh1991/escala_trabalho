@@ -405,6 +405,16 @@ function registrarTentativa(string $chave, bool $sucesso): void
 {
     $st = bd()->prepare('INSERT INTO tentativas_login (chave, sucesso) VALUES (?, ?)');
     $st->execute([substr($chave, 0, 190), $sucesso ? 1 : 0]);
+
+    // Purge probabilístico (1%): evita inchaço da tabela sem depender de cron.
+    // Remove registros de tentativas com mais de 7 dias.
+    if (random_int(1, 100) === 1) {
+        try {
+            bd()->exec('DELETE FROM tentativas_login WHERE em < (NOW() - INTERVAL 7 DAY)');
+        } catch (Throwable $e) {
+            error_log('purge tentativas_login: ' . $e->getMessage());
+        }
+    }
 }
 
 function exigirDentroDoLimite(string $chave, int $maximo = 5, int $minutos = 15): void
