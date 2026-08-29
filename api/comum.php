@@ -28,7 +28,12 @@ header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: same-origin');
-header('Cache-Control: no-store');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
+// A API não devolve HTML nem executa script: a política mais fechada possível.
+header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
+header('Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()');
+header('X-Permitted-Cross-Domain-Policies: none');
 
 // -----------------------------------------------------------------------------
 //  Sessão
@@ -45,6 +50,29 @@ session_set_cookie_params([
 ]);
 session_name('escala_sessao');
 session_start();
+
+/* ---------------------------------------------------------------------------
+   EXPIRAÇÃO POR INATIVIDADE
+
+   O cookie é de sessão, mas isso só cobre fechar o navegador. Num computador
+   compartilhado no balcão, a aba fica aberta o dia inteiro. Oito horas cobrem
+   um turno; passou disso sem uso, a sessão cai.
+--------------------------------------------------------------------------- */
+const SESSAO_INATIVA = 28800;   // 8 horas paradas
+const SESSAO_MAXIMA  = 43200;   // 12 horas de duração total
+
+$agora = time();
+if (!empty($_SESSION['usuario_id'])) {
+    $ocioso  = $agora - (int)($_SESSION['visto_em']  ?? $agora);
+    $duracao = $agora - (int)($_SESSION['aberta_em'] ?? $agora);
+    if ($ocioso > SESSAO_INATIVA || $duracao > SESSAO_MAXIMA) {
+        $_SESSION = [];
+        session_destroy();
+        session_start();
+    }
+}
+if (empty($_SESSION['aberta_em'])) $_SESSION['aberta_em'] = $agora;
+$_SESSION['visto_em'] = $agora;
 
 // -----------------------------------------------------------------------------
 //  Banco
@@ -86,13 +114,28 @@ function falhar(string $mensagem, int $codigo = 400)
     responder(['erro' => $mensagem], $codigo);
 }
 
+/** Teto do corpo da requisição. Uma escala de 30 pessoas por 40 dias ocupa
+    cerca de 40 KB; 2 MB é folga generosa e ainda barra abuso. */
+const CORPO_MAXIMO = 2097152;   // 2 MB
+
 function corpo(): array
 {
-    $bruto = file_get_contents('php://input');
+    $tamanho = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+    if ($tamanho > CORPO_MAXIMO) {
+        falhar('Dados grandes demais.', 413);
+    }
+    $bruto = file_get_contents('php://input', false, null, 0, CORPO_MAXIMO + 1);
     if ($bruto === false || $bruto === '') {
         return [];
     }
-    $dados = json_decode($bruto, true);
+    if (strlen($bruto) > CORPO_MAXIMO) {
+        falhar('Dados grandes demais.', 413);
+    }
+    // profundidade limitada: JSON aninhado fundo consome pilha à toa
+    $dados = json_decode($bruto, true, 32);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        falhar('Dados em formato inesperado.');
+    }
     return is_array($dados) ? $dados : [];
 }
 
@@ -110,6 +153,95 @@ function uuid(): string
     $b[6] = chr((ord($b[6]) & 0x0f) | 0x40);
     $b[8] = chr((ord($b[8]) & 0x3f) | 0x80);
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($b), 4));
+}
+
+/* =============================================================================
+   VALIDAÇÃO DO CONTEÚDO DA ESCALA
+
+   A grade chega do navegador como JSON e ia para o banco do jeito que vinha.
+   Como o navegador desenha o valor da célula direto no HTML, uma célula com
+   "><img src=x onerror=...> executava script em todo mundo que abrisse aquela
+   escala. Aqui os valores são reduzidos ao conjunto que de fato existe.
+============================================================================= */
+
+/** Códigos aceitos numa célula. Vazio significa dia trabalhado. */
+const CODIGOS_CELULA = ['', 'X', 'FC', 'F', 'AT', 'LC'];
+
+/**
+ * Devolve a grade contendo apenas o que é grade: chaves que são identificador
+ * de colaborador e valores que são código conhecido. Qualquer outra coisa é
+ * descartada em silêncio — não há uso legítimo para ela.
+ */
+function gradeLimpa($grade): array
+{
+    if (!is_array($grade)) {
+        falhar('Escala em formato inesperado.');
+    }
+    if (count($grade) > 400) {
+        falhar('Escala grande demais.');
+    }
+    $saida = [];
+    foreach ($grade as $colabId => $linha) {
+        if (!ehUuid((string)$colabId) && !preg_match('/^[A-Za-z0-9_-]{1,40}$/', (string)$colabId)) {
+            continue;   // chave que não é identificador
+        }
+        if (!is_array($linha)) continue;
+        if (count($linha) > 400) {
+            falhar('Período longo demais.');
+        }
+        $linhaLimpa = [];
+        foreach ($linha as $cod) {
+            $cod = is_string($cod) ? strtoupper(trim($cod)) : '';
+            $linhaLimpa[] = in_array($cod, CODIGOS_CELULA, true) ? $cod : '';
+        }
+        $saida[(string)$colabId] = $linhaLimpa;
+    }
+    return $saida;
+}
+
+/**
+ * Texto livre de campo curto: nome, cargo, nome de loja.
+ *
+ * Tira os caracteres de controle e os sinais que só servem para montar HTML.
+ * Não substitui o escape na hora de exibir — são duas defesas em camadas —
+ * mas impede que a base fique com carga guardada esperando um ponto de exibição
+ * que esqueceu de escapar.
+ */
+function textoLimpo($v, int $tamanho): string
+{
+    $v = (string)$v;
+    $v = preg_replace('/[\x00-\x1F\x7F]/u', '', $v);   // controle
+    $v = str_replace(['<', '>'], '', $v);                // abertura de tag
+    return mb_substr(trim($v), 0, $tamanho);
+}
+
+/** Horário de entrada: só o que se parece com hora. */
+function horarioLimpo($v): ?string
+{
+    $v = trim((string)$v);
+    if ($v === '') return null;
+    // aceita "07:00", "07:00 AS 15:20", "7h", "07h00"
+    if (!preg_match('/^[0-9hHsSaA:\s\-àÀ]{1,40}$/u', $v)) {
+        return null;   // fora do formato: descarta
+    }
+    return mb_substr($v, 0, 40);
+}
+
+/** Data no formato ISO, ou nulo. */
+function dataLimpa($v): ?string
+{
+    $v = trim((string)$v);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) return null;
+    [$a, $m, $d] = array_map('intval', explode('-', $v));
+    return checkdate($m, $d, $a) ? $v : null;
+}
+
+/** Data obrigatória: aborta se vier inválida. */
+function exigirData($v, string $campo): string
+{
+    $d = dataLimpa($v);
+    if ($d === null) falhar("Data inválida em $campo.");
+    return $d;
 }
 
 /* RESUMO DA ESCALA — guardado na coluna `escalas.resumo`. Parte dele o servidor
