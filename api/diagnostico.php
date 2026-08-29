@@ -21,6 +21,23 @@ header('Cache-Control: no-store');
 while (ob_get_level()) { ob_end_flush(); }
 ob_implicit_flush(true);
 
+// A sessao tem de ser testada AQUI, antes da primeira linha impressa: quem
+// abre uma sessao manda um cookie, cookie e cabecalho, e cabecalho nao sai
+// depois que o corpo da resposta comecou. Testar la embaixo, no meio do
+// relatorio, falhava sempre — e a falha era do teste, nao do servidor.
+// O resultado fica guardado e e impresso na secao 5, no lugar de sempre.
+$sessaoIniciou = @session_start();
+$sessaoGravou  = false;
+$sessaoErro    = '';
+if ($sessaoIniciou) {
+    $_SESSION['diagnostico'] = 1;
+    $sessaoGravou = isset($_SESSION['diagnostico']);
+    @session_destroy();
+} else {
+    $ultimo = error_get_last();
+    $sessaoErro = $ultimo['message'] ?? '';
+}
+
 $falhas = [];
 $avisos = [];
 
@@ -120,10 +137,32 @@ if (is_array($config)) {
             else erro("tabela $t AUSENTE — rode mysql-schema.sql no phpMyAdmin");
         }
 
-        // migração 002
-        $colsUsuarios = $pdo->query('SHOW COLUMNS FROM usuarios')->fetchAll(PDO::FETCH_COLUMN);
-        if (in_array('colaborador_id', $colsUsuarios, true)) ok('migracao 002 aplicada');
-        else erro('migracao 002 NAO aplicada — rode migracao-002-colaborador.sql');
+        // Migracoes — cada uma e reconhecida pela coluna que ela cria. Conferir
+        // so a 002 escondia o caso pior: codigo novo em banco velho derruba a
+        // tela do usuario e o motivo fica so no error_log.
+        $migracoes = [
+            '002' => ['migracao-002-colaborador.sql',    [['usuarios', 'colaborador_id']]],
+            '003' => ['migracao-003-acesso-por-loja.sql', [['usuarios', 'loja_id'],
+                                                           ['lojas',    'codigo_convite']]],
+            '004' => ['migracao-004-resumo-escala.sql',   [['escalas',  'resumo']]],
+        ];
+        $colunasDe = [];
+        foreach ($migracoes as $num => [$arquivo, $exigidas]) {
+            $faltando = [];
+            foreach ($exigidas as [$tabela, $coluna]) {
+                if (!isset($colunasDe[$tabela])) {
+                    // Tabela ausente ja virou FALHA acima; aqui so evita o
+                    // SHOW COLUMNS estourar e levar junto o resto da secao.
+                    $colunasDe[$tabela] = in_array($tabela, $existem, true)
+                        ? $pdo->query("SHOW COLUMNS FROM `$tabela`")->fetchAll(PDO::FETCH_COLUMN)
+                        : [];
+                }
+                if (!in_array($coluna, $colunasDe[$tabela], true)) $faltando[] = "$tabela.$coluna";
+            }
+            if (!$faltando) ok("migracao $num aplicada");
+            else erro("migracao $num NAO aplicada (falta " . implode(', ', $faltando)
+                      . ") — rode $arquivo");
+        }
 
         $n = (int)$pdo->query('SELECT COUNT(*) FROM usuarios')->fetchColumn();
         echo "  usuarios cadastrados: $n\n";
@@ -159,11 +198,10 @@ echo "  pasta de sessao: $dirSessao\n";
 if (is_writable($dirSessao)) ok('pasta de sessao gravavel');
 else erro('pasta de sessao NAO gravavel — o login nao vai se manter');
 
-if (@session_start()) {
-    ok('sessao iniciou');
-    session_destroy();
+if ($sessaoIniciou) {
+    ok('sessao iniciou' . ($sessaoGravou ? ' e gravou' : ' mas NAO gravou'));
 } else {
-    erro('sessao NAO iniciou');
+    erro('sessao NAO iniciou' . ($sessaoErro ? ' — ' . $sessaoErro : ''));
 }
 
 // -----------------------------------------------------------------
