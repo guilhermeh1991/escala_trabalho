@@ -14,6 +14,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
+      - name: Instalar dependencias
+        run: npm ci
+      - name: ESLint (analise estatica JS)
+        run: npx eslint src/ testes/ --max-warnings 0
       - name: Suíte do motor
         run: node testes/executar.js
 
@@ -38,8 +42,11 @@ jobs:
         with:
           php-version: '8.3'
           extensions: pdo_mysql, mbstring
+          tools: phpstan
       - name: Conferir sintaxe PHP
         run: for f in api/*.php; do php -l "$f"; done
+      - name: Analise estatica PHPStan (nivel 8)
+        run: phpstan analyse --configuration=phpstan.neon --no-progress
       - name: Suíte da API
         run: bash testes/api.sh
       - name: Suíte do acesso individual

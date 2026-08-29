@@ -1,0 +1,16 @@
+parameters:
+    level: 8
+    paths:
+        - api
+    excludePaths:
+        - api/config.php
+        - api/config.exemplo.php
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        # Funções globais e includes dinâmicos do projeto
+        - '#Function responder not found#'
+        - '#Function falhar not found#'
+        - '#Function bd not found#'
+        - '#Function exigir.* not found#'
+        - '#Function corpo not found#'
+        - '#Function campo not found#'

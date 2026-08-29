@@ -1,0 +1,12 @@
+{
+  "name": "escala-trabalho",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node testes/executar.js",
+    "lint": "eslint src/ testes/"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0"
+  }
+}
