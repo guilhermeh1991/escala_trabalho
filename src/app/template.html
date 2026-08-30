@@ -190,13 +190,14 @@ table.esc thead th{position:sticky;top:0;z-index:3;background:#F4F6F4;font-weigh
 table.esc thead tr.datas th{top:24px;font-family:'JetBrains Mono',monospace;font-size:11px;
   color:var(--texto);letter-spacing:0;text-transform:none}
 
-/* coluna 1 — nome e cargo */
+/* coluna 1 — nome */
 table.esc th.fixa,table.esc td.fixa{position:sticky;left:0;z-index:2;background:#fff;text-align:left;
-  padding:5px 9px;width:var(--w-nome);min-width:var(--w-nome);max-width:var(--w-nome);
+  padding:6px 10px;width:var(--w-nome);min-width:var(--w-nome);max-width:var(--w-nome);
   box-sizing:border-box;overflow:hidden}
 table.esc thead th.fixa{z-index:5;background:#F4F6F4}
-table.esc td.fixa .nome{font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis}
-table.esc td.fixa .cargo{color:var(--fraco);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
+table.esc td.fixa .nome{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px}
+table.esc td.fixa .tag-gerente{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  background:#E6EEEC;color:#1E3238;padding:1px 5px;border-radius:4px}
 
 /* coluna 2 — horário de entrada. O left vem da largura da coluna 1. */
 table.esc th.hr,table.esc td.hr{position:sticky;left:var(--w-nome);z-index:2;background:#fff;
@@ -1304,7 +1305,8 @@ function pintarGrade(){
          + `<td class="hr"></td><td colspan="${days.length+1}"></td></tr>`;
     }
     faixaAnterior = g;
-    h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome">${esc(c.nome)}</div><div class="cargo">${esc(c.cargo)}${c.gerente?' · gerente':''}</div></td>`;
+    const tagGerente = c.gerente ? '<span class="tag-gerente">Gerente</span>' : '';
+    h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome"><span>${esc(c.nome)}</span>${tagGerente}</div></td>`;
     h += `<td class="hr">${horaEntrada(c)}</td>`;
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
