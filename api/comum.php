@@ -88,11 +88,22 @@ function falhar(string $mensagem, int $codigo = 400)
 
 function corpo(): array
 {
+    // Limite máximo de payload da API: 2 MB para evitar ataques de esgotamento de memória
+    $maxBytes = 2 * 1024 * 1024;
+    $tamanho = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+    if ($tamanho > $maxBytes) {
+        falhar('Payload muito grande.', 413);
+    }
+
     $bruto = file_get_contents('php://input');
     if ($bruto === false || $bruto === '') {
         return [];
     }
-    $dados = json_decode($bruto, true);
+    if (strlen($bruto) > $maxBytes) {
+        falhar('Payload muito grande.', 413);
+    }
+
+    $dados = json_decode($bruto, true, 32); // profundidade máxima de 32 níveis
     return is_array($dados) ? $dados : [];
 }
 
@@ -188,6 +199,15 @@ function codigoConvite(): string
 function ehUuid(?string $v): bool
 {
     return is_string($v) && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $v) === 1;
+}
+
+function ehDataValida(?string $v): bool
+{
+    if (!is_string($v) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) !== 1) {
+        return false;
+    }
+    $partes = explode('-', $v);
+    return checkdate((int)$partes[1], (int)$partes[2], (int)$partes[0]);
 }
 
 // -----------------------------------------------------------------------------

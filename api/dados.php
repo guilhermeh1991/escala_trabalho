@@ -221,10 +221,16 @@ case 'carregar_escala':
     $lojaId = (string)campo($dados, 'loja_id', '');
     exigirLojaDaEmpresa($lojaId, $u);
 
+    $inicio = (string)campo($dados, 'inicio', '');
+    $fim    = (string)campo($dados, 'fim', '');
+    if (!ehDataValida($inicio) || !ehDataValida($fim)) {
+        falhar('Período inválido.');
+    }
+
     $st = bd()->prepare(
         'SELECT grade, parametros, publicada, atualizado_em FROM escalas
           WHERE loja_id = ? AND inicio = ? AND fim = ? LIMIT 1');
-    $st->execute([$lojaId, (string)campo($dados, 'inicio', ''), (string)campo($dados, 'fim', '')]);
+    $st->execute([$lojaId, $inicio, $fim]);
     $e = $st->fetch();
     responder(['escala' => $e ? [
         'grid'   => json_decode($e['grade'], true),
@@ -242,6 +248,9 @@ case 'salvar_escala':
 
     $inicio = (string)campo($dados, 'inicio', '');
     $fim    = (string)campo($dados, 'fim', '');
+    if (!ehDataValida($inicio) || !ehDataValida($fim) || $fim < $inicio) {
+        falhar('Período de datas inválido.');
+    }
     $grade = campo($dados, 'grade');
     if (!$grade || !is_array($grade)) falhar('Escala vazia.');
 
@@ -249,27 +258,37 @@ case 'salvar_escala':
     $resumo = normalizarResumo(campo($dados, 'resumo'), $grade, is_array($paramsRecebidos) ? $paramsRecebidos : []);
 
     $publicar = !empty($dados['publicar']) ? 1 : 0;
-    $st = bd()->prepare(
-        'INSERT INTO escalas (id, loja_id, inicio, fim, grade, parametros, resumo,
-        publicada, publicada_em, atualizado_por)
-        VALUES (?,?,?,?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE grade = VALUES(grade),
-        parametros = VALUES(parametros),
-        resumo = VALUES(resumo),
-        publicada = GREATEST(publicada, VALUES(publicada)),
-        publicada_em = IF(VALUES(publicada) = 1 AND publicada_em IS NULL,
-        NOW(), publicada_em),
-        atualizado_por = VALUES(atualizado_por)');
-    $st->execute([
-                 uuid(), $lojaId, $inicio, $fim,
-                 json_encode($grade, JSON_UNESCAPED_UNICODE),
-                 json_encode(campo($dados, 'parametros'), JSON_UNESCAPED_UNICODE),
-                 json_encode($resumo, JSON_UNESCAPED_UNICODE),
-                 $publicar, $publicar ? date('Y-m-d H:i:s') : null,
-                 $u['id'],
-                 ]);
-    registrar($u['id'], $u['empresa_id'], 'escala_salva',
-              ['loja' => $lojaId, 'inicio' => $inicio, 'fim' => $fim]);
+
+    // Concorrência e integridade: executa dentro de transação para evitar sobrescrita fantasma
+    bd()->beginTransaction();
+    try {
+        $st = bd()->prepare(
+            'INSERT INTO escalas (id, loja_id, inicio, fim, grade, parametros, resumo,
+            publicada, publicada_em, atualizado_por)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+            ON DUPLICATE KEY UPDATE grade = VALUES(grade),
+            parametros = VALUES(parametros),
+            resumo = VALUES(resumo),
+            publicada = GREATEST(publicada, VALUES(publicada)),
+            publicada_em = IF(VALUES(publicada) = 1 AND publicada_em IS NULL,
+            NOW(), publicada_em),
+            atualizado_por = VALUES(atualizado_por)');
+        $st->execute([
+                     uuid(), $lojaId, $inicio, $fim,
+                     json_encode($grade, JSON_UNESCAPED_UNICODE),
+                     json_encode(campo($dados, 'parametros'), JSON_UNESCAPED_UNICODE),
+                     json_encode($resumo, JSON_UNESCAPED_UNICODE),
+                     $publicar, $publicar ? date('Y-m-d H:i:s') : null,
+                     $u['id'],
+                     ]);
+        registrar($u['id'], $u['empresa_id'], 'escala_salva',
+                  ['loja' => $lojaId, 'inicio' => $inicio, 'fim' => $fim]);
+        bd()->commit();
+    } catch (Throwable $e) {
+        bd()->rollBack();
+        error_log('salvar escala: ' . $e->getMessage());
+        falhar('Erro ao salvar escala. Tente novamente.', 500);
+    }
     responder(['ok' => true]);
 
     // -----------------------------------------------------------------------------
@@ -324,6 +343,9 @@ case 'excluir_escala':
 
     $inicio = (string)campo($dados, 'inicio', '');
     $fim    = (string)campo($dados, 'fim', '');
+    if (!ehDataValida($inicio) || !ehDataValida($fim)) {
+        falhar('Período inválido.');
+    }
 
     $st = bd()->prepare(
         'DELETE FROM escalas WHERE loja_id = ? AND inicio = ? AND fim = ?');

@@ -70,6 +70,9 @@ case 'minha_escala':
     $inicio = (string)campo($dados, 'inicio', '');
     $fim    = (string)campo($dados, 'fim', '');
 
+    if ($inicio !== '' && !ehDataValida($inicio)) falhar('Data inicial inválida.');
+    if ($fim !== '' && !ehDataValida($fim)) falhar('Data final inválida.');
+
     // Sem período informado, pega a escala publicada mais recente da loja.
     if ($inicio === '' || $fim === '') {
         $st = bd()->prepare(
