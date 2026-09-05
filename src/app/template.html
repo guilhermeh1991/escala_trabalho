@@ -30,7 +30,7 @@ input,select{font:inherit}
 /* ---------- pop-up de edição da célula ---------- */
 .cel-editada{position:relative}
 .cel-editada::after{content:'';position:absolute;left:4px;right:4px;bottom:1px;height:2px;background:var(--teal);border-radius:1px}
-#pop-cel{position:absolute;z-index:60;width:292px;background:#fff;border:1px solid var(--linha);
+#pop-cel{position:absolute;z-index:60;width:320px;max-width:calc(100vw - 16px);background:#fff;border:1px solid var(--linha);
   border-radius:10px;box-shadow:0 8px 28px rgba(22,35,43,.16);overflow:hidden;font-size:13px}
 #pop-cel .pc-topo{padding:11px 14px;border-bottom:1px solid #EDF1EE;background:#F7F9F7}
 #pop-cel .pc-nome{font-weight:600;font-size:13px}
@@ -42,9 +42,9 @@ input,select{font:inherit}
   font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
 #pop-cel .pc-aplicar{padding:7px 12px;border:0;border-radius:6px;background:var(--texto);color:#fff;
   font-size:12.5px;font-weight:500;cursor:pointer}
-#pop-cel .pc-dias{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
-#pop-cel .pc-dia{padding:4px 9px;border:1px solid var(--linha);border-radius:20px;background:#fff;
-  font-size:11.5px;font-weight:600;cursor:pointer;color:var(--fraco)}
+#pop-cel .pc-dias{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:8px}
+#pop-cel .pc-dia{padding:5px 2px;border:1px solid var(--linha);border-radius:20px;background:#fff;
+  font-size:11.5px;font-weight:600;cursor:pointer;color:var(--fraco);text-align:center}
 #pop-cel .pc-dia:hover{border-color:var(--teal);color:var(--teal)}
 #pop-cel .pc-dia.ativo{background:var(--teal);border-color:var(--teal);color:#fff}
 #pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:11.5px;color:var(--fraco);cursor:pointer}
@@ -1072,7 +1072,7 @@ function abrirPopupCelula(td){
   const atual = (horaDoDia(c, i)||'').slice(0,5) || padrao;
   const ajustada = horaAjustada(id, i);
 
-  const DIAS_UTEIS = [1,2,3,4,5].map(diaSemana=>({dia:diaSemana, rot:DIA_ABREV[diaSemana]}));
+  const DIAS_SEMANA_POPUP = [1,2,3,4,5,6,0].map(diaSemana=>({dia:diaSemana, rot:DIA_ABREV[diaSemana]}));
   const DIA_NOMES = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
   const CODIGOS = [
     ['X',  'X folga',        '#D8EDE2', '#14663F'],
@@ -1095,7 +1095,7 @@ function abrirPopupCelula(td){
         <input type="time" id="pc-hora" value="${atual}">
         <button class="pc-aplicar" id="pc-ok">Aplicar</button>
       </div>
-      <div class="pc-dias">${DIAS_UTEIS.map(d=>
+      <div class="pc-dias">${DIAS_SEMANA_POPUP.map(d=>
         `<button type="button" class="pc-dia" data-dia="${d.dia}" aria-pressed="false">${d.rot}</button>`).join('')}</div>
     </div>
     <div class="pc-corpo" style="padding-top:0">
