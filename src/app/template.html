@@ -42,11 +42,12 @@ input,select{font:inherit}
   font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
 #pop-cel .pc-aplicar{padding:7px 12px;border:0;border-radius:6px;background:var(--texto);color:#fff;
   font-size:12.5px;font-weight:500;cursor:pointer}
-#pop-cel .pc-atalhos{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
-#pop-cel .pc-atalho{padding:4px 9px;border:1px solid var(--linha);border-radius:20px;background:#fff;
-  font-family:'JetBrains Mono',monospace;font-size:11.5px;cursor:pointer}
-#pop-cel .pc-atalho:hover{border-color:var(--teal);color:var(--teal)}
-#pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--fraco);cursor:pointer}
+#pop-cel .pc-dias{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+#pop-cel .pc-dia{padding:4px 9px;border:1px solid var(--linha);border-radius:20px;background:#fff;
+  font-size:11.5px;font-weight:600;cursor:pointer;color:var(--fraco)}
+#pop-cel .pc-dia:hover{border-color:var(--teal);color:var(--teal)}
+#pop-cel .pc-dia.ativo{background:var(--teal);border-color:var(--teal);color:#fff}
+#pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:11.5px;color:var(--fraco);cursor:pointer}
 #pop-cel .pc-repetir input{accent-color:var(--teal);width:14px;height:14px}
 #pop-cel .pc-codigos{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 #pop-cel .pc-cod{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--linha);
@@ -1071,10 +1072,7 @@ function abrirPopupCelula(td){
   const atual = (horaDoDia(c, i)||'').slice(0,5) || padrao;
   const ajustada = horaAjustada(id, i);
 
-  // horários já praticados na loja, para escolher com um clique
-  const atalhos = [...new Set(loja().colabs.map(x=>(horaEntrada(x)||'').slice(0,5)).filter(Boolean))]
-                  .sort().slice(0, 6);
-
+  const DIAS_UTEIS = [1,2,3,4,5].map(diaSemana=>({dia:diaSemana, rot:DIA_ABREV[diaSemana]}));
   const DIA_NOMES = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
   const CODIGOS = [
     ['X',  'X folga',        '#D8EDE2', '#14663F'],
@@ -1097,13 +1095,13 @@ function abrirPopupCelula(td){
         <input type="time" id="pc-hora" value="${atual}">
         <button class="pc-aplicar" id="pc-ok">Aplicar</button>
       </div>
-      ${atalhos.length ? `<div class="pc-atalhos">${atalhos.map(a=>
-        `<button class="pc-atalho" data-h="${a}">${a}</button>`).join('')}</div>` : ''}
-      <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
-        repetir deste dia até o fim do período</label>
+      <div class="pc-dias">${DIAS_UTEIS.map(d=>
+        `<button type="button" class="pc-dia" data-dia="${d.dia}" aria-pressed="false">${d.rot}</button>`).join('')}</div>
     </div>
     <div class="pc-corpo" style="padding-top:0">
       <div class="pc-rot">Não trabalha</div>
+      <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
+        repetir deste dia até o fim do período</label>
       <div class="pc-codigos">
         ${CODIGOS.map(([k,rot,bg,fg],n)=>
           `<button class="pc-cod" data-cod="${k}"${n===4?' style="grid-column:span 2"':''}>
@@ -1139,12 +1137,24 @@ function abrirPopupCelula(td){
     pintarGrade();
   };
 
+  const diasSelecionados = new Set();
+  pop.querySelectorAll('.pc-dia').forEach(b=>{
+    b.onclick = ()=>{
+      const diaSemana = +b.dataset.dia;
+      if(diasSelecionados.has(diaSemana)) diasSelecionados.delete(diaSemana);
+      else diasSelecionados.add(diaSemana);
+      const ativo = diasSelecionados.has(diaSemana);
+      b.classList.toggle('ativo', ativo);
+      b.setAttribute('aria-pressed', String(ativo));
+    };
+  });
+
   const porHora = (valor)=>{
-    const repetir = document.getElementById('pc-repetir').checked;
-    const ate = repetir ? S.res.days.length - 1 : i;
-    for(let k=i; k<=ate; k++){
+    for(let k=i; k<S.res.days.length; k++){
       // só mexe em dia de trabalho: folga, férias e atestado ficam como estão
       if(S.res.grid[id][k] !== '') continue;
+      // a célula clicada sempre muda; os demais dias seguem a seleção semanal
+      if(k !== i && !diasSelecionados.has(S.res.days[k].getDay())) continue;
       definirHora(id, k, valor === padrao ? null : valor);
     }
     aplicar();
@@ -1156,13 +1166,6 @@ function abrirPopupCelula(td){
     if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';   // voltou a trabalhar
     porHora(v);
   };
-  pop.querySelectorAll('.pc-atalho').forEach(b=>{
-    b.onclick = ()=>{
-      document.getElementById('pc-hora').value = b.dataset.h;
-      if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';
-      porHora(b.dataset.h);
-    };
-  });
   pop.querySelectorAll('.pc-cod').forEach(b=>{
     b.onclick = ()=>{
       const repetir = document.getElementById('pc-repetir').checked;
