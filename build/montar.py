@@ -139,8 +139,9 @@ ini = hg.index('<section class="view" data-view="usuarios">')
 fim = hg.index('</section>', hg.index('</table>', ini)) + len('</section>')
 hg = hg[:ini] + aba_acessos.strip() + hg[fim:]
 
-hg = hg.replace('<span id="quem"></span>',
-                '<span id="sync-estado" style="font-size:12px"></span><span id="quem"></span>', 1)
+exigir(hg, '<span id="quem" class="quem" tabindex="0"></span>', 'marcador quem')
+hg = hg.replace('<span id="quem" class="quem" tabindex="0"></span>',
+                '<span id="sync-estado" style="font-size:12px"></span><span id="quem" class="quem" tabindex="0"></span>', 1)
 
 ini = hg.index('/* ============================================================\n   ARMAZENAMENTO')
 fim = hg.index('/* ============================================================\n   DADOS INICIAIS')

@@ -28,7 +28,7 @@ async function chamar(arquivo, dados){
     throw new Error(
       'O servidor respondeu algo inesperado (HTTP ' + r.status + ').' +
       (trecho ? ' Ele disse: "' + trecho + '"' : ' A resposta veio vazia.') +
-      ' Abra api/diagnostico.php para o relatório completo.'
+      ' Avise o administrador do sistema.'
     );
   }
   if(corpo && corpo.csrf) SESSAO.csrf = corpo.csrf;
@@ -118,9 +118,14 @@ const DB = {
     delete params._horas;
     return Object.assign({}, r.escala, {inicio, fim, params, horas});
   },
-  async salvarEscala(lojaId, inicio, fim, grade, params, horas){
+  async salvarEscala(lojaId, inicio, fim, grade, params, horas, resumo, publicar){
     const p = Object.assign({}, params || {}, {_horas: horas || {}});
-    await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:p});
+    await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:p,
+                    resumo:resumo || null, publicar:!!publicar});
+  },
+  async listarEscalas(lojaId){
+    const r = await dadosApi({acao:'listar_escalas', loja_id:lojaId});
+    return r.escalas || [];
   },
   async excluirEscala(lojaId, inicio, fim){
     await dadosApi({acao:'excluir_escala', loja_id:lojaId, inicio, fim});
@@ -152,10 +157,24 @@ const store = {
       const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       if(!lojaId || !inicio || !fim) return null;
-      try { return await DB.carregarEscala(lojaId, inicio, fim); }
-      catch(e){ return null; }
+      return await DB.carregarEscala(lojaId, inicio, fim);
     }
     return null;
+  },
+  async listarEscalas(lojaId){
+    return await DB.listarEscalas(lojaId);
+  },
+  async publicar(chave, valor){
+    if(!chave.startsWith('escala:grade:')) throw new Error('Não é possível publicar isso.');
+    const [, , lojaId, periodo] = chave.split(':');
+    const [inicio, fim] = (periodo||'').split('_');
+    if(!lojaId || !inicio || !fim) throw new Error('Período inválido.');
+    marcarSync('salvando');
+    try{
+      await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas,
+                            valor.resumo, true);
+      marcarSync('salvo');
+    }catch(e){ marcarSync('erro', erroAmigavel(e)); throw e; }
   },
   async set(chave, valor){
     if(chave === 'escala:lojas'){
@@ -175,9 +194,10 @@ const store = {
       const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       try{
-        await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas);
+        await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas,
+                              valor.resumo, false);
         marcarSync('salvo');
-      }catch(e){ marcarSync('erro', erroAmigavel(e)); }
+      }catch(e){ marcarSync('erro', erroAmigavel(e)); throw e; }
     }
   }
 };

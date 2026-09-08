@@ -300,6 +300,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           <label style="margin:0">Fim<input type="date" id="p-fim" class="inp" style="width:150px"></label>
           <button class="btn" id="btn-gerar">Gerar escala</button>
           <button class="btn ghost" id="btn-salvar">Salvar</button>
+          <button class="btn" id="btn-publicar" style="display:none">Publicar</button>
           <button class="btn ghost" id="btn-xlsx">Baixar planilha</button>
       <button class="btn ghost" id="btn-pdf">Baixar PDF</button>
           <button class="btn ghost" id="btn-print">Imprimir</button>
@@ -618,7 +619,17 @@ function montar(){
   const sel = $('#sel-loja'); sel.innerHTML='';
   Object.keys(S.lojas).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=S.lojas[k].nome; sel.appendChild(o); });
   sel.value = S.loja;
-  sel.onchange = async ()=>{ S.loja = sel.value; await carregarPeriodoSalvo(); pintarParams(); pintarEquipe(); pintarAus(); pintarSalvas(); };
+  sel.onchange = async ()=>{
+    S.loja = sel.value;
+    // A lista anterior ainda tem botões ligados à outra loja. Escondê-la antes
+    // das consultas impede abrir ou excluir o mesmo período na loja nova.
+    ultimaListaSalvas = [];
+    const painelSalvas = $('#painel-salvas');
+    if(painelSalvas) painelSalvas.style.display = 'none';
+    pintarParams(); pintarEquipe(); pintarAus();
+    await carregarPeriodoSalvo();
+    await pintarSalvas();
+  };
   const hoje = new Date();
   const ini = new Date(hoje.getFullYear(), hoje.getMonth()+1, 11);
   const fim = new Date(hoje.getFullYear(), hoje.getMonth()+2, 10);
@@ -759,7 +770,7 @@ function pintarEquipe(){
   });
 }
 $('#btn-add-colab').onclick = async ()=>{
-  loja().colabs.push({id:'n'+Date.now(), nome:'NOVO COLABORADOR', cargo:'BALCONISTA', horario:'09:00 AS 18:00',
+  loja().colabs.push({id:gerarId(), nome:'NOVO COLABORADOR', cargo:'BALCONISTA', horario:'09:00 AS 18:00',
                       gerente:false, ativo:true, domTrabConsec:null, diasDesdeFolga:0, folgaFixa:null, ausencias:[]});
   await store.set('escala:lojas', S.lojas); pintarEquipe();
 };
@@ -842,15 +853,45 @@ $('#btn-gerar').onclick = ()=>{
   S.val = validar(S.res, loja().colabs);
   S.salvo = false; pintarGrade();
 };
+function dadosDaGrade(){
+  const inicio = $('#p-inicio').value, fim = $('#p-fim').value;
+  if(String(S.res.params.inicio) !== inicio || String(S.res.params.fim) !== fim){
+    throw new Error('O período mudou. Gere ou abra a escala dessas datas antes de salvar.');
+  }
+  const resumo = resumoDaEscala();
+  return {inicio, fim, grid:S.res.grid, params:S.res.params,
+          horas:S.res.horas||{}, ordem:S.res.ativos.map(c=>c.id), resumo};
+}
+
 $('#btn-salvar').onclick = async ()=>{
   if(!S.res) return;
-  const dados = {inicio:$('#p-inicio').value, fim:$('#p-fim').value, grid:S.res.grid, params:S.res.params,
-                 horas:S.res.horas||{}, ordem:S.res.ativos.map(c=>c.id)};
-  await store.set(chaveGrade(), dados);
+  try{
+    await store.set(chaveGrade(), dadosDaGrade());
+  }catch(e){
+    alert('Não foi possível salvar no servidor: ' + (e && e.message ? e.message : e));
+    return;
+  }
   S.salvo = true; marcarSalvo();
   registrarSalva();
-  pintarSalvas();
+  await pintarSalvas();
 };
+
+if(typeof store.publicar === 'function'){
+  $('#btn-publicar').style.display = '';
+  $('#btn-publicar').onclick = async ()=>{
+    if(!S.res) return;
+    if(!S.salvo){ alert('Salve a escala antes de publicar.'); return; }
+    if(!confirm('Publicar esta escala? A partir de agora ela fica visível para a equipe.')) return;
+    try{
+      await store.publicar(chaveGrade(), dadosDaGrade());
+    }catch(e){
+      alert('Não foi possível publicar: ' + (e && e.message ? e.message : e));
+      return;
+    }
+    alert('Escala publicada.');
+    await pintarSalvas();
+  };
+}
 
 /* ---------- registro das escalas salvas ---------- */
 function chaveSalvas(){ return 'escala:salvas:' + S.loja; }
@@ -871,20 +912,45 @@ function lerSalvas(){
 }
 
 function registrarSalva(){
+  if(typeof store.listarEscalas === 'function') return;
   const lista = lerSalvas().filter(x=>!(x.inicio===$('#p-inicio').value && x.fim===$('#p-fim').value));
   lista.unshift(resumoDaEscala());
   try{ localStorage.setItem(chaveSalvas(), JSON.stringify(lista.slice(0,24))); }catch(e){}
 }
 
-function pintarSalvas(){
+let ultimaListaSalvas = [];
+
+async function obterListaSalvas(lojaId){
+  if(typeof store.listarEscalas === 'function') return await store.listarEscalas(lojaId);
+  return lerSalvas();
+}
+
+async function pintarSalvas(){
   const painel = $('#painel-salvas'), cx = $('#lista-salvas');
   if(!painel || !cx) return;
-  const lista = lerSalvas();
+  const lojaId = S.loja;
+  let lista;
+  try{
+    lista = await obterListaSalvas(lojaId);
+  }catch(e){
+    if(lojaId !== S.loja) return;
+    painel.style.display = '';
+    cx.innerHTML = '<p class="vazio">Não foi possível carregar as escalas salvas do servidor: '
+                 + esc(e && e.message ? e.message : e) + '</p>';
+    ultimaListaSalvas = [];
+    return;
+  }
+  if(lojaId !== S.loja) return;
+  ultimaListaSalvas = lista;
   if(!lista.length){ painel.style.display = 'none'; return; }
   painel.style.display = '';
   const dt = iso => { const [a,m,d] = String(iso).split('-'); return d + '/' + m; };
   cx.innerHTML = lista.map((x,k)=>{
     const atual = x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value;
+    const selo = typeof x.publicada === 'boolean'
+      ? (x.publicada ? '<span class="chip ok" style="margin-left:6px">Publicada</span>'
+                     : '<span class="chip mal" style="margin-left:6px">Rascunho</span>')
+      : '';
     const partes = [`<b>${x.pessoas}</b> pessoas`, `<b>${x.dias}</b> dias`,
                     `modelo <b>${esc(x.modelo)}</b>`, `<b>${x.folgas}</b> folgas no total`];
     if(x.ajustes) partes.push(`<b>${x.ajustes}</b> horário(s) ajustado(s)`);
@@ -893,7 +959,7 @@ function pintarSalvas(){
     const q = new Date(x.em);
     return `<div class="salva">
       <div class="salva-info">
-        <div class="salva-tit">${dt(x.inicio)} a ${dt(x.fim)}${atual ? '<span class="salva-atual">aberta</span>' : ''}</div>
+        <div class="salva-tit">${dt(x.inicio)} a ${dt(x.fim)}${atual ? '<span class="salva-atual">aberta</span>' : ''}${selo}</div>
         <div class="salva-desc">${partes.join(' · ')}<br>salva em ${q.toLocaleDateString('pt-BR')} às ${q.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
       </div>
       <div class="salva-acoes">${atual
@@ -905,10 +971,18 @@ function pintarSalvas(){
   cx.querySelectorAll('[data-pdf]').forEach(b=>{ b.onclick = baixarPdf; });
   cx.querySelectorAll('[data-abrir]').forEach(b=>{
     b.onclick = async ()=>{
-      const x = lerSalvas()[+b.dataset.abrir];
+      const x = ultimaListaSalvas[+b.dataset.abrir];
       if(!x) return;
+      const anterior = {inicio:$('#p-inicio').value, fim:$('#p-fim').value,
+                        res:S.res, val:S.val, salvo:S.salvo};
       $('#p-inicio').value = x.inicio; $('#p-fim').value = x.fim;
-      await carregarPeriodoSalvo(); pintarSalvas();
+      const carregou = await carregarPeriodoSalvo();
+      if(!carregou){
+        $('#p-inicio').value = anterior.inicio; $('#p-fim').value = anterior.fim;
+        S.res = anterior.res; S.val = anterior.val; S.salvo = anterior.salvo;
+        pintarGrade();
+      }
+      await pintarSalvas();
     };
   });
   cx.querySelectorAll('[data-editar]').forEach(b=>{
@@ -917,7 +991,7 @@ function pintarSalvas(){
                 if (grade) grade.scrollIntoView({behavior:'smooth', block:'start'});
         };
   });
-    cx.querySelectorAll('[data-excluir]').forEach(b=>{
+  cx.querySelectorAll('[data-excluir]').forEach(b=>{
     b.onclick = ()=> excluirSalva(+b.dataset.excluir);
   });
 }
@@ -926,8 +1000,7 @@ function pintarSalvas(){
    offline) e tira da lista. O que fica na tela continua até você gerar outra —
    assim dá para desfazer salvando de novo, se tiver sido engano. */
 async function excluirSalva(k){
-  const lista = lerSalvas();
-  const x = lista[k];
+  const x = ultimaListaSalvas[k];
   if(!x) return;
   const dt = iso => { const [a,m,d] = String(iso).split('-'); return d + '/' + m; };
   if(!confirm(`Excluir a escala de ${dt(x.inicio)} a ${dt(x.fim)}?\n\n`
@@ -940,8 +1013,10 @@ async function excluirSalva(k){
     alert('Não foi possível excluir no servidor: ' + (e && e.message ? e.message : e));
     return;
   }
-  lista.splice(k, 1);
-  try{ localStorage.setItem(chaveSalvas(), JSON.stringify(lista)); }catch(e){}
+  if(typeof store.listarEscalas !== 'function'){
+    const restante = lerSalvas().filter(y=>!(y.inicio===x.inicio && y.fim===x.fim));
+    try{ localStorage.setItem(chaveSalvas(), JSON.stringify(restante)); }catch(e){}
+  }
 
   // se era o período aberto, limpa a tela
   if(x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value){
@@ -951,7 +1026,7 @@ async function excluirSalva(k){
     $('#cont-alertas').textContent = '';
     $('#resumo-cobertura').innerHTML = '';
   }
-  pintarSalvas();
+  await pintarSalvas();
 }
 
 function baixarPdf(){
@@ -970,7 +1045,14 @@ function baixarPdf(){
 }
 async function carregarPeriodoSalvo(){
   S.res=null; S.val=null;
-  const d = await store.get(chaveGrade());
+  let d;
+  try{
+    d = await store.get(chaveGrade());
+  }catch(e){
+    alert('Não foi possível carregar a escala salva do servidor: ' + (e && e.message ? e.message : e));
+    pintarGrade();
+    return false;
+  }
   if(d){
     const p = Object.assign({}, loja().params, d.params||{}, {inicio:d.inicio, fim:d.fim});
     const base = gerarEscala(loja().colabs, p);
@@ -979,12 +1061,20 @@ async function carregarPeriodoSalvo(){
     S.res = base; S.val = validar(S.res, loja().colabs); S.salvo = true;
   }
   pintarGrade();
+  return true;
 }
 function marcarSalvo(){
   const el = $('#status-salvo');
   if(!S.res){ el.textContent=''; return; }
   el.textContent = S.salvo ? 'Salvo' : 'Não salvo';
   el.className = 'chip ' + (S.salvo?'ok':'mal');
+}
+function gerarId(){
+  if(typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+    const r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
+    return v.toString(16);
+  });
 }
 function esc(s){ return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 

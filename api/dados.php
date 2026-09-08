@@ -210,7 +210,7 @@ case 'salvar':
     } catch (Throwable $e) {
         bd()->rollBack();
         error_log('salvar dados: ' . $e->getMessage());
-        falhar('Não foi possível salvar. Tente de novo.', 500);
+        falhar(mensagemErroBanco($e, 'Não foi possível salvar. Tente de novo.'), 500);
     }
     responder(['ok' => true]);
 
@@ -287,7 +287,7 @@ case 'salvar_escala':
     } catch (Throwable $e) {
         bd()->rollBack();
         error_log('salvar escala: ' . $e->getMessage());
-        falhar('Erro ao salvar escala. Tente novamente.', 500);
+        falhar(mensagemErroBanco($e, 'Erro ao salvar escala. Tente novamente.'), 500);
     }
     responder(['ok' => true]);
 
@@ -326,7 +326,7 @@ $escalas = array_map(function ($e) {
         'ajustes' => $resumo['ajustes'] ?? null,
         'feridas' => $resumo['feridas'] ?? null,
         'notas' => $resumo['notas'] ?? null,
-        'em' => $e['atualizado_em'],
+        'em' => str_replace(' ', 'T', (string)$e['atualizado_em']),
         'publicada' => (bool)$e['publicada'],
         'por' => $e['por'],
         ];

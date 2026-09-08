@@ -86,6 +86,17 @@ function falhar(string $mensagem, int $codigo = 400)
     responder(['erro' => $mensagem], $codigo);
 }
 
+/** Traduz falha causada por uma migração ainda não aplicada em produção. */
+function mensagemErroBanco(Throwable $e, string $generica): string
+{
+    $sqlstate = $e instanceof PDOException ? (string)$e->getCode() : '';
+    if ($sqlstate === '42S22' || stripos($e->getMessage(), 'Unknown column') !== false) {
+        return 'O banco de dados está desatualizado: falta aplicar uma migração '
+             . '(veja banco/verificar-e-migrar.sql).';
+    }
+    return $generica;
+}
+
 function corpo(): array
 {
     // Limite máximo de payload da API: 2 MB para evitar ataques de esgotamento de memória

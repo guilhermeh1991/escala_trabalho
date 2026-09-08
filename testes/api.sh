@@ -28,6 +28,10 @@ mysql -u root -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-003-acesso-por-loja.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-004-resumo-escala.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
+  || falha "verificar-e-migrar.sql após as migrações"
+mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
+  || falha "verificar-e-migrar.sql não foi idempotente"
 
 cat > api/config.php <<'PHP'
 <?php return [
@@ -151,6 +155,9 @@ echo "$R" | grep -q "não encontrada" && ok "empresa B barrada ao gravar na loja
 R=$(chamar "$COOKIES_B" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\"}" "$CSRF_B")
 echo "$R" | grep -q "não encontrada" && ok "empresa B barrada ao ler escala da empresa A" || falha "B leu escala de A: $R"
 
+R=$(chamar "$COOKIES_B" dados.php "{\"acao\":\"listar_escalas\",\"loja_id\":\"$LOJA_A\"}" "$CSRF_B")
+echo "$R" | grep -q "não encontrada" && ok "empresa B barrada ao listar escalas da empresa A" || falha "B listou escalas de A: $R"
+
 PAYLOAD_INVASAO="{\"acao\":\"salvar\",\"lojas\":{\"$LOJA_A\":{\"nome\":\"INVADIDA\",\"colabs\":[]}}}"
 R=$(chamar "$COOKIES_B" dados.php "$PAYLOAD_INVASAO" "$CSRF_B")
 echo "$R" | grep -qE "outra empresa|fora do seu acesso" && ok "empresa B barrada ao sobrescrever loja da empresa A" || falha "B sobrescreveu loja de A: $R"
@@ -163,6 +170,9 @@ R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LO
 echo "$R" | grep -q '"ok":true' && ok "escala salva" || falha "salvar escala: $R"
 R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\"}" "$CSRF_A")
 echo "$R" | grep -q '"X"' && ok "escala recuperada igual" || falha "carregar escala: $R"
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"listar_escalas\",\"loja_id\":\"$LOJA_A\"}" "$CSRF_A")
+echo "$R" | grep -q '"inicio":"2026-08-11"' && ok "listar_escalas devolve o período salvo" || falha "listar_escalas: $R"
+echo "$R" | grep -q '"publicada":false' && ok "listar_escalas identifica o rascunho" || falha "status do rascunho: $R"
 
 echo ""
 echo "=== 11. Sem sessão não passa ==="

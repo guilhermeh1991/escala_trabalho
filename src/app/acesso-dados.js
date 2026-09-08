@@ -239,7 +239,7 @@ const store = {
         await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas);
         await DB.registrar('escala_salva', {loja: lojaId, inicio, fim});
         marcarSync('salvo');
-      }catch(e){ marcarSync('erro', erroAmigavel(e)); }
+      }catch(e){ marcarSync('erro', erroAmigavel(e)); throw e; }
     }
   }
 };

@@ -20,9 +20,10 @@ req(){ curl -s -c "$1" -b "$1" -X POST "$BASE/api/$2" \
 
 mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS teste_escala; CREATE DATABASE teste_escala CHARACTER SET utf8mb4;" 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
-mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/dev/null
-mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-003-acesso-por-loja.sql 2>/dev/null
-mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-004-resumo-escala.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
+  || falha "verificar-e-migrar.sql não aplicou as migrações"
+mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
+  || falha "verificar-e-migrar.sql não foi idempotente"
 
 cat > api/config.php <<'PHP'
 <?php return ['bd_host'=>'127.0.0.1','bd_nome'=>'teste_escala','bd_usuario'=>'root','bd_senha'=>'',
@@ -171,6 +172,23 @@ TG=$(tok $CG)
 R2=$(req $CG dados.php '{"acao":"carregar"}' "$TG")
 echo "$R2" | grep -q "RENATA" && ok "gestor vê a equipe inteira" || falha "gestor perdeu acesso: $R2"
 echo "$R2" | grep -q "LUCAS" && ok "gestor vê todos os colaboradores" || falha "gestor não vê todos"
+
+R2=$(req $CC dados.php "{\"acao\":\"listar_escalas\",\"loja_id\":\"$LOJA\"}" "$TC")
+echo "$R2" | grep -q "não permite" && ok "listar escalas: colaborador barrado" || falha "colaborador listou escalas: $R2"
+
+echo ""
+echo "=== 10. Lista do gestor distingue publicada e rascunho ==="
+R2=$(req $CG dados.php "{\"acao\":\"listar_escalas\",\"loja_id\":\"$LOJA\"}" "$TG")
+VERIF=$(printf '%s' "$R2" | python3 -c '
+import sys, json
+d = json.load(sys.stdin)["escalas"]
+pub = next((e for e in d if e["inicio"] == "2026-08-11"), None)
+rasc = next((e for e in d if e["inicio"] == "2026-09-11"), None)
+print("pub" if pub and pub["publicada"] is True else "sem-pub")
+print("rasc" if rasc and rasc["publicada"] is False else "sem-rasc")
+')
+echo "$VERIF" | grep -q '^pub$' && ok "escala publicada listada como publicada" || falha "status da publicada: $R2"
+echo "$VERIF" | grep -q '^rasc$' && ok "rascunho listado como rascunho" || falha "status do rascunho: $R2"
 
 kill $SRV 2>/dev/null
 rm -f api/config.php $CG $CC $CX
