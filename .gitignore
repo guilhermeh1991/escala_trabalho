@@ -14,3 +14,4 @@ api/config.php
 *.sql.gz
 
 .vscode/sftp.json
+.codex/

@@ -1118,12 +1118,25 @@ async function excluirSalva(k){
   await pintarSalvas();
 }
 
+function conferirNomesParaDocumento(){
+  const duplicados = nomesDuplicadosDocumento(S.res ? S.res.ativos : []);
+  if(!duplicados.length) return true;
+  const nomes = duplicados.map(g=>`${g.nome} (${g.quantidade} cadastros)`).join(', ');
+  alert('Há nomes duplicados na equipe: ' + nomes + '.\n\n'
+      + 'Para não imprimir a mesma identificação em duas linhas, corrija ou diferencie '
+      + 'esses nomes na aba Equipe (por exemplo, usando o sobrenome). Nenhum cadastro foi removido.');
+  return false;
+}
+
 function baixarPdf(){
   if(!S.res){ alert('Gere a escala antes de baixar.'); return; }
+  if(!conferirNomesParaDocumento()) return;
   const D = dadosDaEscala();
   D.horaDe = (c, i) => horaDoDia(c, i);
   D.faixaDe = faixaDe;
-  D.rotuloFaixa = (g) => FAIXAS_CARGO[g].rotulo;
+  D.rotuloFaixa = (g) => (FAIXAS_CARGO[g] ? FAIXAS_CARGO[g].rotulo : 'Equipe');
+  D.descricaoCargo = (c, g) => descricaoCargoImpressao(c,
+    FAIXAS_CARGO[g] ? FAIXAS_CARGO[g].chave : 'apoio');
   const bytes = gerarPdfEscala(D, loja().nome);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
@@ -1688,7 +1701,10 @@ function htmlDeImpressao(D, nomeLoja){
              + `<td colspan="${days.length}"></td></tr>`;
       faixaImp = g;
     }
-    corpo += `<tr><td class="nm">${esc(c.nome)}<span>${esc(c.cargo)}</span></td><td class="hr">${horaEntrada(c)}</td>`;
+    const descricao = descricaoCargoImpressao(c, FAIXAS_CARGO[g].chave);
+    corpo += `<tr><td class="nm${descricao?'':' sem-desc'}">${esc(c.nome)}`
+           + `${descricao ? `<span>${esc(descricao)}</span>` : ''}`
+           + `</td><td class="hr">${horaEntrada(c)}</td>`;
     days.forEach((d,i)=>{
       const v = grid[c.id][i], fds = (d.getDay()===0||d.getDay()===6);
       if(v==='') corpo += `<td class="${fds?'fds':''}"><i>${horaDoDia(c, i)}</i></td>`;
@@ -1725,7 +1741,8 @@ th{background:#16232B;color:#fff;font-size:7.5px;text-transform:uppercase}
 th.dt{background:#E7EDE9;color:#16232B;font-weight:700}
 th.dtf{background:#CFDCD5;color:#16232B;font-weight:700}
 td.nm{text-align:left;font-weight:700;font-size:8.5px}
-td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-transform:uppercase}
+td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-transform:none}
+td.nm.sem-desc{vertical-align:middle}
 td.hr{font-size:7.5px;color:#63736F}
 td i{font-style:normal;color:#8A9995}
 td.fds{background:#F4F7F5}
@@ -1759,6 +1776,7 @@ $('#btn-pdf').onclick = baixarPdf;
 
 $('#btn-print').onclick = ()=>{
   if(!S.res){ alert('Gere a escala antes de imprimir.'); return; }
+  if(!conferirNomesParaDocumento()) return;
   const html = htmlDeImpressao(dadosDaEscala(), loja().nome);
   let imprimiu = false;
   try{

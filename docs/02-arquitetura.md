@@ -8,7 +8,7 @@
 │ escala-web.html  │              │  Auth  e-mail e senha    │
 │                  │──── JWT ────▶│        hash com salt     │
 │  motor (JS)      │              ├──────────────────────────┤
-│  planilha (JS)   │◀─── dados ──▶│  PostgreSQL              │
+│  documentos (JS)│◀─── dados ──▶│  PostgreSQL              │
 │  interface       │              │  + RLS por empresa       │
 └──────────────────┘              └──────────────────────────┘
         │
@@ -39,14 +39,15 @@ Saem do mesmo template de interface, montadas por `build/montar.py`:
 ```
 src/motor/motor.js        algoritmo e validação. Sem DOM, sem rede.
 src/motor/planilha.js     gerador de .xlsx. Sem DOM, sem rede.
+src/motor/documento.js    regras de impressão e gerador de PDF. Sem DOM, sem rede.
 src/app/template.html     interface e a camada offline de dados
 src/app/acesso-dados.js   Supabase: sessão e sincronização
 src/app/acesso-telas.js   Supabase: telas de entrar, cadastrar, recuperar
 ```
 
-O motor e a planilha não conhecem navegador. Por isso a suíte de testes roda
-direto no Node, sem emulação de DOM, e por isso o mesmo motor serve às duas
-versões sem alteração.
+O motor e os geradores de documentos não conhecem navegador. Por isso a suíte
+de testes roda direto no Node, sem emulação de DOM, e as mesmas rotinas servem
+às versões sem alteração.
 
 ## Como a interface fala com os dados
 
@@ -106,7 +107,7 @@ de coluna e painéis congelados.
 
 ## Build
 
-`build/montar.py` gera as duas versões e confere o resultado: motor presente,
-planilha presente, e na versão web que não sobrou nenhum resquício do login
-local nem a chave `service_role`. O script sai com erro se qualquer conferência
-falhar, o que impede publicar arquivo quebrado.
+`build/montar.py` gera as versões e confere o resultado: motor, planilha e PDF
+presentes, e na versão web que não sobrou nenhum resquício do login local nem a
+chave `service_role`. O script sai com erro se qualquer conferência falhar, o
+que impede publicar arquivo quebrado.

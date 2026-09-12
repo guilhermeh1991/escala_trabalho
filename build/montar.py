@@ -35,6 +35,12 @@ motor    = ler('src/motor/motor.js').replace(
     "if(typeof module !== 'undefined' && typeof module.exports !== 'undefined') module.exports")
 planilha = ler('src/motor/planilha.js').replace(
     "if (typeof module !== 'undefined') module.exports = { gerarXLSX, zipar, crc32 };", "")
+documento = ler('src/motor/documento.js').replace(
+    "if(typeof module !== 'undefined' && typeof module.exports !== 'undefined')\n"
+    "  module.exports = {limparEspacosDocumento, normalizarTextoDocumento,\n"
+    "    descricaoCargoImpressao, nomesDuplicadosDocumento, gerarPdfEscala, montarPdf};", "")
+if 'module.exports' in documento:
+    sys.exit('não foi possível remover a exportação Node de src/motor/documento.js')
 acesso_dados = ler('src/app/acesso-dados.js')
 acesso_telas = ler('src/app/acesso-telas.js')
 telas_html   = ler('src/app/telas-acesso.html')
@@ -47,7 +53,7 @@ exigir(template, '/*ENGINE*/', 'ponto de injeção do motor')
 # ================================================================
 offline = template.replace('/*CSS_MINHA*/', '', 1)
 offline = offline.replace('<button data-view="minha" style="display:none">Minha escala</button>', '', 1)
-offline = offline.replace('/*ENGINE*/', motor + "\n\n" + planilha, 1)
+offline = offline.replace('/*ENGINE*/', motor + "\n\n" + planilha + "\n\n" + documento, 1)
 (DIST / 'escala-offline.html').write_text(offline, encoding='utf-8')
 
 # ================================================================
@@ -112,7 +118,7 @@ web = web.replace(
   "const mk = (l)=>l.map((r,i)=>({id:r[0].toLowerCase().replace(/[^a-z]/g,'')+i, nome:r[0], cargo:r[1], horario:r[2],",
   "const mk = (l)=>l.map((r,i)=>({nome:r[0], cargo:r[1], horario:r[2],", 1)
 
-web = web.replace('/*ENGINE*/', motor + "\n\n" + planilha, 1)
+web = web.replace('/*ENGINE*/', motor + "\n\n" + planilha + "\n\n" + documento, 1)
 (DIST / 'escala-web.html').write_text(web, encoding='utf-8')
 
 # ================================================================
@@ -167,7 +173,7 @@ hg = hg.replace("pintarParams(); pintarEquipe(); pintarAus(); pintarUsers(); car
 hg = hg.replace(
   "const mk = (l)=>l.map((r,i)=>({id:r[0].toLowerCase().replace(/[^a-z]/g,'')+i, nome:r[0], cargo:r[1], horario:r[2],",
   "const mk = (l)=>l.map((r,i)=>({nome:r[0], cargo:r[1], horario:r[2],", 1)
-hg = hg.replace('/*ENGINE*/', motor + "\n\n" + planilha + "\n\n" + php_minha, 1)
+hg = hg.replace('/*ENGINE*/', motor + "\n\n" + planilha + "\n\n" + documento + "\n\n" + php_minha, 1)
 exigir(hg, 'pintarAcessos();', 'gancho de papel')
 hg = hg.replace('  pintarAcessos();', '  pintarAcessos();\n  aplicarPapel();', 1)
 (DIST / 'escala-hostgator.html').write_text(hg, encoding='utf-8')
@@ -177,11 +183,13 @@ conferir = {
   'escala-offline.html': {
       'motor embutido':      'function gerarEscala' in offline,
       'planilha embutida':   'function gerarXLSX' in offline,
+      'PDF embutido':        'function gerarPdfEscala' in offline,
       'sem código Supabase': ('supabase-js' not in offline and 'createClient' not in offline),
   },
   'escala-web.html': {
       'motor embutido':      'function gerarEscala' in web,
       'planilha embutida':   'function gerarXLSX' in web,
+      'PDF embutido':        'function gerarPdfEscala' in web,
       'Supabase carregado':  'supabase-js@2' in web,
       'telas de acesso':     'id="tela-cadastro"' in web,
       'sem hash caseiro':    'async function sha256' not in web,
@@ -192,6 +200,7 @@ conferir = {
   'escala-hostgator.html': {
       'motor embutido':      'function gerarEscala' in hg,
       'planilha embutida':   'function gerarXLSX' in hg,
+      'PDF embutido':        'function gerarPdfEscala' in hg,
       'telas de acesso':     'id="tela-cadastro"' in hg,
       'aponta para api/':    "const CONFIG = { API: 'api' }" in hg,
       'sem código Supabase': ('supabase-js' not in hg and 'createClient' not in hg),

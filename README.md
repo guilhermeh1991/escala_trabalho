@@ -118,6 +118,7 @@ docs/                   documentação
 docs/decisoes/          registro das decisões de projeto e do porquê
 src/motor/motor.js      o algoritmo de escala e a validação
 src/motor/planilha.js   gerador de .xlsx sem biblioteca externa
+src/motor/documento.js  regras de impressão e gerador de PDF sem biblioteca externa
 src/app/                interface e camada de acesso
 testes/                 verificador independente, simulador e suíte
 ```

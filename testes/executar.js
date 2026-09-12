@@ -11,6 +11,7 @@
 const E = require('../src/motor/motor.js');
 const S = require('./simular.js');
 const {verificar, metricas} = require('./verificador.js');
+const Documento = require('../src/motor/documento.js');
 
 const LIMIARES = {
   escalasLimpas5x2:   90,   // % de cenários sem nenhuma violação trabalhista
@@ -184,6 +185,49 @@ const resAus = E.gerarEscala(eqAus, Object.assign({}, base,
   {modelo:'5x2', folgasSemana:2, inicio:'2026-08-11', fim:'2026-09-10', minCaixa:2, minBalcao:3}));
 const vAus = verificar(resAus, eqAus, Object.assign({}, base, {folgasSemana:2}), estadoInicial(eqAus, base));
 conferir('ausências preservadas', vAus.filter(v => v.regra === 'R8-ausencia').length, 0, '<=');
+
+/* ------------------------------------------------------------------ */
+console.log('\n=== 4. Documento impresso ===\n');
+
+const descricoes = [
+  ['GERENTE',       'gerencia', ''],
+  ['SUBGERENTE',    'subger',   ''],
+  ['FARMACÊUTICO',  'farma',    ''],
+  ['BALCONISTA',    'balcao',   ''],
+  ['CAIXA',         'caixa',    ''],
+  ['SUB/FARMA',     'subger',   'Subgerente · Farmacêutico'],
+  ['AX. LOJA',      'apoio',    'Auxiliar de loja'],
+  ['REPOSITOR',     'apoio',    'Repositor']
+];
+descricoes.forEach(([cargo, faixa, esperado])=>{
+  const obtido = Documento.descricaoCargoImpressao({cargo}, faixa);
+  conferir(`descrição ${cargo}`, obtido === esperado ? 1 : 0, 1);
+});
+
+const repetidos = Documento.nomesDuplicadosDocumento([
+  {id:'1', nome:' José da Silva '},
+  {id:'2', nome:'JOSE  DA SILVA'},
+  {id:'3', nome:'Maria'}
+]);
+conferir('detecta nome com acento/espaços', repetidos.length, 1);
+conferir('não remove nomes duplicados', repetidos[0].quantidade, 2);
+conferir('mantém nomes distintos', Documento.nomesDuplicadosDocumento([
+  {nome:'Lucas Araújo'}, {nome:'Lucas Hatewa'}
+]).length, 0, '<=');
+
+const pdfMinimo = Documento.gerarPdfEscala({
+  days:[new Date(2026,7,11)],
+  grid:{c1:['']},
+  ativos:[{id:'c1', nome:'JOSÉ', cargo:'CAIXA'}],
+  P:{minCaixa:1, minBalcao:0, minFarma:0, minSubger:0},
+  cob:[{cx:1, bl:0, fa:0, sg:0, total:1}],
+  periodo:'11/08/2026 a 11/08/2026',
+  horaDe:()=> '07:00',
+  faixaDe:()=> 4,
+  rotuloFaixa:()=> 'Caixas',
+  descricaoCargo:(c)=> Documento.descricaoCargoImpressao(c, 'caixa')
+}, 'Loja teste');
+conferir('PDF gerado começa corretamente', Buffer.from(pdfMinimo.slice(0,8)).toString('latin1') === '%PDF-1.4' ? 1 : 0, 1);
 
 /* ------------------------------------------------------------------ */
 console.log('');

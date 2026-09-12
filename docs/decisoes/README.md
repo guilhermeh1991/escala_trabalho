@@ -16,3 +16,4 @@ depois, por quem não estava lá.
 | [0006](0006-supabase.md) | Supabase para banco e autenticação | aceita |
 | [0007](0007-xlsx-sem-biblioteca.md) | Gerar .xlsx sem biblioteca externa | aceita |
 | [0008](0008-banco-hostgator.md) | MySQL na HostGator em vez de Supabase | aceita |
+| [0009](0009-documentos-impressos.md) | Documento impresso sem identificação ambígua | aceita |
