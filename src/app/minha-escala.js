@@ -20,6 +20,18 @@ function dataBR(iso){
   return `${d}/${m}`;
 }
 
+function contagemAte(iso){
+  const [a,m,d] = String(iso||'').split('-').map(Number);
+  if(!a || !m || !d) return '';
+  const agora = new Date();
+  const hoje = Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  const alvo = Date.UTC(a, m-1, d);
+  const dias = Math.round((alvo-hoje)/86400000);
+  if(dias === 0) return 'hoje';
+  if(dias === 1) return 'amanhã';
+  return `em ${dias} dias`;
+}
+
 async function pintarMinhaEscala(periodo){
   const cx = $('#minha-escala');
   if(!cx) return;
@@ -71,14 +83,18 @@ async function pintarMinhaEscala(periodo){
   const vazios = e.dias.length ? e.dias[0].semana : 0;
   const celulas = [];
   for(let i=0;i<vazios;i++) celulas.push('<div></div>');
+  const agora = new Date();
+  const hojeIso = agora.getFullYear() + '-' + String(agora.getMonth()+1).padStart(2,'0') + '-'
+                + String(agora.getDate()).padStart(2,'0');
   e.dias.forEach(d=>{
     const [bg, fg, sec] = CORES_TIPO[d.tipo] || CORES_TIPO.trabalho;
     const trabalho = d.tipo === 'trabalho';
+    const hoje = d.data === hojeIso;
     const rotulo = trabalho
       ? `<div class="me-hora">${esc((d.rotulo||'').slice(0,5))}</div>`
       : `<div class="me-tipo" style="color:${sec}">${esc(d.rotulo.toLowerCase())}</div>`;
     celulas.push(`
-      <div class="me-dia${trabalho?'':' me-dia-marcado'}" style="${bg?`background:${bg}`:''}">
+      <div class="me-dia${trabalho?'':' me-dia-marcado'}${hoje?' me-dia-hoje':''}" style="${bg?`background:${bg}`:''}"${hoje?' aria-current="date"':''}>
         <div class="me-num" style="${fg?`color:${fg}`:''}">${d.dia}</div>
         ${rotulo}
       </div>`);
@@ -109,7 +125,7 @@ async function pintarMinhaEscala(periodo){
         <div class="me-proximas">
           <div class="me-proximas-rot">Próximas folgas</div>
           <div class="me-proximas-lista">
-            ${resumo.proximas.map(d=>`<span>${DIAS_CURTO[d.semana]} ${String(d.dia).padStart(2,'0')}/${String(d.mes).padStart(2,'0')}</span>`).join('')}
+            ${resumo.proximas.map(d=>`<span><b>${DIAS_CURTO[d.semana]} ${String(d.dia).padStart(2,'0')}/${String(d.mes).padStart(2,'0')}</b><small>${contagemAte(d.data)}</small></span>`).join('')}
           </div>
         </div>` : ''}
 
@@ -123,7 +139,7 @@ async function pintarMinhaEscala(periodo){
         <span><b style="background:#D7E5F0"></b>férias</span>
         <span><b style="background:#F3DBD7"></b>atestado</span>
         <span><b style="background:#E3DDF2"></b>licença</span>
-        <span><b style="background:#F4F6F4;border:1px solid var(--linha)"></b>trabalho</span>
+        <span><b style="background:var(--superficie);border:1px solid var(--linha)"></b>trabalho</span>
       </div>
     </div>
 
