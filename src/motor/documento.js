@@ -244,8 +244,16 @@ function ddmmPdf(d){ return String(d.getDate()).padStart(2,'0') + '/' + String(d
 
 /* A4 paisagem, com quebra automática quando a equipe não cabe em uma página. */
 function gerarPdfEscala(D, nomeLoja){
-  const {days, grid, ativos, P, cob} = D;
-  if(!Array.isArray(days) || !days.length) throw new Error('A escala precisa ter ao menos um dia para gerar o PDF.');
+  if(!D) throw new Error('Dados da escala não fornecidos.');
+  const days = Array.isArray(D.days) ? D.days : [];
+  const grid = D.grid || {};
+  const ativos = Array.isArray(D.ativos) ? D.ativos : [];
+  const P = D.P || {};
+  const cob = Array.isArray(D.cob) ? D.cob : [];
+  const nome = String(nomeLoja || 'Escala');
+  const periodo = String(D.periodo || '');
+
+  if(!days.length) throw new Error('A escala precisa ter ao menos um dia para gerar o PDF.');
   if(days.length > 62) throw new Error('O PDF aceita períodos de até 62 dias.');
   const L = 842, A = 595;
   const margem = 22;
@@ -261,7 +269,7 @@ function gerarPdfEscala(D, nomeLoja){
     ['Farmacêutico', (c)=>c.fa,  1,           P.minFarma != null ? P.minFarma : 2],
     ['Subgerente',   (c)=>c.sg||0, P.minSubger != null ? P.minSubger : 1, null],
     ['Total na loja',(c)=>c.total, null, null],
-    ['De folga',     (c,i)=>ativos.filter(x=>grid[x.id][i]==='X'||grid[x.id][i]==='FC').length, null, null]
+    ['De folga',     (c,i)=>ativos.filter(x=>grid[x.id] && (grid[x.id][i]==='X'||grid[x.id][i]==='FC')).length, null, null]
   ];
 
   const alturaUtil = A - topoTabela - margem - (rodapes.length * altLinha) - 26 - 6*11;
@@ -273,8 +281,8 @@ function gerarPdfEscala(D, nomeLoja){
     const p = new PaginaPdf(L, A);
     const fatia = ativos.slice(pg * porPagina, (pg+1) * porPagina);
 
-    p.texto('Escala — ' + nomeLoja, margem, 22, {tamanho:15, negrito:true});
-    p.texto(D.periodo + '  ·  ' + ativos.length + ' colaboradores  ·  emitida em '
+    p.texto('Escala — ' + nome, margem, 22, {tamanho:15, negrito:true});
+    p.texto(periodo + '  ·  ' + ativos.length + ' colaboradores  ·  emitida em '
             + new Date().toLocaleDateString('pt-BR'),
             margem, 43, {tamanho:8.5, cor:COR_PDF.fraco});
     if(totalPag > 1){
@@ -324,13 +332,13 @@ function gerarPdfEscala(D, nomeLoja){
         p.texto(cortarTexto(descricao, 5, larguraNome - 8, false), margem + 4, y + 9.5,
                 {tamanho:5, cor:COR_PDF.fraco});
       }
-      const horaEntrada = String(D.horaDe(c, 0) || '');
+      const horaEntrada = String(D.horaDe ? D.horaDe(c, 0) : '');
       p.texto(horaEntrada.slice(0,5), margem + larguraNome, y + 4.5,
               {tamanho:6, cor:COR_PDF.fraco, centro:true, largura:larguraHora});
 
       days.forEach((d,i)=>{
         const x = margem + larguraNome + larguraHora + i*largDia;
-        const cod = grid[c.id][i];
+        const cod = (grid[c.id] && grid[c.id][i]) || '';
         const fds = d.getDay()===0 || d.getDay()===6;
         if(COR_PDF[cod]){
           p.retangulo(x, y, largDia, altLinha, COR_PDF[cod][0]);
@@ -338,7 +346,7 @@ function gerarPdfEscala(D, nomeLoja){
                                     centro:true, largura:largDia});
         } else {
           if(fds) p.retangulo(x, y, largDia, altLinha, COR_PDF.fds);
-          const horaDia = String(D.horaDe(c, i) || '');
+          const horaDia = String(D.horaDe ? D.horaDe(c, i) : '');
           p.texto(horaDia.slice(0,5), x, y + 4.5,
                   {tamanho:5.6, cor:COR_PDF.fraco, centro:true, largura:largDia});
         }
@@ -360,7 +368,7 @@ function gerarPdfEscala(D, nomeLoja){
           if(lim != null && v < lim){ corFundo = COR_PDF.AT[0]; corTexto = COR_PDF.AT[1]; }
           else if(alvo != null && v < alvo){ corFundo = COR_PDF.FC[0]; corTexto = COR_PDF.FC[1]; }
           if(corFundo) p.retangulo(x, y, largDia, altLinha, corFundo);
-          p.texto(String(v), x, y + 4.5, {tamanho:6.5, negrito:!!corFundo, cor:corTexto,
+          p.texto(String(v != null ? v : 0), x, y + 4.5, {tamanho:6.5, negrito:!!corFundo, cor:corTexto,
                                           centro:true, largura:largDia});
         });
         p.linha(margem, y + altLinha, L - margem, y + altLinha, COR_PDF.linha);
@@ -381,7 +389,7 @@ function gerarPdfEscala(D, nomeLoja){
     paginas.push(p);
   }
 
-  return montarPdf(paginas, {titulo: 'Escala ' + nomeLoja + ' — ' + D.periodo});
+  return montarPdf(paginas, {titulo: 'Escala ' + nome + ' — ' + periodo});
 }
 
 if(typeof module !== 'undefined' && typeof module.exports !== 'undefined')

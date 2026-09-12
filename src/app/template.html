@@ -1119,31 +1119,52 @@ async function excluirSalva(k){
 }
 
 function conferirNomesParaDocumento(){
-  const duplicados = nomesDuplicadosDocumento(S.res ? S.res.ativos : []);
+  const duplicados = typeof nomesDuplicadosDocumento === 'function'
+    ? nomesDuplicadosDocumento(S.res ? S.res.ativos : [])
+    : [];
   if(!duplicados.length) return true;
   const nomes = duplicados.map(g=>`${g.nome} (${g.quantidade} cadastros)`).join(', ');
-  alert('Há nomes duplicados na equipe: ' + nomes + '.\n\n'
-      + 'Para não imprimir a mesma identificação em duas linhas, corrija ou diferencie '
-      + 'esses nomes na aba Equipe (por exemplo, usando o sobrenome). Nenhum cadastro foi removido.');
-  return false;
+  return confirm('Há colaboradores com a mesma identificação na equipe:\n' + nomes + '.\n\n'
+      + 'Recomendamos diferenciar os nomes na aba Equipe (por exemplo, usando o sobrenome) para evitar ambiguidades no documento impresso.\n\n'
+      + 'Deseja gerar o documento mesmo assim?');
 }
 
 function baixarPdf(){
   if(!S.res){ alert('Gere a escala antes de baixar.'); return; }
   if(!conferirNomesParaDocumento()) return;
-  const D = dadosDaEscala();
-  D.horaDe = (c, i) => horaDoDia(c, i);
-  D.faixaDe = faixaDe;
-  D.rotuloFaixa = (g) => (FAIXAS_CARGO[g] ? FAIXAS_CARGO[g].rotulo : 'Equipe');
-  D.descricaoCargo = (c, g) => descricaoCargoImpressao(c,
-    FAIXAS_CARGO[g] ? FAIXAS_CARGO[g].chave : 'apoio');
-  const bytes = gerarPdfEscala(D, loja().nome);
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
-  a.download = 'escala_' + loja().nome.replace(/[^\w]+/g,'_') + '_'
-             + $('#p-inicio').value + '_a_' + $('#p-fim').value + '.pdf';
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  try{
+    const D = dadosDaEscala();
+    if(!D || !D.days || !D.days.length){
+      alert('Não há dados da escala para gerar o PDF. Gere a escala novamente.');
+      return;
+    }
+    D.horaDe = (c, i) => horaDoDia(c, i);
+    D.faixaDe = typeof faixaDe === 'function' ? faixaDe : () => 0;
+    D.rotuloFaixa = (g) => (typeof FAIXAS_CARGO !== 'undefined' && FAIXAS_CARGO[g] ? FAIXAS_CARGO[g].rotulo : 'Equipe');
+    D.descricaoCargo = (c, g) => (typeof descricaoCargoImpressao === 'function'
+      ? descricaoCargoImpressao(c, typeof FAIXAS_CARGO !== 'undefined' && FAIXAS_CARGO[g] ? FAIXAS_CARGO[g].chave : 'apoio')
+      : (c ? c.cargo : ''));
+    const nomeLoja = (typeof loja === 'function' && loja() && loja().nome) || S.loja || 'Escala';
+    const bytes = typeof gerarPdfEscala === 'function' ? gerarPdfEscala(D, nomeLoja) : null;
+    if(!bytes || !bytes.length){
+      throw new Error('O gerador de PDF não retornou o arquivo.');
+    }
+    const blob = new Blob([bytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    const iniVal = ($('#p-inicio') && $('#p-inicio').value) || 'inicio';
+    const fimVal = ($('#p-fim') && $('#p-fim').value) || 'fim';
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'escala_' + nomeLoja.replace(/[^\w]+/g,'_') + '_' + iniVal + '_a_' + fimVal + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{
+      try{ URL.revokeObjectURL(url); a.remove(); }catch(e){}
+    }, 2000);
+  }catch(err){
+    console.error('Erro ao gerar PDF:', err);
+    alert('Não foi possível gerar o PDF: ' + (err && err.message ? err.message : err));
+  }
 }
 async function carregarPeriodoSalvo(){
   S.res=null; S.val=null;
