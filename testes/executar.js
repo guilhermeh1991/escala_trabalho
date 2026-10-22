@@ -223,6 +223,27 @@ const resCincoDomingos = E.gerarEscala(equipeCincoDomingos, paramsDomingo);
 conferir('5 pessoas do mesmo cargo: folgas 2, 2 e 1 nos domingos',
   JSON.stringify(domingosPorCargo(resCincoDomingos, equipeCincoDomingos, 'CAIXA').sort()) === '[1,2,2]' ? 1 : 0, 1);
 
+/* A falha que este caso protege: no 5x2 a âncora era só uma preferência,
+   então ao gerar meses futuros o motor podia antecipar outro domingo e
+   juntar colaboradores cujos ciclos deveriam continuar separados. */
+function domingosDeFolga(res, colaborador) {
+  return res.days.map((d, i) => d.getDay() === 0 && res.grid[colaborador.id][i] === 'X'
+    ? d.toISOString().slice(0, 10) : null).filter(Boolean);
+}
+const equipeComHistorico = [
+  ['A', '2026-08-02'], ['B', '2026-08-09'], ['C', '2026-08-16']
+].map(([nome, primeiroDomingo]) => ({
+  id:nome, nome, cargo:'CAIXA', horario:'08:00', ativo:true, ausencias:[], primeiroDomingo
+}));
+const paramsFuturos = Object.assign({}, paramsDomingo, {inicio:'2026-10-04', fim:'2026-10-31'});
+const resFuturo = E.gerarEscala(equipeComHistorico, paramsFuturos);
+conferir('âncora de agosto mantém o ciclo de outubro para A',
+  JSON.stringify(domingosDeFolga(resFuturo, equipeComHistorico[0])) === '["2026-10-04","2026-10-25"]' ? 1 : 0, 1);
+conferir('âncora de agosto mantém o ciclo de outubro para B',
+  JSON.stringify(domingosDeFolga(resFuturo, equipeComHistorico[1])) === '["2026-10-11"]' ? 1 : 0, 1);
+conferir('âncora de agosto mantém o ciclo de outubro para C',
+  JSON.stringify(domingosDeFolga(resFuturo, equipeComHistorico[2])) === '["2026-10-18"]' ? 1 : 0, 1);
+
 /* ------------------------------------------------------------------ */
 console.log('\n=== 4. Documento impresso ===\n');
 

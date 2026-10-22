@@ -144,7 +144,8 @@ function gerarEscala(colabs, params){
     // faixa 2: regra da casa
     soDomingo: 30000,          // no 6x1, ficar sem a folga da semana por causa do domingo
     diaFixo: 25000,            // não respeitar o dia de folga fixa escolhido para a pessoa
-       domingoAncorado: 28000, // furar o domingo de folga que o usuário fixou na data
+    domingoAncorado: 28000,    // furar o domingo de folga que o usuário fixou na data
+    domingoExtra: 28000,       // folgar em domingo fora do ciclo ancorado
     // faixa 3: cobertura da loja
     farmaCritico: 5000, farmaAlvo: 900, subger: 1400, subgerFds: 900,
     curva: 400, equipe: 600, teto: 150, outroDomingo: 450,
@@ -280,7 +281,19 @@ const domAncorado = {};
   const naoGerentes = ativos.filter(c=>!c.gerente);
   const ritmo = {}, slotBase = {}, desdeFolga = {}, domInicial = {};
   naoGerentes.forEach((c,k)=>{
-    domInicial[c.id] = k % Math.max(1, (params.cicloDomingo||3));
+    /* A âncora também informa o histórico antes do período. Sem isso, a
+       posição da pessoa na lista fingia que ela já tinha trabalhado domingos
+       e forçava uma folga extra no primeiro domingo da nova escala. */
+    if(c.primeiroDomingo && domingos.length){
+      const [ano, mes, dia] = String(c.primeiroDomingo).split('-').map(Number);
+      const ancora = new Date(ano, mes-1, dia);
+      const primeiroDomingo = days[domingos[0]];
+      const semanasDaAncora = Math.round((primeiroDomingo.getTime() - ancora.getTime()) / (7*24*3600*1000));
+      const posicaoNoCiclo = ((semanasDaAncora % P.cicloDomingo) + P.cicloDomingo) % P.cicloDomingo;
+      domInicial[c.id] = posicaoNoCiclo === 0 ? P.cicloDomingo - 1 : posicaoNoCiclo - 1;
+    } else {
+      domInicial[c.id] = k % Math.max(1, P.cicloDomingo);
+    }
     ritmo[c.id] = Math.max(3, P.maxSeq - 1 - (k % 3));
     slotBase[c.id] = k % 6;
     desdeFolga[c.id] = (c.diasDesdeFolga!=null && c.diasDesdeFolga!=='')
@@ -413,6 +426,9 @@ const domAncorado = {};
         custo += custoSuave(c,i);
         if(days[i].getDay()===0){
           if(i !== meuDomingo) custo += PESO.outroDomingo;
+          // A data registrada é a partida do ciclo entre meses: no 5x2 não
+          // pode virar uma folga dominical extra apenas para fechar o par.
+          if(domAncorado[c.id] && i !== meuDomingo) custo += PESO.domingoExtra;
           // Mesmo fora da rotação preferida, não empilha folgas do mesmo
           // cargo em um domingo se outro domingo ainda tem menos folgas.
           const minhasFolgas = folgasDoCargoNoDomingo(i, cargoDe(c));
@@ -421,6 +437,9 @@ const domAncorado = {};
           if(minhasFolgas > menorNoCiclo) custo += (minhasFolgas - menorNoCiclo) * PESO.outroDomingo;
         }
       });
+      if(domAncorado[c.id] && meuDomingo != null
+         && !info.dias.includes(meuDomingo)
+         && !AUSENTE.includes(grid[c.id][meuDomingo])) custo += PESO.domingoAncorado;
 
       // par que inclui o domingo dele: é o formato que a regra pede
       if(meuDomingo != null && o.novos.includes(meuDomingo) && o.tipo==='par') custo -= PESO.bonusDomColado;
