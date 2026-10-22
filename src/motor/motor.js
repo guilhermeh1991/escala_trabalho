@@ -22,6 +22,10 @@ function grupoDe(c){
   if(cargo.includes('CAIXA')) return 'caixa';
   return 'balcao';
 }
+// O grupo serve à cobertura geral; o cargo exato distribui as folgas de domingo.
+function cargoDe(c){
+  return String(c.cargo || (c.gerente ? 'GERENTE' : 'SEM CARGO')).trim().toUpperCase();
+}
 function isFarma(c){ return (c.cargo||'').toUpperCase().includes('FARMA'); }
 function isSubger(c){ const x=(c.cargo||'').toUpperCase(); return x.includes('SUBGER') || x.startsWith('SUB/'); }
 function turnoDe(c){
@@ -181,6 +185,10 @@ function gerarEscala(colabs, params){
   function folgasNoDia(i, grupo){
     return ativos.filter(c=>grupoDe(c)===grupo && grid[c.id][i]==='X').length;
   }
+  function folgasDoCargoNoDomingo(i, cargo){
+    if(days[i].getDay() !== 0) return 0;
+    return ativos.filter(c=>cargoDe(c)===cargo && grid[c.id][i]==='X').length;
+  }
   function folgasTotaisNoDia(i){
     return ativos.filter(c=>grid[c.id][i]==='X').length;
   }
@@ -207,7 +215,7 @@ function gerarEscala(colabs, params){
   const domingos = [];
   days.forEach((d,i)=>{ if(d.getDay()===0) domingos.push(i); });
 
-  const contadorOffset = {caixa:0, balcao:0, gerencia:0};
+  const contadorCargoDomingo = {};
   const domFolga = {};   // id -> Set de índices
 /* Quem teve o 1º domingo informado por data. Para essas pessoas o ciclo
    deixa de ser preferência e passa a ser regra: a data marcada é o domingo
@@ -228,7 +236,6 @@ const domAncorado = {};
   }
 
   ativos.filter(c=>!c.gerente).forEach(c=>{
-    const g = grupoDe(c);
     let primeiro;
 
     if(c.primeiroDomingo){
@@ -252,9 +259,13 @@ const domAncorado = {};
     } else if(Number.isInteger(c.domTrabConsec)){
       primeiro = Math.max(0, (P.cicloDomingo-1) - c.domTrabConsec);
     } else {
-      primeiro = contadorOffset[g] % P.cicloDomingo;
+      // Cada cargo mantém sua própria rotação: com 3 pessoas, 1 em cada
+      // domingo; com 5, 2/2/1. Assim a cobertura do cargo não some num domingo
+      // enquanto outro fica sem folgas daquela mesma função.
+      const cargo = cargoDe(c);
+      primeiro = (contadorCargoDomingo[cargo] || 0) % P.cicloDomingo;
+      contadorCargoDomingo[cargo] = (contadorCargoDomingo[cargo] || 0) + 1;
     }
-    contadorOffset[g]++;
     const set = new Set();
     for(let k=primeiro; k<domingos.length; k+=P.cicloDomingo) set.add(domingos[k]);
     domFolga[c.id] = set;
@@ -400,7 +411,15 @@ const domAncorado = {};
 
       o.novos.forEach(i=>{
         custo += custoSuave(c,i);
-        if(days[i].getDay()===0 && i !== meuDomingo) custo += PESO.outroDomingo;
+        if(days[i].getDay()===0){
+          if(i !== meuDomingo) custo += PESO.outroDomingo;
+          // Mesmo fora da rotação preferida, não empilha folgas do mesmo
+          // cargo em um domingo se outro domingo ainda tem menos folgas.
+          const minhasFolgas = folgasDoCargoNoDomingo(i, cargoDe(c));
+          const menorNoCiclo = domingos.reduce((menor, domingo) =>
+            Math.min(menor, folgasDoCargoNoDomingo(domingo, cargoDe(c))), Infinity);
+          if(minhasFolgas > menorNoCiclo) custo += (minhasFolgas - menorNoCiclo) * PESO.outroDomingo;
+        }
       });
 
       // par que inclui o domingo dele: é o formato que a regra pede
@@ -482,7 +501,14 @@ const domAncorado = {};
       if(o.extra) custo += PESO.extraFolgaSolta;
       o.novos.forEach(i=>{
         custo += custoSuave(c,i);
-        if(days[i].getDay()===0 && i !== ctx.meuDomingo) custo += 0;   // no 6x1 o domingo é do ciclo, não penaliza
+        if(days[i].getDay()===0){
+          // No 6x1 o domingo é direito do ciclo, mas a preferência continua
+          // sendo distribuir as folgas do mesmo cargo de forma equilibrada.
+          const minhasFolgas = folgasDoCargoNoDomingo(i, cargoDe(c));
+          const menorNoCiclo = domingos.reduce((menor, outroDomingo) =>
+            Math.min(menor, folgasDoCargoNoDomingo(outroDomingo, cargoDe(c))), Infinity);
+          if(minhasFolgas > menorNoCiclo) custo += (minhasFolgas - menorNoCiclo) * PESO.outroDomingo;
+        }
       });
       custo += pesoBalanceamento(c, o.novos);
   if(domAncorado[c.id] && ctx.meuDomingo != null

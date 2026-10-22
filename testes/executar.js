@@ -186,6 +186,43 @@ const resAus = E.gerarEscala(eqAus, Object.assign({}, base,
 const vAus = verificar(resAus, eqAus, Object.assign({}, base, {folgasSemana:2}), estadoInicial(eqAus, base));
 conferir('ausências preservadas', vAus.filter(v => v.regra === 'R8-ausencia').length, 0, '<=');
 
+/* A falha que estes casos protegem: cargos diferentes no mesmo grupo genérico
+   (balcão) deslocavam o contador de domingo, permitindo que todos os
+   BALCONISTAS recebessem folga no mesmo domingo. */
+function domingosPorCargo(res, equipe, cargo) {
+  const ids = equipe.filter(c => c.cargo === cargo).map(c => c.id);
+  return res.days.map((d, i) => d.getDay() === 0
+    ? ids.filter(id => res.grid[id][i] === 'X').length
+    : null).filter(n => n !== null);
+}
+
+const equipeDomingo = [
+  ['B1', 'BALCONISTA'], ['R1', 'REPOSITOR'], ['R2', 'REPOSITOR'],
+  ['B2', 'BALCONISTA'], ['R3', 'REPOSITOR'], ['R4', 'REPOSITOR'],
+  ['B3', 'BALCONISTA'], ['R5', 'REPOSITOR'], ['R6', 'REPOSITOR']
+].map(([nome, cargo], i) => ({
+  id: 'dom' + i, nome, cargo, horario: '08:00', ativo: true, ausencias: []
+}));
+const paramsDomingo = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6,
+  inicioSemana:0, inicio:'2026-08-02', fim:'2026-08-22', minCaixa:0, minBalcao:0,
+  minFarma:0, minSubger:0, minDia:{0:0,1:0,2:0,3:0,4:0,5:0,6:0}};
+const resDomingo = E.gerarEscala(equipeDomingo, paramsDomingo);
+conferir('3 pessoas do mesmo cargo: 1 folga por domingo',
+  JSON.stringify(domingosPorCargo(resDomingo, equipeDomingo, 'BALCONISTA')) === '[1,1,1]' ? 1 : 0, 1);
+
+const equipeCincoDomingos = [
+  ['C1', 'CAIXA'], ['A1', 'AX. LOJA'], ['A2', 'AX. LOJA'],
+  ['C2', 'CAIXA'], ['A3', 'AX. LOJA'], ['A4', 'AX. LOJA'],
+  ['C3', 'CAIXA'], ['A5', 'AX. LOJA'], ['A6', 'AX. LOJA'],
+  ['C4', 'CAIXA'], ['A7', 'AX. LOJA'], ['A8', 'AX. LOJA'],
+  ['C5', 'CAIXA']
+].map(([nome, cargo], i) => ({
+  id: 'cinco' + i, nome, cargo, horario: '08:00', ativo: true, ausencias: []
+}));
+const resCincoDomingos = E.gerarEscala(equipeCincoDomingos, paramsDomingo);
+conferir('5 pessoas do mesmo cargo: folgas 2, 2 e 1 nos domingos',
+  JSON.stringify(domingosPorCargo(resCincoDomingos, equipeCincoDomingos, 'CAIXA').sort()) === '[1,2,2]' ? 1 : 0, 1);
+
 /* ------------------------------------------------------------------ */
 console.log('\n=== 4. Documento impresso ===\n');
 
