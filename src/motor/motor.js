@@ -292,7 +292,7 @@ const domAncorado = {};
       const posicaoNoCiclo = ((semanasDaAncora % P.cicloDomingo) + P.cicloDomingo) % P.cicloDomingo;
       domInicial[c.id] = posicaoNoCiclo === 0 ? P.cicloDomingo - 1 : posicaoNoCiclo - 1;
     } else {
-      domInicial[c.id] = k % Math.max(1, P.cicloDomingo);
+      domInicial[c.id] = 0;
     }
     ritmo[c.id] = Math.max(3, P.maxSeq - 1 - (k % 3));
     slotBase[c.id] = k % 6;

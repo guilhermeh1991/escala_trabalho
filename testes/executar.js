@@ -244,6 +244,32 @@ conferir('âncora de agosto mantém o ciclo de outubro para B',
 conferir('âncora de agosto mantém o ciclo de outubro para C',
   JSON.stringify(domingosDeFolga(resFuturo, equipeComHistorico[2])) === '["2026-10-18"]' ? 1 : 0, 1);
 
+/* A falha que este caso protege: sem data informada, a posição da pessoa
+   na lista era tratada como histórico de domingos trabalhados e forçava uma
+   segunda folga para a terceira farmacêutica no primeiro domingo disponível. */
+const farmasSemHistorico = [
+  'ROBERTA', 'PRISCILA', 'MIANGUE'
+].map((nome, i) => ({
+  id:'farm' + i, nome, cargo:'FARMACÊUTICO', horario:['07:00', '11:00', '14:40'][i], ativo:true, ausencias:[]
+}));
+const paramsNovembro = Object.assign({}, paramsDomingo, {inicioSemana:'P', inicio:'2026-11-11', fim:'2026-12-10'});
+const resNovembro = E.gerarEscala(farmasSemHistorico, paramsNovembro);
+conferir('sem domingo informado não presume histórico para farmacêuticos',
+  JSON.stringify(farmasSemHistorico.map(c => domingosDeFolga(resNovembro, c))) ===
+  '[["2026-11-15","2026-12-06"],["2026-11-22"],["2026-11-29"]]' ? 1 : 0, 1);
+
+/* Duas âncoras iguais são uma escolha do usuário: ambas devem permanecer,
+   mesmo que a cobertura do cargo fique menor naquele domingo. */
+const farmasComConflito = [
+  ['ROBERTA', '2026-11-15'], ['PRISCILA', '2026-11-15'], ['MIANGUE', '2026-11-29']
+].map(([nome, primeiroDomingo], i) => ({
+  id:'conflito' + i, nome, cargo:'FARMACÊUTICO', horario:['07:00', '11:00', '14:40'][i], ativo:true, ausencias:[], primeiroDomingo
+}));
+const resConflito = E.gerarEscala(farmasComConflito, paramsNovembro);
+conferir('âncoras iguais permanecem no domingo informado pelo usuário',
+  JSON.stringify(farmasComConflito.map(c => domingosDeFolga(resConflito, c))) ===
+  '[["2026-11-15","2026-12-06"],["2026-11-15","2026-12-06"],["2026-11-29"]]' ? 1 : 0, 1);
+
 /* ------------------------------------------------------------------ */
 console.log('\n=== 4. Documento impresso ===\n');
 
