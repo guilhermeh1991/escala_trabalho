@@ -313,6 +313,16 @@ const pdfMinimo = Documento.gerarPdfEscala({
 }, 'Loja teste');
 conferir('PDF gerado começa corretamente', Buffer.from(pdfMinimo.slice(0,8)).toString('latin1') === '%PDF-1.4' ? 1 : 0, 1);
 
+const marcasMonocromaticas = typeof Documento.marcaMonocromaticaDocumento === 'function'
+  ? ['X', 'FC', 'F', 'AT', 'LC'].map(Documento.marcaMonocromaticaDocumento) : [];
+conferir('status impressos possuem padrões sem depender de cor',
+  JSON.stringify(marcasMonocromaticas) ===
+  '["status-x","status-fc","status-f","status-at","status-lc"]' ? 1 : 0, 1);
+conferir('alertas de cobertura usam marcadores textuais',
+  typeof Documento.marcadorCoberturaDocumento === 'function' &&
+  Documento.marcadorCoberturaDocumento('minimo') === '!' &&
+  Documento.marcadorCoberturaDocumento('alvo') === '~' ? 1 : 0, 1);
+
 /* ------------------------------------------------------------------ */
 console.log('');
 if (falhas.length) {

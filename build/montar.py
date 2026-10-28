@@ -38,7 +38,8 @@ planilha = ler('src/motor/planilha.js').replace(
 documento = ler('src/motor/documento.js').replace(
     "if(typeof module !== 'undefined' && typeof module.exports !== 'undefined')\n"
     "  module.exports = {limparEspacosDocumento, normalizarTextoDocumento,\n"
-    "    descricaoCargoImpressao, nomesDuplicadosDocumento, gerarPdfEscala, montarPdf};", "")
+    "    descricaoCargoImpressao, marcaMonocromaticaDocumento, marcadorCoberturaDocumento,\n"
+    "    nomesDuplicadosDocumento, gerarPdfEscala, montarPdf};", "")
 if 'module.exports' in documento:
     sys.exit('não foi possível remover a exportação Node de src/motor/documento.js')
 acesso_dados = ler('src/app/acesso-dados.js')

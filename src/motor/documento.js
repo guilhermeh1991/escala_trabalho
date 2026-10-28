@@ -61,6 +61,16 @@ function descricaoCargoImpressao(c, chaveFaixa){
 
 /* Nomes iguais não são removidos: podem representar pessoas diferentes. A
    emissão é interrompida para que o responsável diferencie os cadastros. */
+/* Classes e marcadores textuais são compartilhados pelas saídas impressas.
+   A cor fica como reforço visual, nunca como a única informação. */
+function marcaMonocromaticaDocumento(codigo){
+  const marcas = {X:'status-x', FC:'status-fc', F:'status-f', AT:'status-at', LC:'status-lc'};
+  return marcas[codigo] || '';
+}
+function marcadorCoberturaDocumento(tipo){
+  return tipo === 'minimo' ? '!' : (tipo === 'alvo' ? '~' : '');
+}
+
 function nomesDuplicadosDocumento(lista){
   const grupos = new Map();
   (lista || []).forEach((c, indice)=>{
@@ -344,12 +354,15 @@ function gerarPdfEscala(D, nomeLoja){
           p.retangulo(x, y, largDia, altLinha, COR_PDF[cod][0]);
           p.texto(cod, x, y + 4.5, {tamanho:6.5, negrito:true, cor:COR_PDF[cod][1],
                                     centro:true, largura:largDia});
+          p.linha(x, y, x + largDia, y, COR_PDF[cod][1], 0.65);
         } else {
           if(fds) p.retangulo(x, y, largDia, altLinha, COR_PDF.fds);
           const horaDia = String(D.horaDe ? D.horaDe(c, i) : '');
           p.texto(horaDia.slice(0,5), x, y + 4.5,
                   {tamanho:5.6, cor:COR_PDF.fraco, centro:true, largura:largDia});
         }
+        p.linha(x, y, x, y + altLinha, COR_PDF.linha, d.getDay()===0 ? 0.9 : 0.35);
+        if(d.getDay()===0) p.linha(x + 1.4, y, x + 1.4, y + altLinha, COR_PDF.texto, 0.35);
       });
       p.linha(margem, y + altLinha, L - margem, y + altLinha, COR_PDF.linha);
       y += altLinha;
@@ -363,12 +376,12 @@ function gerarPdfEscala(D, nomeLoja){
         cob.forEach((c,i)=>{
           const x = margem + larguraNome + larguraHora + i*largDia;
           const v = fn(c, i);
-          let corFundo = null, corTexto = COR_PDF.texto;
+          let corFundo = null, corTexto = COR_PDF.texto, marca = '';
           const lim = typeof minimo === 'function' ? minimo(c,i) : minimo;
-          if(lim != null && v < lim){ corFundo = COR_PDF.AT[0]; corTexto = COR_PDF.AT[1]; }
-          else if(alvo != null && v < alvo){ corFundo = COR_PDF.FC[0]; corTexto = COR_PDF.FC[1]; }
+          if(lim != null && v < lim){ corFundo = COR_PDF.AT[0]; corTexto = COR_PDF.AT[1]; marca = marcadorCoberturaDocumento('minimo'); }
+          else if(alvo != null && v < alvo){ corFundo = COR_PDF.FC[0]; corTexto = COR_PDF.FC[1]; marca = marcadorCoberturaDocumento('alvo'); }
           if(corFundo) p.retangulo(x, y, largDia, altLinha, corFundo);
-          p.texto(String(v != null ? v : 0), x, y + 4.5, {tamanho:6.5, negrito:!!corFundo, cor:corTexto,
+          p.texto(marca + String(v != null ? v : 0), x, y + 4.5, {tamanho:6.5, negrito:!!corFundo, cor:corTexto,
                                           centro:true, largura:largDia});
         });
         p.linha(margem, y + altLinha, L - margem, y + altLinha, COR_PDF.linha);
@@ -380,9 +393,11 @@ function gerarPdfEscala(D, nomeLoja){
       [['X','folga'],['FC','compensatória'],['F','férias'],['AT','atestado'],['LC','licença']]
       .forEach(([k, rot])=>{
         p.retangulo(x, y, 8, 6, COR_PDF[k][0]);
+        p.linha(x, y, x + 8, y, COR_PDF[k][1], 0.7);
         p.texto(k + ' ' + rot, x + 11, y - 0.5, {tamanho:6.5, cor:COR_PDF.fraco});
         x += 13 + larguraTexto(k + ' ' + rot, 6.5, false) + 10;
       });
+      p.texto('! abaixo do mínimo   ~ abaixo do alvo', margem, y + 11, {tamanho:6.5, cor:COR_PDF.fraco});
     }
 
     p.linha(margem, topoTabela, L - margem, topoTabela, COR_PDF.linha, 0.6);
@@ -394,4 +409,5 @@ function gerarPdfEscala(D, nomeLoja){
 
 if(typeof module !== 'undefined' && typeof module.exports !== 'undefined')
   module.exports = {limparEspacosDocumento, normalizarTextoDocumento,
-    descricaoCargoImpressao, nomesDuplicadosDocumento, gerarPdfEscala, montarPdf};
+    descricaoCargoImpressao, marcaMonocromaticaDocumento, marcadorCoberturaDocumento,
+    nomesDuplicadosDocumento, gerarPdfEscala, montarPdf};
