@@ -15,3 +15,5 @@ api/config.php
 
 .vscode/sftp.json
 .codex/
+.claude/
+.impeccable/

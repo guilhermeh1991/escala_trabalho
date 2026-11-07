@@ -80,10 +80,13 @@ function zipar(arquivos) {
 
 /* ---------- XML ---------- */
 function xesc(s) {
-  return String(s == null ? '' : s)
+  const semControles = Array.from(String(s == null ? '' : s), caractere => {
+    const codigo = caractere.charCodeAt(0);
+    return (codigo < 32 && codigo !== 9 && codigo !== 10 && codigo !== 13) ? '' : caractere;
+  }).join('');
+  return semControles
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 function colLetra(n) {                    // 1 -> A, 27 -> AA
   let s = '';

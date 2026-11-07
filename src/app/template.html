@@ -17,7 +17,8 @@
   --m-bg:#F8EAC9; --m-fg:#835A09;   /* folga compensatória */
   --r-bg:#F6E1DE; --r-fg:#963A32;   /* atestado */
   --p-bg:#EAE4F5; --p-fg:#584587;   /* licença */
-  --alerta:#B74339;
+  --alerta:#B74339; --rota:#F2C94C; --rota-escura:#5B4700;
+  --info-bg:#E1EDF6; --info-fg:#1D5B7A;
   --radius:9px; --radius-sm:6px; --radius-lg:14px;
   --sombra:0 1px 2px rgba(18,38,45,.04),0 8px 24px rgba(18,38,45,.055);
   --sombra-alta:0 16px 44px rgba(8,30,35,.18);
@@ -41,17 +42,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
   border-radius:var(--radius-lg);box-shadow:var(--sombra-alta);overflow:hidden;font-size:13px}
 #pop-cel .pc-topo{padding:11px 14px;border-bottom:1px solid var(--linha-suave);background:var(--superficie)}
 #pop-cel .pc-nome{font-weight:600;font-size:13px}
-#pop-cel .pc-data{font-size:11.5px;color:var(--fraco)}
+#pop-cel .pc-data{font-size:12px;color:var(--fraco)}
 #pop-cel .pc-corpo{padding:12px 14px}
-#pop-cel .pc-rot{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#8A9995;margin-bottom:8px}
+#pop-cel .pc-rot{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#62736E;margin-bottom:8px}
 #pop-cel .pc-linha{display:flex;gap:6px;align-items:center;margin-bottom:8px}
 #pop-cel input[type=time]{flex:1;padding:7px 8px;border:1px solid var(--linha);border-radius:6px;
   font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
 #pop-cel .pc-aplicar{padding:7px 12px;border:0;border-radius:6px;background:var(--texto);color:#fff;
   font-size:12.5px;font-weight:500;cursor:pointer}
 #pop-cel .pc-dias{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:8px}
-#pop-cel .pc-dia{padding:5px 2px;border:1px solid var(--linha);border-radius:20px;background:#fff;
-  font-size:11.5px;font-weight:600;cursor:pointer;color:var(--fraco);text-align:center}
+#pop-cel .pc-dia{padding:6px 2px;border:1px solid var(--linha);border-radius:20px;background:#fff;
+  font-size:12px;font-weight:600;cursor:pointer;color:var(--fraco);text-align:center}
 #pop-cel .pc-dia:hover{border-color:var(--teal);color:var(--teal)}
 #pop-cel .pc-dia.ativo{background:var(--teal);border-color:var(--teal);color:#fff}
 #pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:11.5px;color:var(--fraco);cursor:pointer}
@@ -135,16 +136,16 @@ table.esc tr.grupo td.hr{background:#EAF0ED}
 .card-login p.sub{margin:0 0 24px;color:var(--fraco);font-size:13.5px}
 .card-login a{color:var(--teal-escuro);font-weight:600;text-decoration:none}
 .card-login a:hover{text-decoration:underline}
-label{display:block;font-size:11.5px;font-weight:600;letter-spacing:.055em;text-transform:uppercase;color:var(--fraco);margin:14px 0 5px}
+label{display:block;font-size:12px;font-weight:600;letter-spacing:.055em;text-transform:uppercase;color:var(--fraco);margin:14px 0 5px}
 .inp{width:100%;padding:10px 12px;border:1px solid var(--linha);border-radius:var(--radius-sm);background:#fff;color:var(--texto)}
 .inp:hover{border-color:#A9BBB3}
 .inp:focus{outline:3px solid rgba(8,119,115,.16);outline-offset:0;border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--tinta);color:#fff;
   border:1px solid var(--tinta);padding:10px 16px;border-radius:var(--radius-sm);font-weight:600;line-height:1.25}
-.btn:hover{background:var(--teal-escuro);border-color:var(--teal-escuro);box-shadow:0 4px 12px rgba(8,119,115,.17)}
+.btn:hover{background:var(--teal-escuro);border-color:var(--teal-escuro);box-shadow:0 4px 12px rgba(18,38,45,.14)}
 .btn:active{transform:translateY(1px)}
-.btn.primary{background:var(--teal);border-color:var(--teal);box-shadow:0 4px 12px rgba(8,119,115,.18)}
-.btn.primary:hover{background:var(--teal-escuro);border-color:var(--teal-escuro);box-shadow:0 6px 16px rgba(8,119,115,.24)}
+.btn.primary{background:var(--teal);border-color:var(--teal);box-shadow:0 4px 12px rgba(18,38,45,.14)}
+.btn.primary:hover{background:var(--teal-escuro);border-color:var(--teal-escuro);box-shadow:0 6px 16px rgba(18,38,45,.18)}
 .btn.publish{background:#fff;color:var(--teal-escuro);border-color:#8DBFBA}
 .btn.publish:hover{background:var(--teal-suave);border-color:var(--teal)}
 .btn.ghost{background:#fff;color:var(--tinta);border:1px solid var(--linha)}
@@ -194,8 +195,27 @@ main{padding:24px;max-width:1900px;margin:0 auto}
 .grade-form label{margin-top:0}
 
 /* ---------- comando da escala ---------- */
-.esc-comandos{padding:18px 20px}
-.esc-barra{display:grid;grid-template-columns:minmax(300px,auto) auto minmax(280px,1fr);align-items:end;gap:18px}
+.esc-comandos{padding:0;overflow:hidden}
+.esc-rota{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:22px;background:var(--rota);color:#211A00;padding:16px 20px;border-bottom:1px solid #D6AE24}
+.esc-rota strong{display:block;font-family:Archivo,Inter,sans-serif;font-size:20px;letter-spacing:-.015em;line-height:1.15}
+.esc-rota p{margin:3px 0 0;font-size:13px;line-height:1.4;color:#4A3A00}
+.esc-rota .chip{background:#211A00;color:#fff;font-size:12px;padding:5px 10px}
+.esc-barra{display:grid;grid-template-columns:minmax(300px,auto) auto minmax(280px,1fr);align-items:end;gap:18px;padding:18px 20px 0}
+.esc-status{margin-inline:20px}
+.esc-status:empty{display:none}
+.esc-visao{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:14px;padding:14px 20px 16px;border-top:1px solid var(--linha-suave);background:var(--superficie)}
+.esc-visao-copy{min-width:0}
+.esc-visao h2{margin:0;font-size:15px;line-height:1.25}
+.esc-visao p{margin:3px 0 0;font-size:12.5px;line-height:1.45;color:var(--fraco)}
+.esc-metricas{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}
+.esc-metrica{display:inline-flex;align-items:baseline;gap:5px;padding:5px 8px;border:1px solid var(--linha);border-radius:var(--radius-sm);background:#fff;color:var(--fraco);font-size:11.5px;white-space:nowrap}
+.esc-metrica b{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:var(--texto)}
+.esc-metrica.ok{background:var(--v-bg);border-color:transparent;color:var(--v-fg)}
+.esc-metrica.ok b{color:var(--v-fg)}
+.esc-metrica.alerta{background:var(--r-bg);border-color:transparent;color:var(--r-fg)}
+.esc-metrica.alerta b{color:var(--r-fg)}
+.esc-metrica.info{background:var(--info-bg);border-color:transparent;color:var(--info-fg)}
+.esc-metrica.info b{color:var(--info-fg)}
 .esc-periodo{display:flex;align-items:flex-end;gap:8px;padding-right:18px;border-right:1px solid var(--linha)}
 .esc-periodo label{margin:0;flex:1;min-width:132px}
 .esc-periodo .inp{margin-top:5px;min-width:0}
@@ -228,12 +248,17 @@ main{padding:24px;max-width:1900px;margin:0 auto}
   .esc-saidas-rot{grid-column:1/-1;margin:0 0 6px}
   .esc-saidas .btn{width:100%;font-size:12px;padding-inline:6px}
   .esc-status{align-items:flex-start;flex-direction:column-reverse}
+  .esc-visao{grid-template-columns:1fr;gap:10px}
+  .esc-metricas{justify-content:flex-start}
 }
 @media(max-width:620px){
   main{padding:16px}
   nav.tabs{padding-inline:12px}
   .painel{padding:16px;border-radius:12px;margin-bottom:14px}
-  .esc-comandos{padding:15px}
+  .esc-comandos{padding:0}
+  .esc-rota{padding:14px 16px;gap:10px}
+  .esc-rota strong{font-size:18px}
+  .esc-visao{padding:13px 16px 15px}
 }
 
 /* ---------- tabela escala ----------
@@ -374,6 +399,13 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
     <!-- ESCALA -->
     <section class="view" data-view="escala" data-ativa="true">
       <div class="painel naoimprime esc-comandos">
+        <div class="esc-rota" id="esc-rota" aria-live="polite">
+          <div>
+            <strong id="esc-rota-titulo">Prepare a escala do período</strong>
+            <p id="esc-rota-desc">Escolha as datas e gere uma proposta para revisar a cobertura da loja.</p>
+          </div>
+          <span class="chip" id="esc-rota-status">Aguardando geração</span>
+        </div>
         <div class="esc-barra">
           <div class="esc-periodo" aria-label="Período da escala">
             <label>Início<input type="date" id="p-inicio" class="inp"></label>
@@ -395,6 +427,13 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           <div id="resumo-cobertura"></div>
           <span id="status-salvo" class="chip"></span>
         </div>
+        <section class="esc-visao" id="esc-visao" aria-live="polite" hidden>
+          <div class="esc-visao-copy">
+            <h2 id="esc-visao-titulo">Leitura do período</h2>
+            <p id="esc-visao-desc">Gere a escala para conferir pessoas, cobertura e pendências.</p>
+          </div>
+          <div class="esc-metricas" id="esc-metricas" aria-label="Resumo operacional"></div>
+        </section>
       </div>
 
       <div class="painel">
@@ -1193,11 +1232,71 @@ async function carregarPeriodoSalvo(){
   pintarGrade();
   return true;
 }
+function atualizarFaixaRota(){
+  const titulo = $('#esc-rota-titulo'), desc = $('#esc-rota-desc'), status = $('#esc-rota-status');
+  const visao = $('#esc-visao'), visaoTitulo = $('#esc-visao-titulo'),
+        visaoDesc = $('#esc-visao-desc'), metricas = $('#esc-metricas');
+  if(!titulo || !desc || !status) return;
+  if(!S.res){
+    titulo.textContent = 'Prepare a escala do período';
+    desc.textContent = 'Escolha as datas e gere uma proposta para revisar a cobertura da loja.';
+    status.textContent = 'Aguardando geração';
+    if(visao) visao.hidden = true;
+    return;
+  }
+
+  const alertas = S.val && S.val.alertas ? S.val.alertas : [];
+  const regras = alertas.filter(a=>a.nivel!=='nota').length;
+  const notas = alertas.length - regras;
+  const cob = S.val && S.val.cobertura ? S.val.cobertura : [];
+  const abaixoMinimo = cob.filter(c=>c.falta && c.falta.length).length;
+  const pessoas = S.res.ativos ? S.res.ativos.length : 0;
+  const dias = S.res.days ? S.res.days.length : 0;
+
+  if(visao && visaoTitulo && visaoDesc && metricas){
+    visao.hidden = false;
+    visaoTitulo.textContent = regras || abaixoMinimo ? 'O que precisa de revisão' : 'Leitura do período';
+    visaoDesc.textContent = regras || abaixoMinimo
+      ? 'A grade já está montada. Comece pelos dias e pessoas marcados com pendência.'
+      : 'A cobertura mínima e as regras de folga fecharam para este período.';
+    metricas.innerHTML = [
+      `<span class="esc-metrica"><b>${pessoas}</b> pessoas</span>`,
+      `<span class="esc-metrica"><b>${dias}</b> dias</span>`,
+      `<span class="esc-metrica ${abaixoMinimo ? 'alerta' : 'ok'}"><b>${abaixoMinimo}</b> dia(s) abaixo do mínimo</span>`,
+      regras
+        ? `<span class="esc-metrica alerta"><b>${regras}</b> pendência(s)</span>`
+        : `<span class="esc-metrica ok"><b>0</b> pendências</span>`,
+      notas ? `<span class="esc-metrica info"><b>${notas}</b> observação(ões)</span>` : ''
+    ].join('');
+  }
+
+  if(!S.salvo){
+    titulo.textContent = 'Revise as alterações antes de salvar';
+    desc.textContent = regras
+      ? `${regras} pendência(s) ainda exigem atenção na grade.`
+      : 'A escala foi atualizada. Salve a revisão quando estiver pronta para distribuir.';
+    status.textContent = 'Alterações pendentes';
+    return;
+  }
+  if(regras){
+    titulo.textContent = 'A escala está salva, com pendências para revisar';
+    desc.textContent = `${regras} regra(s) ferida(s)${notas ? ` e ${notas} observação(ões)` : ''}. Veja os dias marcados antes de distribuir.`;
+    status.textContent = `${regras} pendência(s)`;
+    return;
+  }
+  titulo.textContent = 'Escala pronta para distribuir';
+  desc.textContent = notas
+    ? `As regras fecharam; há ${notas} observação(ões) explicando escolhas do gerador.`
+    : 'As regras e a cobertura mínima foram conferidas. Salve, imprima ou exporte a escala.';
+  status.textContent = 'Pronta para distribuir';
+}
+
 function marcarSalvo(){
   const el = $('#status-salvo');
   const faixa = $('#esc-status');
   const salvar = $('#btn-salvar');
   const publicar = $('#btn-publicar');
+  atualizarFaixaRota();
   if(!S.res){
     el.textContent='';
     if(faixa) faixa.hidden = true;
