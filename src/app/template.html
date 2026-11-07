@@ -126,16 +126,32 @@ table.esc tr.grupo td.hr{background:#EAF0ED}
 
 
 /* ---------- login ---------- */
-#login{min-height:100vh;display:grid;place-items:center;padding:24px;
-  background:radial-gradient(circle at 78% 16%,rgba(45,139,132,.24),transparent 30%),
-             linear-gradient(155deg,#10242B 0%,#19363D 58%,#224A4C 100%)}
-.card-login{width:100%;max-width:400px;background:var(--painel);border:1px solid rgba(255,255,255,.45);
-  border-radius:18px;padding:34px;box-shadow:0 26px 70px rgba(4,22,27,.38)}
-.card-login .marca{font-family:Archivo;font-weight:800;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal)}
-.card-login h1{font-size:29px;font-weight:700;margin:7px 0 4px}
-.card-login p.sub{margin:0 0 24px;color:var(--fraco);font-size:13.5px}
-.card-login a{color:var(--teal-escuro);font-weight:600;text-decoration:none}
-.card-login a:hover{text-decoration:underline}
+#login{position:relative;isolation:isolate;min-height:100dvh;display:grid;place-items:center;padding:28px;overflow:hidden;
+  background:#0D1D22;color:var(--texto)}
+#login::before{content:'';position:absolute;z-index:-2;inset:-20%;pointer-events:none;
+  background:radial-gradient(ellipse 50% 48% at 76% 18%,rgba(119,180,171,.16),transparent 66%),
+             radial-gradient(ellipse 42% 50% at 15% 92%,rgba(255,255,255,.055),transparent 67%),
+             linear-gradient(122deg,#0A181D 0%,#10262C 57%,#16373A 100%)}
+#login::after{content:'';position:absolute;z-index:-1;inset:0;pointer-events:none;opacity:.6;
+  background:linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px);
+  background-size:72px 72px;mask-image:linear-gradient(to bottom,transparent,black 22%,black 76%,transparent)}
+#login ::selection{background:#BCE9E1;color:#10262B}
+.card-login{width:100%;max-width:406px;padding:40px;background:#FCFDFC;border:1px solid rgba(255,255,255,.72);
+  border-radius:18px;box-shadow:0 28px 72px rgba(0,0,0,.30),0 4px 14px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.9);
+  animation:login-chegada .48s cubic-bezier(.2,.75,.25,1) both}
+.card-login .marca{font-family:Archivo,Inter,sans-serif;font-weight:700;font-size:14px;letter-spacing:-.015em;color:#075F5D}
+.card-login h1{font-size:32px;font-weight:700;line-height:1.1;margin:18px 0 7px;color:var(--tinta)}
+.card-login p.sub{margin:0 0 26px;color:#50625F;font-size:14px;line-height:1.5}
+.card-login .inp{background:#FEFFFE;border-color:#CDD8D3;caret-color:var(--teal)}
+.card-login .inp:hover{border-color:#8EA9A1}
+.card-login .inp:focus{border-color:var(--teal);box-shadow:0 0 0 4px rgba(8,119,115,.14)}
+.card-login .btn{min-height:44px;box-shadow:0 7px 16px rgba(0,0,0,.12)}
+.card-login .btn:hover{box-shadow:0 9px 20px rgba(0,0,0,.17)}
+.card-login .aviso{margin-top:16px;padding-top:14px}
+.card-login a{color:var(--teal-escuro);font-weight:600;text-decoration-color:rgba(7,95,93,.35);text-underline-offset:3px}
+.card-login a:hover{color:var(--teal);text-decoration-thickness:2px}
+@keyframes login-chegada{from{opacity:0;transform:translateY(10px);box-shadow:0 16px 42px rgba(0,0,0,.18)}to{opacity:1;transform:translateY(0);box-shadow:0 28px 72px rgba(0,0,0,.30),0 4px 14px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.9)}}
+@media(prefers-reduced-motion:reduce){.card-login{animation:none}}
 label{display:block;font-size:12px;font-weight:600;letter-spacing:.055em;text-transform:uppercase;color:var(--fraco);margin:14px 0 5px}
 .inp{width:100%;padding:10px 12px;border:1px solid var(--linha);border-radius:var(--radius-sm);background:#fff;color:var(--texto)}
 .inp:hover{border-color:#A9BBB3}
