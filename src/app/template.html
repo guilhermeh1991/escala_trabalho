@@ -178,9 +178,12 @@ header.top{background:var(--tinta);color:#fff;padding:0 24px;display:flex;align-
   border-bottom:1px solid rgba(255,255,255,.06)}
 header.top .marca{font-family:Archivo;font-weight:800;letter-spacing:.145em;font-size:12.5px;text-transform:uppercase;color:#9DD7CD}
 header.top .sel{margin-left:auto;display:flex;gap:12px;align-items:center;font-size:13px;color:#C6D2CE}
+header.top .unidade{display:none;align-items:center;min-height:34px;padding:0 10px;border:1px solid #3B555D;border-radius:var(--radius-sm);background:#182F36;color:#E1ECE8;font-size:13px;font-weight:600;white-space:nowrap}
+header.top[data-troca-loja="false"] .unidade{display:inline-flex}
 header.top select{background:#20383F;color:#fff;border:1px solid #416069;border-radius:var(--radius-sm);
-  padding:7px 30px 7px 10px;font-size:13.5px;font-weight:500;max-width:220px}
+  padding:7px 30px 7px 10px;font-size:13.5px;font-weight:600;max-width:220px}
 header.top select:hover{border-color:#79A59F}
+header.top[data-troca-loja="false"] #sel-loja{display:none}
 header.top .divisa{width:1px;height:24px;background:#3B555D;flex-shrink:0}
 header.top .quem{width:32px;height:32px;border-radius:50%;background:#2A4850;color:#A7DED5;
   display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;
@@ -191,6 +194,7 @@ header.top .quem:focus{outline:2px solid #9DD7CD;outline-offset:2px}
   header.top .marca{font-size:11px;letter-spacing:.11em}
   header.top .sel{gap:7px;flex:1;justify-content:flex-end}
   header.top select{max-width:126px;font-size:12.5px}
+  header.top .unidade{max-width:126px;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
   header.top .divisa{display:none}
   header.top #sync-estado{display:none}
   #btn-sair{padding-inline:9px}
@@ -398,7 +402,8 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
   <header class="top">
     <div class="marca">Quadro de escala</div>
     <div class="sel">
-      <select id="sel-loja" aria-label="Loja"></select>
+      <select id="sel-loja" aria-label="Trocar de loja"></select>
+      <span class="unidade" id="nome-unidade" aria-label="Loja atual"></span>
       <span class="divisa" aria-hidden="true"></span>
       <span id="quem" class="quem" tabindex="0"></span>
       <button class="btn ghost small" id="btn-sair" style="border-color:#3C525A;color:#C6D2CE;background:transparent">Sair</button>
@@ -760,12 +765,25 @@ $$('nav.tabs button').forEach(b=>b.onclick=()=>{
 });
 
 /* ---------- montagem ---------- */
+function podeTrocarLoja(){
+  return S.usuario && S.usuario.papel === 'admin';
+}
+function atualizarContextoLoja(){
+  const atual = loja();
+  const nome = atual && atual.nome ? atual.nome : 'Loja atual';
+  const topo = document.querySelector('header.top');
+  const unidade = $('#nome-unidade');
+  if(unidade){ unidade.textContent = nome; unidade.title = nome; }
+  if(topo) topo.dataset.trocaLoja = String(podeTrocarLoja());
+}
 function montar(){
   const sel = $('#sel-loja'); sel.innerHTML='';
   Object.keys(S.lojas).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=S.lojas[k].nome; sel.appendChild(o); });
   sel.value = S.loja;
+  atualizarContextoLoja();
   sel.onchange = async ()=>{
     S.loja = sel.value;
+    atualizarContextoLoja();
     // A lista anterior ainda tem botões ligados à outra loja. Escondê-la antes
     // das consultas impede abrir ou excluir o mesmo período na loja nova.
     ultimaListaSalvas = [];

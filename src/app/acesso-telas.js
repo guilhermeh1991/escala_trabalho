@@ -169,6 +169,7 @@ async function aposLogin(){
 
 async function abrirApp(){
   mostrarTela('app');
+  S.usuario = {papel: SESSAO.perfil.papel, nome: SESSAO.perfil.nome};
   pintarIdentidade({
     nome:    SESSAO.perfil.nome,
     email:   SESSAO.usuario.email,
