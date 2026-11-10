@@ -118,6 +118,10 @@ const DB = {
     delete params._horas;
     return Object.assign({}, r.escala, {inicio, fim, params, horas});
   },
+  async escalaAnterior(lojaId, inicio){
+    const r = await dadosApi({acao:'escala_anterior', loja_id:lojaId, inicio});
+    return r.escala || null;
+  },
   async salvarEscala(lojaId, inicio, fim, grade, params, horas, resumo, publicar){
     const p = Object.assign({}, params || {}, {_horas: horas || {}});
     await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:p,
@@ -163,6 +167,9 @@ const store = {
   },
   async listarEscalas(lojaId){
     return await DB.listarEscalas(lojaId);
+  },
+  async escalaAnterior(lojaId, inicio){
+    return await DB.escalaAnterior(lojaId, inicio);
   },
   async publicar(chave, valor){
     if(!chave.startsWith('escala:grade:')) throw new Error('Não é possível publicar isso.');

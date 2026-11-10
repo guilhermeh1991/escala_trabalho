@@ -240,6 +240,30 @@ case 'carregar_escala':
     ] : null]);
 
 // -----------------------------------------------------------------------------
+case 'escala_anterior':
+// -----------------------------------------------------------------------------
+    exigirGestao($u);
+    $lojaId = (string)campo($dados, 'loja_id', '');
+    exigirLojaDaEmpresa($lojaId, $u);
+
+    $inicio = (string)campo($dados, 'inicio', '');
+    if (!ehDataValida($inicio)) {
+        falhar('Período inválido.');
+    }
+
+    $st = bd()->prepare(
+        'SELECT inicio, fim, grade FROM escalas
+         WHERE loja_id = ? AND fim < ?
+         ORDER BY fim DESC LIMIT 1');
+    $st->execute([$lojaId, $inicio]);
+    $e = $st->fetch();
+    responder(['escala' => $e ? [
+        'inicio' => $e['inicio'],
+        'fim' => $e['fim'],
+        'grid' => json_decode($e['grade'], true),
+    ] : null]);
+
+// -----------------------------------------------------------------------------
 case 'salvar_escala':
 // -----------------------------------------------------------------------------
     exigirGestao($u);

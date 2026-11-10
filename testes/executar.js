@@ -270,6 +270,70 @@ conferir('âncoras iguais permanecem no domingo informado pelo usuário',
   JSON.stringify(farmasComConflito.map(c => domingosDeFolga(resConflito, c))) ===
   '[["2026-11-15","2026-12-06"],["2026-11-15","2026-12-06"],["2026-11-29"]]' ? 1 : 0, 1);
 
+/* A reserva de fase também vale quando um dos colegas veio com âncora: as
+   pessoas automáticas devem ocupar as outras fases do ciclo antes de repetir
+   a que já está marcada pela pessoa usuária. */
+function maiorFolgaDeCargoNoDomingo(res, equipe, cargo){
+  return Math.max(0, ...domingosPorCargo(res, equipe, cargo));
+}
+const paramsDomingoAncorado = Object.assign({}, base, {
+  modelo:'5x2', folgasSemana:2, inicioSemana:'P',
+  inicio:'2026-12-11', fim:'2027-01-10', minCaixa:2, minBalcao:4,
+  minFarma:2, minSubger:1, minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}
+});
+const farmaPriscila = equipe => equipe.find(c => c.nome === 'PRISCILA');
+const l330PriscilaAncorada = JSON.parse(JSON.stringify(L330));
+farmaPriscila(l330PriscilaAncorada).primeiroDomingo = '2026-11-22';
+const resDomingoAncorado = E.gerarEscala(l330PriscilaAncorada, paramsDomingoAncorado);
+conferir('âncora de Priscila reserva a fase antes das colegas automáticas',
+  maiorFolgaDeCargoNoDomingo(resDomingoAncorado, l330PriscilaAncorada, 'FARMACÊUTICO') <= 1 ? 1 : 0, 1);
+conferir('âncora de Priscila mantém o ciclo em dezembro/janeiro',
+  JSON.stringify(domingosDeFolga(resDomingoAncorado, farmaPriscila(l330PriscilaAncorada))) ===
+  '["2026-12-13","2027-01-03"]' ? 1 : 0, 1);
+
+/* Estado transportado de uma grade só existe quando a linha cobre o período
+   inteiro. Todo código diferente de trabalho encerra a sequência. */
+const estadoExtraido = E.estadoFinalDaGrade({
+  a:['','X','','FC','','F','','AT','','LC','','',''],
+  b:['','','','','','','',''],
+  curta:['','']
+}, '2026-10-25', '2026-11-06');
+conferir('estado final conta apenas trabalho consecutivo no fim',
+  estadoExtraido.a && estadoExtraido.a.diasDesdeFolga === 3 ? 1 : 0, 1);
+conferir('estado final conta domingos consecutivos trabalhados',
+  estadoExtraido.a && estadoExtraido.a.domTrabConsec === 0 ? 1 : 0, 1);
+conferir('estado final ignora linha curta', Object.hasOwn(estadoExtraido, 'curta') ? 0 : 1, 1);
+
+const eqContinuidade = mk([
+  ['G','GERENTE','07:00',true], ['A','CAIXA','08:00'], ['B','CAIXA','10:00']
+]);
+const pContinuidade = {
+  modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0,
+  inicio:'2026-11-02', fim:'2026-11-15', minCaixa:0, minBalcao:0,
+  minFarma:0, minSubger:0, minDia:{0:0,1:0,2:0,3:0,4:0,5:0,6:0}
+};
+const eqComSeisDias = eqContinuidade.map(c => c.id === 'c1'
+  ? Object.assign({}, c, {diasDesdeFolga:6}) : c);
+const resContinuidade = E.gerarEscala(eqComSeisDias, pContinuidade);
+conferir('seis dias anteriores forçam folga no primeiro dia novo',
+  resContinuidade.grid.c1[0] === 'X' ? 1 : 0, 1);
+
+const eqComDoisDomingos = eqContinuidade.map(c => c.id === 'c1'
+  ? Object.assign({}, c, {domTrabConsec:2}) : c);
+const pDomingoContinuidade = Object.assign({}, pContinuidade, {inicio:'2026-11-01', fim:'2026-11-14'});
+const resDomingoContinuidade = E.gerarEscala(eqComDoisDomingos, pDomingoContinuidade);
+conferir('dois domingos anteriores forçam folga no próximo domingo',
+  resDomingoContinuidade.grid.c1[0] === 'X' ? 1 : 0, 1);
+const resEditado = Object.assign({}, resDomingoContinuidade, {
+  days: resDomingoContinuidade.days.slice(),
+  grid: Object.assign({}, resDomingoContinuidade.grid, {
+    c1: resDomingoContinuidade.grid.c1.slice()
+  })
+});
+resEditado.grid.c1[0] = '';
+conferir('validação acusa terceiro domingo após edição manual',
+  E.validar(resEditado, eqComDoisDomingos).alertas.some(a => a.tipo === 'domingo') ? 1 : 0, 1);
+
 /* ------------------------------------------------------------------ */
 console.log('\n=== 4. Documento impresso ===\n');
 

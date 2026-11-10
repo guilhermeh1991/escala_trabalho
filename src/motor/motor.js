@@ -146,6 +146,8 @@ function gerarEscala(colabs, params){
     diaFixo: 25000,            // não respeitar o dia de folga fixa escolhido para a pessoa
     domingoAncorado: 28000,    // furar o domingo de folga que o usuário fixou na data
     domingoExtra: 28000,       // folgar em domingo fora do ciclo ancorado
+    domingoForaRotacao: 24000, // folgar em domingo fora da fase automática
+    domingoRotacao: 24000,     // deixar passar o domingo da fase automática
     // faixa 3: cobertura da loja
     farmaCritico: 5000, farmaAlvo: 900, subger: 1400, subgerFds: 900,
     curva: 400, equipe: 600, teto: 150, outroDomingo: 450,
@@ -217,12 +219,13 @@ function gerarEscala(colabs, params){
   days.forEach((d,i)=>{ if(d.getDay()===0) domingos.push(i); });
 
   const contadorCargoDomingo = {};
+  const fasesOcupadasPorCargo = {};
   const domFolga = {};   // id -> Set de índices
-/* Quem teve o 1º domingo informado por data. Para essas pessoas o ciclo
-   deixa de ser preferência e passa a ser regra: a data marcada é o domingo
-   de folga, e os seguintes saem dela somando o ciclo. Sem isso o motor
-   trocava o domingo por outro quando a cobertura ficava mais barata. */
-const domAncorado = {};
+  /* Quem teve o 1º domingo informado por data. Para essas pessoas o ciclo
+     deixa de ser preferência e passa a ser regra: a data marcada é o domingo
+     de folga, e os seguintes saem dela somando o ciclo. Sem isso o motor
+     trocava o domingo por outro quando a cobertura ficava mais barata. */
+  const domAncorado = {};
 
   /* Converte uma data ISO para o índice do domingo correspondente no período,
      ou null se estiver fora do intervalo. */
@@ -235,41 +238,59 @@ const domAncorado = {};
       && dd.getDay()===0);
     return idx >= 0 ? idx : null;
   }
-
-  ativos.filter(c=>!c.gerente).forEach(c=>{
-    let primeiro;
-
+  function fasePreferida(c){
     if(c.primeiroDomingo){
-  domAncorado[c.id] = true;
+      domAncorado[c.id] = true;
       /* Usuário informou o primeiro domingo de folga: âncora exata. */
       const ancora = indiceDomingo(c.primeiroDomingo);
       if(ancora != null){
         /* o índice dentro de domingos[] que contém ancora */
         const posNaLista = domingos.indexOf(ancora);
-        primeiro = posNaLista >= 0 ? posNaLista : 0;
-      } else {
-        /* domingo informado fora do período: calcular a distância e
-           extrapolá-la para dentro do período */
-        const [y,m,d] = String(c.primeiroDomingo).split('-').map(Number);
-        const alvoDt = new Date(y, m-1, d);
-        const difMs  = days[domingos[0]].getTime() - alvoDt.getTime();
-        const difSem = Math.round(difMs / (7*24*3600*1000));
-        const resto  = ((difSem % P.cicloDomingo) + P.cicloDomingo) % P.cicloDomingo;
-        primeiro = (P.cicloDomingo - resto) % P.cicloDomingo;
+        return posNaLista >= 0 ? posNaLista % P.cicloDomingo : 0;
       }
-    } else if(Number.isInteger(c.domTrabConsec)){
-      primeiro = Math.max(0, (P.cicloDomingo-1) - c.domTrabConsec);
-    } else {
-      // Cada cargo mantém sua própria rotação: com 3 pessoas, 1 em cada
-      // domingo; com 5, 2/2/1. Assim a cobertura do cargo não some num domingo
-      // enquanto outro fica sem folgas daquela mesma função.
-      const cargo = cargoDe(c);
-      primeiro = (contadorCargoDomingo[cargo] || 0) % P.cicloDomingo;
-      contadorCargoDomingo[cargo] = (contadorCargoDomingo[cargo] || 0) + 1;
+      /* Domingo informado fora do período: calcular a distância e
+         extrapolá-la para dentro do período. */
+      const [y,m,d] = String(c.primeiroDomingo).split('-').map(Number);
+      const alvoDt = new Date(y, m-1, d);
+      const difMs  = days[domingos[0]].getTime() - alvoDt.getTime();
+      const difSem = Math.round(difMs / (7*24*3600*1000));
+      const resto  = ((difSem % P.cicloDomingo) + P.cicloDomingo) % P.cicloDomingo;
+      return (P.cicloDomingo - resto) % P.cicloDomingo;
     }
+    if(Number.isInteger(c.domTrabConsec))
+      return Math.max(0, (P.cicloDomingo-1) - c.domTrabConsec) % P.cicloDomingo;
+    return null;
+  }
+  function registrarFase(c, primeiro){
+    const cargo = cargoDe(c);
+    const ocupadas = fasesOcupadasPorCargo[cargo] || (fasesOcupadasPorCargo[cargo] = []);
+    ocupadas[primeiro] = (ocupadas[primeiro] || 0) + 1;
     const set = new Set();
     for(let k=primeiro; k<domingos.length; k+=P.cicloDomingo) set.add(domingos[k]);
     domFolga[c.id] = set;
+  }
+
+  /* Uma âncora ou histórico real também ocupa uma fase da rotação do cargo.
+     Só depois os automáticos escolhem a fase menos ocupada; isso impede que o
+     contador automático comece em uma fase já reservada. */
+  const semGerente = ativos.filter(c=>!c.gerente);
+  const faseDefinida = {};
+  semGerente.forEach(c=>{ faseDefinida[c.id] = fasePreferida(c); });
+  semGerente.filter(c=>faseDefinida[c.id] != null).forEach(c=>{
+    registrarFase(c, faseDefinida[c.id]);
+  });
+  semGerente.filter(c=>faseDefinida[c.id] == null).forEach(c=>{
+    const cargo = cargoDe(c);
+    const ocupadas = fasesOcupadasPorCargo[cargo] || [];
+    const inicio = (contadorCargoDomingo[cargo] || 0) % P.cicloDomingo;
+    let primeiro = inicio, menor = Infinity;
+    for(let desloc=0; desloc<P.cicloDomingo; desloc++){
+      const fase = (inicio + desloc) % P.cicloDomingo;
+      const ocupacao = ocupadas[fase] || 0;
+      if(ocupacao < menor){ menor = ocupacao; primeiro = fase; }
+    }
+    contadorCargoDomingo[cargo] = inicio + 1;
+    registrarFase(c, primeiro);
   });
 
   /* ---- 3) folgas: cadeia do mês inteiro por colaborador (programação dinâmica) ----
@@ -356,6 +377,30 @@ const domAncorado = {};
     if(ausentes >= nDias - 1) return semOpcao;
     const faltam = Math.max(0, alvo - jaX);
     const ok = i => sem.dias.includes(i) && !bloqueioRigido(c,i);
+    const custoDomingo = (dias, novos, custoInicial=0) => {
+      let custo = custoInicial;
+      novos.forEach(i=>{
+        custo += custoSuave(c,i);
+        if(days[i].getDay()!==0) return;
+        if(i !== meuDomingo){
+          custo += PESO.outroDomingo;
+          custo += domAncorado[c.id] ? PESO.domingoExtra : PESO.domingoForaRotacao;
+        }
+        const minhasFolgas = folgasDoCargoNoDomingo(i, cargoDe(c));
+        const faseDoDomingo = domingos.indexOf(i) % P.cicloDomingo;
+        const domingosDaFase = domingos.filter(domingo =>
+          domingos.indexOf(domingo) % P.cicloDomingo === faseDoDomingo);
+        const menorNaFase = domingosDaFase.reduce((menor, domingo) =>
+          Math.min(menor, folgasDoCargoNoDomingo(domingo, cargoDe(c))), Infinity);
+        if(minhasFolgas > menorNaFase)
+          custo += (minhasFolgas - menorNaFase) * PESO.outroDomingo;
+      });
+      if(meuDomingo != null
+         && !dias.includes(meuDomingo)
+         && !AUSENTE.includes(grid[c.id][meuDomingo]))
+        custo += domAncorado[c.id] ? PESO.domingoAncorado : PESO.domingoRotacao;
+      return custo;
+    };
     if(faltam === 0){
       // semana já fechada: normalmente não se mexe. Mas em semana curta ou na última,
       // deixa a opção de uma folga a mais, que é o que evita a ponta de 7 dias no fim do mês.
@@ -421,25 +466,7 @@ const domAncorado = {};
       const info = marcar(o.novos);
       let custo = (o.tipo==='separado' ? PESO.separado : o.tipo==='avulso' ? PESO.avulso : 0);
       if(o.extra) custo += (o.extra==='colado' ? PESO.extraFolga : PESO.extraFolgaSolta);
-
-      o.novos.forEach(i=>{
-        custo += custoSuave(c,i);
-        if(days[i].getDay()===0){
-          if(i !== meuDomingo) custo += PESO.outroDomingo;
-          // A data registrada é a partida do ciclo entre meses: no 5x2 não
-          // pode virar uma folga dominical extra apenas para fechar o par.
-          if(domAncorado[c.id] && i !== meuDomingo) custo += PESO.domingoExtra;
-          // Mesmo fora da rotação preferida, não empilha folgas do mesmo
-          // cargo em um domingo se outro domingo ainda tem menos folgas.
-          const minhasFolgas = folgasDoCargoNoDomingo(i, cargoDe(c));
-          const menorNoCiclo = domingos.reduce((menor, domingo) =>
-            Math.min(menor, folgasDoCargoNoDomingo(domingo, cargoDe(c))), Infinity);
-          if(minhasFolgas > menorNoCiclo) custo += (minhasFolgas - menorNoCiclo) * PESO.outroDomingo;
-        }
-      });
-      if(domAncorado[c.id] && meuDomingo != null
-         && !info.dias.includes(meuDomingo)
-         && !AUSENTE.includes(grid[c.id][meuDomingo])) custo += PESO.domingoAncorado;
+      custo = custoDomingo(info.dias, o.novos, custo);
 
       // par que inclui o domingo dele: é o formato que a regra pede
       if(meuDomingo != null && o.novos.includes(meuDomingo) && o.tipo==='par') custo -= PESO.bonusDomColado;
@@ -558,7 +585,15 @@ const domAncorado = {};
     let estados = new Map([[chave(u0,d0,0), {custo:0, caminho:[], ult:u0, dom:d0, run:0}]]);
 
     semanas.forEach(sem=>{
-      const opcoes = opcoesDaSemana(c, sem);
+      let opcoes = opcoesDaSemana(c, sem);
+      // A primeira semana parcial pode não exigir folga própria, mas o histórico
+      // contíguo pode obrigar o descanso antes de mais um dia ou domingo trabalhado.
+      if(sem.idx === 0 && ((desdeFolga[c.id]||0) >= P.maxSeq ||
+         (sem.dias.includes(0) && days[0].getDay()===0 && domIni >= maxDomSeguidos))){
+        const indiceObrigatorio = (desdeFolga[c.id]||0) >= P.maxSeq ? sem.ini : 0;
+        const comFolgaObrigatoria = opcoes.filter(op=>op.dias.includes(indiceObrigatorio));
+        if(comFolgaObrigatoria.length) opcoes = comFolgaObrigatoria;
+      }
       const proximos = new Map();
       const guardar = (ult, dom, run, custo, caminho)=>{
         const k = chave(ult,dom,run);
@@ -691,6 +726,28 @@ const domAncorado = {};
   return {days, grid, semanas, ativos, params:P, diag, desdeFolga};
 }
 
+/* Estado que uma grade salva deixa para o período seguinte. Uma linha ausente
+   ou curta não é uma base confiável: nesse caso ela não produz continuidade. */
+function estadoFinalDaGrade(grade, inicio, fim){
+  const days = listDays(inicio, fim);
+  if(!grade || typeof grade !== 'object' || !days.length) return {};
+  const estado = {};
+  Object.keys(grade).forEach(id=>{
+    const arr = grade[id];
+    if(!Array.isArray(arr) || arr.length < days.length) return;
+    let diasDesdeFolga = 0;
+    for(let i=days.length-1;i>=0 && arr[i]==='';i--) diasDesdeFolga++;
+    let domTrabConsec = 0;
+    for(let i=days.length-1;i>=0;i--){
+      if(days[i].getDay()!==0) continue;
+      if(arr[i] === '') domTrabConsec++;
+      else break;
+    }
+    estado[id] = {diasDesdeFolga, domTrabConsec};
+  });
+  return estado;
+}
+
 /* ============================================================
    VALIDAÇÃO
    ============================================================ */
@@ -731,7 +788,8 @@ function validar(res, colabs){
     const dom = [];
     days.forEach((d,i)=>{ if(d.getDay()===0) dom.push(i); });
     const domTrab = dom.filter(i=>arr[i]===''), domFol = dom.filter(i=>arr[i]!=='');
-    let corrida=0, avisouDom=false;
+    let corrida = Number.isInteger(c.domTrabConsec) ? c.domTrabConsec : 0;
+    let avisouDom = false;
     dom.forEach(i=>{
       if(arr[i]===''){
         corrida++;
@@ -810,4 +868,4 @@ function validar(res, colabs){
   return {alertas, porColab, cobertura};
 }
 
-if(typeof module !== 'undefined') module.exports = {gerarEscala, validar, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, DIA_NOME, DIA_ABREV};
+if(typeof module !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, DIA_NOME, DIA_ABREV};

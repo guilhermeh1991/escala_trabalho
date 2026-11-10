@@ -725,7 +725,7 @@ function seedLojas(){
 /* ============================================================
    ESTADO
    ============================================================ */
-const S = {usuario:null, lojas:null, loja:'330', res:null, val:null, salvo:true};
+const S = {usuario:null, lojas:null, loja:'330', res:null, val:null, salvo:true, equipeEscala:null};
 const $  = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 const CODES = ['','X','FC','F','AT','LC'];
@@ -800,7 +800,46 @@ function montar(){
   pintarParams(); pintarEquipe(); pintarAus(); pintarUsers(); carregarPeriodoSalvo(); pintarSalvas();
 }
 const loja = ()=>S.lojas[S.loja];
-const chaveGrade = ()=>`escala:grade:${S.loja}:${$('#p-inicio').value}_${$('#p-fim').value}`;
+const chaveGradeDe = (lojaId, inicio, fim)=>`escala:grade:${lojaId}:${inicio}_${fim}`;
+const chaveGrade = ()=>chaveGradeDe(S.loja, $('#p-inicio').value, $('#p-fim').value);
+const dataIsoSeguinte = iso => {
+  const [ano, mes, dia] = String(iso).split('-').map(Number);
+  const d = new Date(ano, mes-1, dia+1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+
+async function escalaAnteriorLocal(inicio){
+  const anterior = lerSalvas()
+    .filter(x => x && x.inicio && x.fim && x.fim < inicio)
+    .sort((a,b) => String(b.fim).localeCompare(String(a.fim)))[0];
+  if(!anterior) return null;
+  const salva = await store.get(chaveGradeDe(S.loja, anterior.inicio, anterior.fim));
+  if(!salva || !salva.grid) return null;
+  return {inicio:anterior.inicio, fim:anterior.fim, grid:salva.grid};
+}
+
+async function equipeComHistoricoAnterior(inicio){
+  const equipe = loja().colabs.map(c => Object.assign({}, c));
+  let anterior = null;
+  try{
+    anterior = typeof store.escalaAnterior === 'function'
+      ? await store.escalaAnterior(S.loja, inicio)
+      : await escalaAnteriorLocal(inicio);
+  }catch(e){
+    console.error('Não foi possível obter a escala anterior para continuidade:', e);
+    return equipe;
+  }
+  if(!anterior || !anterior.grid || dataIsoSeguinte(anterior.fim) !== inicio) return equipe;
+
+  const estado = estadoFinalDaGrade(anterior.grid, anterior.inicio, anterior.fim);
+  return equipe.map(c => estado[c.id]
+    ? Object.assign({}, c, estado[c.id])
+    : c);
+}
+
+function validarEscalaAtual(){
+  S.val = validar(S.res, S.equipeEscala || loja().colabs);
+}
 
 /* ---------- parâmetros ---------- */
 const DIAS_SEM = ['dom','seg','ter','qua','qui','sex','sáb'];
@@ -1008,12 +1047,13 @@ $('#btn-add-user').onclick = async ()=>{
 /* ============================================================
    GERAR / PINTAR GRADE
    ============================================================ */
-$('#btn-gerar').onclick = ()=>{
+$('#btn-gerar').onclick = async ()=>{
   const p = Object.assign({}, loja().params, {inicio:$('#p-inicio').value, fim:$('#p-fim').value});
   if(!p.inicio || !p.fim || p.inicio>=p.fim){ alert('Confira o período: a data final precisa ser depois da inicial.'); return; }
-  S.res = gerarEscala(loja().colabs, p);
+  S.equipeEscala = await equipeComHistoricoAnterior(p.inicio);
+  S.res = gerarEscala(S.equipeEscala, p);
   S.res.horas = {};
-  S.val = validar(S.res, loja().colabs);
+  validarEscalaAtual();
   S.salvo = false; pintarGrade();
 };
 function dadosDaGrade(){
@@ -1140,12 +1180,13 @@ async function pintarSalvas(){
       const x = ultimaListaSalvas[+b.dataset.abrir];
       if(!x) return;
       const anterior = {inicio:$('#p-inicio').value, fim:$('#p-fim').value,
-                        res:S.res, val:S.val, salvo:S.salvo};
+                        res:S.res, val:S.val, salvo:S.salvo, equipeEscala:S.equipeEscala};
       $('#p-inicio').value = x.inicio; $('#p-fim').value = x.fim;
       const carregou = await carregarPeriodoSalvo();
       if(!carregou){
         $('#p-inicio').value = anterior.inicio; $('#p-fim').value = anterior.fim;
         S.res = anterior.res; S.val = anterior.val; S.salvo = anterior.salvo;
+        S.equipeEscala = anterior.equipeEscala;
         pintarGrade();
       }
       await pintarSalvas();
@@ -1186,7 +1227,7 @@ async function excluirSalva(k){
 
   // se era o período aberto, limpa a tela
   if(x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value){
-    S.res = null; S.val = null; S.salvo = true;
+    S.res = null; S.val = null; S.equipeEscala = null; S.salvo = true;
     $('#grade').innerHTML = '<p class="vazio">Escala excluída. Clique em Gerar escala para montar outra.</p>';
     $('#lista-alertas').innerHTML = '';
     $('#cont-alertas').textContent = '';
@@ -1245,7 +1286,7 @@ function baixarPdf(){
   }
 }
 async function carregarPeriodoSalvo(){
-  S.res=null; S.val=null;
+  S.res=null; S.val=null; S.equipeEscala=null;
   let d;
   try{
     d = await store.get(chaveGrade());
@@ -1256,10 +1297,11 @@ async function carregarPeriodoSalvo(){
   }
   if(d){
     const p = Object.assign({}, loja().params, d.params||{}, {inicio:d.inicio, fim:d.fim});
-    const base = gerarEscala(loja().colabs, p);
+    S.equipeEscala = await equipeComHistoricoAnterior(p.inicio);
+    const base = gerarEscala(S.equipeEscala, p);
     Object.keys(d.grid).forEach(id=>{ if(base.grid[id]) base.grid[id] = d.grid[id]; });
     base.horas = d.horas || {};
-    S.res = base; S.val = validar(S.res, loja().colabs); S.salvo = true;
+    S.res = base; validarEscalaAtual(); S.salvo = true;
   } else {
     S.salvo = true;
   }
@@ -1496,7 +1538,7 @@ function abrirPopupCelula(td){
   pop.style.top  = Math.max(window.scrollY + 8, topo) + 'px';
 
   const aplicar = ()=>{
-    S.val = validar(S.res, loja().colabs);
+    validarEscalaAtual();
     S.salvo = false;
     fecharPopupCelula();
     pintarGrade();

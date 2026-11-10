@@ -168,6 +168,15 @@ const DB = {
     return {grid: data.grade, params, horas, inicio, fim};
   },
 
+  async escalaAnterior(lojaId, inicio){
+    const {data, error} = await sb.from('escalas')
+      .select('inicio, fim, grade')
+      .eq('loja_id', lojaId).lt('fim', inicio)
+      .order('fim', {ascending:false}).limit(1).maybeSingle();
+    if(error) throw error;
+    return data || null;
+  },
+
   async salvarEscala(lojaId, inicio, fim, grade, params, horas){
     const p = Object.assign({}, params || {}, {_horas: horas || {}});
     const {error} = await sb.from('escalas').upsert(
@@ -217,6 +226,9 @@ const store = {
       return await DB.carregarEscala(lojaId, inicio, fim);
     }
     return null;
+  },
+  async escalaAnterior(lojaId, inicio){
+    return await DB.escalaAnterior(lojaId, inicio);
   },
   async set(chave, valor){
     if(chave === 'escala:lojas'){
