@@ -16,6 +16,22 @@ exigirCsrf();
 
 $u = exigirEmpresa();
 
+/* O deploy do HTML e da API pode chegar antes de a migração ser aplicada no
+   phpMyAdmin. Enquanto isso, a tela continua abrindo com o horário textual
+   existente; a jornada estruturada passa a ser usada automaticamente assim que
+   a coluna existir. */
+function jornadaEstruturadaDisponivel(): bool
+{
+    static $disponivel = null;
+    if ($disponivel !== null) return $disponivel;
+    try {
+        $st = bd()->query("SHOW COLUMNS FROM colaboradores LIKE 'jornada'");
+        return $disponivel = (bool)$st->fetch();
+    } catch (Throwable $e) {
+        return $disponivel = false;
+    }
+}
+
 switch ($acao) {
 
 // -----------------------------------------------------------------------------
@@ -42,9 +58,11 @@ case 'carregar':
 
     $ids  = array_column($lojas, 'id');
     $mrks = implode(',', array_fill(0, count($ids), '?'));
+    $temJornada = jornadaEstruturadaDisponivel();
+    $campoJornada = $temJornada ? 'jornada' : 'NULL AS jornada';
 
     $st = bd()->prepare(
-        "SELECT id, loja_id, nome, email, cargo, horario, jornada, gerente, ativo,
+        "SELECT id, loja_id, nome, email, cargo, horario, $campoJornada, gerente, ativo,
                 folga_fixa, primeiro_domingo, dias_desde_folga, ordem
            FROM colaboradores WHERE loja_id IN ($mrks) ORDER BY ordem");
     $st->execute($ids);
@@ -137,33 +155,48 @@ case 'salvar':
             // ---- colaboradores ----
             $colabs   = is_array($loja['colabs'] ?? null) ? $loja['colabs'] : [];
             $idsColab = [];
+            $temJornada = jornadaEstruturadaDisponivel();
             foreach ($colabs as $i => $c) {
                 $cid = ehUuid((string)($c['id'] ?? '')) ? $c['id'] : uuid();
-                $st = bd()->prepare(
-                    'INSERT INTO colaboradores
+                $sqlColaborador = $temJornada
+                    ? 'INSERT INTO colaboradores
                         (id, loja_id, nome, email, cargo, horario, jornada, gerente, ativo,
                          folga_fixa, primeiro_domingo, dias_desde_folga, ordem)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-                     ON DUPLICATE KEY UPDATE
-                        nome = VALUES(nome), email = VALUES(email), cargo = VALUES(cargo),
-                        horario = VALUES(horario), jornada = VALUES(jornada),
-                        gerente = VALUES(gerente), ativo = VALUES(ativo), folga_fixa = VALUES(folga_fixa),
-                        primeiro_domingo = VALUES(primeiro_domingo),
-                        dias_desde_folga = VALUES(dias_desde_folga),
-                        ordem = VALUES(ordem)');
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                       ON DUPLICATE KEY UPDATE
+                         nome = VALUES(nome), email = VALUES(email), cargo = VALUES(cargo),
+                         horario = VALUES(horario), jornada = VALUES(jornada),
+                         gerente = VALUES(gerente), ativo = VALUES(ativo), folga_fixa = VALUES(folga_fixa),
+                         primeiro_domingo = VALUES(primeiro_domingo),
+                         dias_desde_folga = VALUES(dias_desde_folga), ordem = VALUES(ordem)'
+                    : 'INSERT INTO colaboradores
+                        (id, loja_id, nome, email, cargo, horario, gerente, ativo,
+                         folga_fixa, primeiro_domingo, dias_desde_folga, ordem)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                       ON DUPLICATE KEY UPDATE
+                         nome = VALUES(nome), email = VALUES(email), cargo = VALUES(cargo),
+                         horario = VALUES(horario), gerente = VALUES(gerente),
+                         ativo = VALUES(ativo), folga_fixa = VALUES(folga_fixa),
+                         primeiro_domingo = VALUES(primeiro_domingo),
+                         dias_desde_folga = VALUES(dias_desde_folga), ordem = VALUES(ordem)';
+                $st = bd()->prepare($sqlColaborador);
                 $ff = $c['folgaFixa'] ?? null;
                 $dd = $c['diasDesdeFolga'] ?? null;
                 $emailColab = trim((string)($c['email'] ?? ''));
                 if ($emailColab !== '' && !filter_var($emailColab, FILTER_VALIDATE_EMAIL)) {
                     falhar('E-mail inválido para ' . ($c['nome'] ?? 'colaborador') . '.');
                 }
-                $st->execute([
+                $valoresColaborador = [
                     $cid, $lojaId,
                     mb_substr((string)($c['nome'] ?? ''), 0, 80),
                     $emailColab !== '' ? mb_strtolower($emailColab) : null,
                     mb_substr((string)($c['cargo'] ?? 'BALCONISTA'), 0, 40),
                     mb_substr((string)($c['horario'] ?? ''), 0, 40),
-                    json_encode($c['jornada'] ?? null, JSON_UNESCAPED_UNICODE),
+                ];
+                if ($temJornada) {
+                    $valoresColaborador[] = json_encode($c['jornada'] ?? null, JSON_UNESCAPED_UNICODE);
+                }
+                $valoresColaborador = array_merge($valoresColaborador, [
                     !empty($c['gerente']) ? 1 : 0,
                     (($c['ativo'] ?? true) !== false) ? 1 : 0,
                     ($ff === null || $ff === '') ? null : (int)$ff,
@@ -171,6 +204,7 @@ case 'salvar':
                     ($dd === null || $dd === '') ? null : (int)$dd,
                     (int)$i,
                 ]);
+                $st->execute($valoresColaborador);
                 $idsColab[] = $cid;
 
                 // ---- ausências ----
