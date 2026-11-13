@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prévia de Jornadas</title>
+<style>
+:root{
+  --ink:#12262d;--ink-2:#1d3a42;--page:#f2f5f3;--surface:#fff;--line:#d5ded9;--soft:#e8eeea;
+  --muted:#5e706b;--teal:#087773;--teal-dark:#075f5d;--teal-soft:#e5f3f0;
+  --yellow:#f2c94c;--yellow-ink:#493800;--good-bg:#ddf1e5;--good:#12633e;
+  --warn-bg:#f8eac9;--warn:#835a09;--danger-bg:#f6e1de;--danger:#963a32;
+  --mono:"Cascadia Mono",Consolas,monospace;--sans:"Segoe UI Variable","Segoe UI",sans-serif;--display:Bahnschrift,"Segoe UI",sans-serif;
+  --shadow:0 1px 2px rgba(18,38,45,.04),0 10px 30px rgba(18,38,45,.07);--radius:14px;--radius-sm:8px;
+}
+*{box-sizing:border-box}html{background:var(--page)}body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 var(--sans)}
+button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid rgba(8,119,115,.28);outline-offset:2px}
+.top{min-height:60px;padding:0 28px;display:flex;align-items:center;gap:18px;background:var(--ink);color:#fff}.brand{font:800 12px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:#9dd7cd}.top .context{margin-left:auto;color:#c6d2ce;font-size:13px}.top .avatar{display:grid;place-items:center;width:30px;height:30px;border:1px solid #45646c;border-radius:50%;color:#a7ded5;font-size:12px;font-weight:800}
+nav{background:var(--ink-2);padding:0 28px;display:flex;gap:4px;box-shadow:0 3px 10px rgba(18,38,45,.1)}nav button{border:0;border-bottom:3px solid transparent;background:none;color:#bbd0cb;padding:12px 15px;font-size:13px}nav button.active{color:white;border-color:#91d4c9;font-weight:700}
+main{max-width:1380px;margin:auto;padding:28px}.route{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;padding:18px 22px;background:var(--yellow);border-radius:var(--radius) var(--radius) 0 0;border-bottom:1px solid #d6ae24}.route h1{margin:0;font:800 25px/1.15 var(--display);letter-spacing:-.02em}.route p{margin:4px 0 0;color:var(--yellow-ink);font-size:13px}.chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;white-space:nowrap}.chip.ready{background:var(--ink);color:white}.chip.good{background:var(--good-bg);color:var(--good)}.chip.warn{background:var(--warn-bg);color:var(--warn)}.chip.neutral{background:#e7edE9;color:var(--muted)}
+.workspace{border:1px solid var(--line);border-top:0;border-radius:0 0 var(--radius) var(--radius);background:var(--surface);box-shadow:var(--shadow)}.toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--soft)}.toolbar .copy h2{font:800 17px/1.2 var(--display);margin:0}.toolbar .copy p{margin:3px 0 0;color:var(--muted);font-size:12.5px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;background:white;color:var(--ink);font-size:13px;font-weight:700}.btn:hover{background:var(--teal-soft);border-color:#8dbfba;color:var(--teal-dark)}.btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}.btn.primary:hover{background:var(--teal-dark)}
+.content{display:grid;grid-template-columns:320px minmax(0,1fr);min-height:645px}.catalog{padding:16px;border-right:1px solid var(--line);background:#f7f9f8}.catalog-head{display:flex;justify-content:space-between;align-items:center;margin:2px 2px 12px}.catalog-head h3{font:800 12px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}.catalog-list{display:grid;gap:7px}.model{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:#fff;text-align:left;color:var(--ink)}.model:hover{border-color:#79a59f;background:#fbfefd}.model.selected{border-color:var(--teal);background:var(--teal-soft);box-shadow:inset 0 0 0 1px var(--teal)}.model strong{display:block;font-family:var(--mono);font-size:13px}.model span{display:block;margin-top:2px;color:var(--muted);font-size:12px}.model .flags{display:flex;gap:5px;margin-top:7px}.model .mini{font-size:10px;padding:2px 6px;background:#eef3f0;border-radius:999px;color:#52655f;font-weight:700}.model.selected .mini{background:#d0e9e4;color:var(--teal-dark)}
+.editor{padding:22px 24px 28px;min-width:0}.editor-title{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding-bottom:18px;border-bottom:1px solid var(--soft)}.editor-title h2{margin:0;font:800 22px/1.15 var(--display);letter-spacing:-.02em}.editor-title p{max-width:620px;margin:6px 0 0;color:var(--muted);font-size:13px}.status-line{margin-top:18px;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #c3e1d1;border-radius:9px;background:#f2faf5;color:#245d42;font-size:12.5px}.status-line b{font-weight:800}
+.form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 14px;margin-top:20px}.field label{display:block;margin:0 0 6px;color:var(--muted);font-size:10.5px;font-weight:800;letter-spacing:.075em;text-transform:uppercase}.field input,.field select{width:100%;height:41px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px 10px;color:var(--ink)}.field input:focus,.field select:focus{border-color:var(--teal);outline:2px solid rgba(8,119,115,.16);outline-offset:1px}.field.span2{grid-column:span 2}.field .hint{display:block;margin-top:5px;color:var(--muted);font-size:11px;line-height:1.35}.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.calculation{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;margin-top:24px}.interval-panel,.summary-panel{border:1px solid var(--line);border-radius:11px;background:#fff}.panel-title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 15px 12px;border-bottom:1px solid var(--soft)}.panel-title h3{margin:0;font:800 14px/1.2 var(--display)}.panel-title p{margin:2px 0 0;color:var(--muted);font-size:12px}.intervals{padding:8px 14px 14px}.interval-row{display:grid;grid-template-columns:94px 1fr 16px 1fr 72px;align-items:end;gap:8px;padding:10px 0;border-bottom:1px solid var(--soft)}.interval-row:last-child{border-bottom:0}.interval-row b{padding-bottom:10px;font-size:12px}.interval-row label{display:block;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.interval-row input{width:100%;height:37px;margin-top:4px;border:1px solid var(--line);border-radius:7px;padding:6px 7px;background:#fff}.interval-row .dash{text-align:center;padding-bottom:9px;color:var(--muted)}.duration{padding-bottom:10px;text-align:right;color:var(--teal-dark);font:700 12px var(--mono)}
+.summary-panel{overflow:hidden}.summary-list{margin:0;padding:0;list-style:none}.summary-list li{display:flex;justify-content:space-between;gap:12px;padding:12px 15px;border-bottom:1px solid var(--soft);font-size:12.5px}.summary-list li:last-child{border-bottom:0}.summary-list span{color:var(--muted)}.summary-list b{font-family:var(--mono);font-variant-numeric:tabular-nums}.summary-list .total{background:#edf7f4}.summary-list .total span{color:var(--teal-dark);font-weight:800}.summary-list .total b{color:var(--teal-dark);font-size:15px}.rule-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}.rule{min-height:97px;padding:13px;border:1px solid var(--line);border-radius:10px;background:#f8faf9}.rule strong{display:block;font-size:12px}.rule p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.4}.switch{display:inline-flex;align-items:center;gap:7px;margin-top:9px;font-size:12px;font-weight:700;color:var(--teal-dark)}.switch i{position:relative;width:29px;height:17px;border-radius:12px;background:var(--teal);display:inline-block}.switch i::after{content:"";position:absolute;right:2px;top:2px;width:13px;height:13px;border-radius:50%;background:white}
+.footer-actions{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-top:24px;padding-top:18px;border-top:1px solid var(--soft)}.footer-actions .note{margin:0;max-width:630px;color:var(--muted);font-size:12px}.footer-actions .note b{color:var(--ink)}
+.preview-caption{margin:16px 3px 0;color:var(--muted);font-size:12px}.preview-caption b{color:var(--ink)}
+@media(max-width:900px){main{padding:16px}.content{grid-template-columns:1fr}.catalog{border-right:0;border-bottom:1px solid var(--line)}.catalog-list{grid-template-columns:repeat(2,minmax(0,1fr))}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.calculation{grid-template-columns:1fr}.rule-grid{grid-template-columns:1fr}.toolbar{align-items:flex-start;flex-direction:column}.actions{width:100%}.actions .btn{flex:1}.route{grid-template-columns:1fr}.route .chip{justify-self:start}}
+@media(max-width:560px){.top,nav{padding-inline:16px}.top .context{display:none}nav{overflow:auto}main{padding:12px}.route{padding:16px}.route h1{font-size:22px}.editor{padding:18px 15px}.catalog{padding:14px}.catalog-list{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.field.span2{grid-column:span 1}.editor-title{display:block}.editor-title .chip{margin-top:10px}.interval-row{grid-template-columns:74px 1fr 12px 1fr}.interval-row .duration{grid-column:2/-1;padding-bottom:0;text-align:left}.footer-actions{align-items:stretch;flex-direction:column}.footer-actions .btn{width:100%}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand">Quadro de escala</div><div class="context">Loja 330 · Configuração operacional</div><div class="avatar" aria-label="Administrador">A</div></header>
+<nav aria-label="Navegação principal"><button>Escala</button><button class="active" aria-current="page">Jornadas</button><button>Equipe</button><button>Parâmetros</button></nav>
+<main>
+  <section class="route" aria-labelledby="page-title">
+    <div><h1 id="page-title">Modelos de jornada</h1><p>Cadastre turnos oficiais uma vez. A escala só poderá aplicar jornadas que respeitem as regras definidas aqui.</p></div>
+    <span class="chip ready">Prévia de implementação</span>
+  </section>
+  <section class="workspace" aria-label="Cadastro de jornadas estruturadas">
+    <div class="toolbar"><div class="copy"><h2>Jornadas oficiais da loja</h2><p>7 modelos cadastrados · 2 modelos gerenciais</p></div><div class="actions"><button class="btn" id="duplicate">Duplicar modelo</button><button class="btn primary" id="new-model">Novo modelo</button></div></div>
+    <div class="content">
+      <aside class="catalog" aria-label="Lista de modelos de jornada">
+        <div class="catalog-head"><h3>Modelos ativos</h3><span class="chip neutral">9 no total</span></div>
+        <div class="catalog-list" id="catalog-list"></div>
+      </aside>
+      <article class="editor" aria-live="polite">
+        <div class="editor-title"><div><h2 id="model-title">Gerente · abertura ampliada</h2><p id="model-description">Modelo gerencial com dois intervalos. Indicado quando a operação exige presença ampliada na abertura.</p></div><span class="chip good" id="model-state">Válido para escala</span></div>
+        <div class="status-line" id="status-line"><b>Jornada válida.</b><span>O tempo líquido, os intervalos e o limite diário atendem às regras deste modelo.</span></div>
+        <div class="form-grid">
+          <div class="field span2"><label for="name">Nome do modelo</label><input id="name" value="Gerente · abertura ampliada"></div>
+          <div class="field"><label for="shift">Faixa do turno</label><select id="shift"><option value="abertura">Abertura</option><option value="intermediario">Intermediário</option><option value="fechamento">Fechamento</option></select></div>
+          <div class="field"><label for="role">Aplicável a</label><select id="role"><option>Gerente</option><option>Equipe operacional</option><option>Todos os cargos</option></select></div>
+          <div class="field"><label for="start">Entrada</label><input class="mono" id="start" type="time" value="07:00"></div>
+          <div class="field"><label for="end">Saída</label><input class="mono" id="end" type="time" value="17:24"></div>
+          <div class="field"><label for="limit">Limite diário</label><input class="mono" id="limit" value="10h00" readonly></div>
+          <div class="field"><label for="hours">Horas líquidas</label><input class="mono" id="hours" value="8h24" readonly></div>
+        </div>
+        <section class="calculation" aria-label="Intervalos e cálculo da jornada">
+          <div class="interval-panel"><div class="panel-title"><div><h3>Intervalos previstos</h3><p>Os dois blocos são registrados separadamente e entram no cálculo da jornada líquida.</p></div><span class="chip neutral" id="break-total">2h00 de pausa</span></div><div class="intervals" id="intervals"></div></div>
+          <div class="summary-panel"><div class="panel-title"><div><h3>Cálculo automático</h3><p>Conferência da jornada antes de salvar.</p></div></div><ul class="summary-list"><li><span>Período entre entrada e saída</span><b id="gross">10h24</b></li><li><span>Intervalos descontados</span><b id="breaks">− 2h00</b></li><li class="total"><span>Jornada líquida</span><b id="net">8h24</b></li><li><span>Meta semanal em 5 dias</span><b>42h00</b></li></ul></div>
+        </section>
+        <section class="rule-grid" aria-label="Regras aplicadas ao modelo">
+          <div class="rule"><strong>Descanso entre jornadas</strong><p>Alerta se o próximo turno começar com menos de 11 horas após a saída.</p><span class="chip good">Regra automática</span></div>
+          <div class="rule"><strong>Intervalo obrigatório</strong><p>Exige pelo menos 1 hora de pausa quando a jornada ultrapassa 6 horas.</p><span class="chip good">Regra automática</span></div>
+          <div class="rule"><strong>Hora extra</strong><p>Permite ajustes de horário somente até o teto diário definido para este modelo.</p><span class="switch"><i aria-hidden="true"></i>Permitida</span></div>
+        </section>
+        <div class="footer-actions"><p class="note"><b>Como será usado na escala:</b> ao cadastrar uma pessoa, você escolhe um destes modelos. Na edição diária, o sistema mostrará somente opções compatíveis e avisará quando uma troca violar descanso, intervalo ou limite diário.</p><div class="actions"><button class="btn" id="reset">Descartar alterações</button><button class="btn primary" id="save">Salvar modelo</button></div></div>
+      </article>
+    </div>
+  </section>
+  <p class="preview-caption"><b>Prévia funcional:</b> os campos de entrada, saída e intervalos recalculam a jornada líquida nesta visualização. Nenhum dado da aplicação é salvo ou alterado.</p>
+</main>
+<script>
+const models=[
+ {name:'07:00–16:24',start:'07:00',end:'16:24',shift:'abertura',role:'Equipe operacional',breaks:[['Intervalo', '12:00','13:00']],extra:true,desc:'Modelo oficial de abertura com uma hora de intervalo.'},
+ {name:'09:00–18:24',start:'09:00',end:'18:24',shift:'abertura',role:'Equipe operacional',breaks:[['Intervalo', '13:00','14:00']],extra:true,desc:'Modelo oficial de abertura intermediária.'},
+ {name:'10:00–19:24',start:'10:00',end:'19:24',shift:'intermediario',role:'Equipe operacional',breaks:[['Intervalo', '14:00','15:00']],extra:true,desc:'Modelo oficial intermediário.'},
+ {name:'11:00–20:24',start:'11:00',end:'20:24',shift:'intermediario',role:'Equipe operacional',breaks:[['Intervalo', '15:00','16:00']],extra:true,desc:'Modelo oficial intermediário.'},
+ {name:'12:00–21:24',start:'12:00',end:'21:24',shift:'intermediario',role:'Equipe operacional',breaks:[['Intervalo', '16:00','17:00']],extra:true,desc:'Modelo oficial intermediário.'},
+ {name:'12:37–22:00',start:'12:37',end:'22:00',shift:'fechamento',role:'Equipe operacional',breaks:[['Intervalo', '16:30','17:30']],extra:true,desc:'Modelo oficial de fechamento.'},
+ {name:'13:45–23:00',start:'13:45',end:'23:00',shift:'fechamento',role:'Equipe operacional',breaks:[['Intervalo', '17:30','18:30']],extra:true,desc:'Modelo oficial de fechamento.'},
+ {name:'Gerente · 1 intervalo',start:'07:00',end:'16:24',shift:'abertura',role:'Gerente',breaks:[['Intervalo', '12:00','13:00']],extra:true,desc:'Modelo gerencial padrão com um intervalo.'},
+ {name:'Gerente · abertura ampliada',start:'07:00',end:'17:24',shift:'abertura',role:'Gerente',breaks:[['Intervalo 1','10:30','11:30'],['Intervalo 2','14:00','15:00']],extra:true,desc:'Modelo gerencial com dois intervalos. Indicado quando a operação exige presença ampliada na abertura.'}
+];
+let current=8;
+const $=s=>document.querySelector(s);
+function toMins(v){const [h,m]=v.split(':').map(Number);return h*60+m}
+function duration(a,b){let x=toMins(b)-toMins(a);if(x<0)x+=1440;return x}
+function format(n){return Math.floor(n/60)+'h'+String(n%60).padStart(2,'0')}
+function renderCatalog(){const list=$('#catalog-list');list.innerHTML=models.map((m,i)=>`<button class="model ${i===current?'selected':''}" data-i="${i}"><strong>${m.name}</strong><span>${m.shift==='intermediario'?'Intermediário':m.shift[0].toUpperCase()+m.shift.slice(1)} · ${m.breaks.length} intervalo${m.breaks.length>1?'s':''}</span><div class="flags"><i class="mini">${m.role}</i>${m.extra?'<i class="mini">HE permitida</i>':''}</div></button>`).join('');list.querySelectorAll('.model').forEach(b=>b.onclick=()=>{current=+b.dataset.i;load()})}
+function renderBreaks(m){$('#intervals').innerHTML=m.breaks.map((b,i)=>`<div class="interval-row"><b>${b[0]}</b><label>Início<input class="mono break-start" data-i="${i}" type="time" value="${b[1]}"></label><span class="dash">—</span><label>Fim<input class="mono break-end" data-i="${i}" type="time" value="${b[2]}"></label><span class="duration" id="duration-${i}"></span></div>`).join('');document.querySelectorAll('.break-start,.break-end').forEach(e=>e.addEventListener('input',syncFromForm))}
+function load(){const m=models[current];$('#model-title').textContent=m.name;$('#model-description').textContent=m.desc;$('#name').value=m.name;$('#start').value=m.start;$('#end').value=m.end;$('#shift').value=m.shift;$('#role').value=m.role;renderBreaks(m);renderCatalog();calculate()}
+function syncFromForm(){const m=models[current];m.name=$('#name').value||'Novo modelo';m.start=$('#start').value;m.end=$('#end').value;m.shift=$('#shift').value;m.role=$('#role').value;document.querySelectorAll('.break-start').forEach((e,i)=>m.breaks[i][1]=e.value);document.querySelectorAll('.break-end').forEach((e,i)=>m.breaks[i][2]=e.value);$('#model-title').textContent=m.name;calculate();renderCatalog()}
+function calculate(){const m=models[current];const gross=duration(m.start,m.end);let pause=0;m.breaks.forEach((b,i)=>{const d=duration(b[1],b[2]);pause+=d;const el=$('#duration-'+i);if(el)el.textContent=format(d)});const net=gross-pause;$('#gross').textContent=format(gross);$('#breaks').textContent='− '+format(pause);$('#net').textContent=format(net);$('#hours').value=format(net);$('#break-total').textContent=format(pause)+' de pausa';const valid=pause>=60&&net>=440&&net<=504&&gross<=600;$('#model-state').textContent=valid?'Válido para escala':'Revisar jornada';$('#model-state').className='chip '+(valid?'good':'warn');$('#status-line').innerHTML=valid?'<b>Jornada válida.</b><span>O tempo líquido, os intervalos e o limite diário atendem às regras deste modelo.</span>':'<b>Revisão necessária.</b><span>A jornada líquida deve ficar entre 7h20 e 8h24, com pelo menos 1 hora de intervalo e teto de 10 horas.</span>';$('#status-line').style.borderColor=valid?'#c3e1d1':'#ecd49a';$('#status-line').style.background=valid?'#f2faf5':'#fff9e8';$('#status-line').style.color=valid?'#245d42':'#79590f'}
+['#name','#start','#end','#shift','#role'].forEach(s=>$(s).addEventListener('input',syncFromForm));
+$('#new-model').onclick=()=>{models.push({name:'Novo modelo',start:'09:00',end:'18:24',shift:'intermediario',role:'Equipe operacional',breaks:[['Intervalo','13:00','14:00']],extra:true,desc:'Configure os campos para criar um novo modelo oficial.'});current=models.length-1;load()};
+$('#duplicate').onclick=()=>{const source=models[current];models.push({...source,name:source.name+' · cópia',breaks:source.breaks.map(b=>[...b])});current=models.length-1;load()};
+$('#reset').onclick=load;$('#save').onclick=()=>{const b=$('#save');const old=b.textContent;b.textContent='Modelo salvo na prévia';b.classList.remove('primary');setTimeout(()=>{b.textContent=old;b.classList.add('primary')},1800)};
+load();
+</script>
+</body>
+</html>

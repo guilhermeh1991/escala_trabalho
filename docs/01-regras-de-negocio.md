@@ -176,3 +176,13 @@ pessoas no mesmo dia é o que mais pesa.
 
 Férias, atestado e licença são intocáveis: o motor monta a escala em volta
 deles.
+
+## 10. Jornada padrão do colaborador
+
+O campo de horário da equipe pode apontar para um **modelo oficial de jornada**
+ou guardar um ajuste estruturado de entrada, saída e intervalo. O resumo em
+texto continua sendo salvo para manter a leitura da grade e dos documentos.
+
+A troca de jornada não altera **folga fixa**, **1º domingo de folga** nem o
+histórico de domingos: esses dados permanecem independentes na ficha do
+colaborador.

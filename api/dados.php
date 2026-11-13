@@ -44,7 +44,7 @@ case 'carregar':
     $mrks = implode(',', array_fill(0, count($ids), '?'));
 
     $st = bd()->prepare(
-        "SELECT id, loja_id, nome, email, cargo, horario, gerente, ativo,
+        "SELECT id, loja_id, nome, email, cargo, horario, jornada, gerente, ativo,
                 folga_fixa, primeiro_domingo, dias_desde_folga, ordem
            FROM colaboradores WHERE loja_id IN ($mrks) ORDER BY ordem");
     $st->execute($ids);
@@ -74,6 +74,7 @@ case 'carregar':
             'email'            => $c['email'],
             'cargo'            => $c['cargo'],
             'horario'          => $c['horario'],
+            'jornada'          => $c['jornada'] ? json_decode($c['jornada'], true) : null,
             'gerente'          => (bool)$c['gerente'],
             'ativo'            => (bool)$c['ativo'],
             'folgaFixa'        => $c['folga_fixa'] === null ? null : (int)$c['folga_fixa'],
@@ -140,13 +141,13 @@ case 'salvar':
                 $cid = ehUuid((string)($c['id'] ?? '')) ? $c['id'] : uuid();
                 $st = bd()->prepare(
                     'INSERT INTO colaboradores
-                        (id, loja_id, nome, email, cargo, horario, gerente, ativo,
+                        (id, loja_id, nome, email, cargo, horario, jornada, gerente, ativo,
                          folga_fixa, primeiro_domingo, dias_desde_folga, ordem)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
                      ON DUPLICATE KEY UPDATE
                         nome = VALUES(nome), email = VALUES(email), cargo = VALUES(cargo),
-                        horario = VALUES(horario), gerente = VALUES(gerente),
-                        ativo = VALUES(ativo), folga_fixa = VALUES(folga_fixa),
+                        horario = VALUES(horario), jornada = VALUES(jornada),
+                        gerente = VALUES(gerente), ativo = VALUES(ativo), folga_fixa = VALUES(folga_fixa),
                         primeiro_domingo = VALUES(primeiro_domingo),
                         dias_desde_folga = VALUES(dias_desde_folga),
                         ordem = VALUES(ordem)');
@@ -162,6 +163,7 @@ case 'salvar':
                     $emailColab !== '' ? mb_strtolower($emailColab) : null,
                     mb_substr((string)($c['cargo'] ?? 'BALCONISTA'), 0, 40),
                     mb_substr((string)($c['horario'] ?? ''), 0, 40),
+                    json_encode($c['jornada'] ?? null, JSON_UNESCAPED_UNICODE),
                     !empty($c['gerente']) ? 1 : 0,
                     (($c['ativo'] ?? true) !== false) ? 1 : 0,
                     ($ff === null || $ff === '') ? null : (int)$ff,

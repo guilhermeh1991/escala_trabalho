@@ -366,6 +366,39 @@ table.simples tbody tr:hover{background:#FAFCFB}
 table.simples td input,table.simples td select{width:100%;border:1px solid transparent;background:transparent;padding:5px 6px;border-radius:var(--radius-sm)}
 table.simples td input:hover,table.simples td select:hover{border-color:var(--linha);background:#fff}
 table.simples td input:focus,table.simples td select:focus{outline:2px solid var(--teal);outline-offset:0;background:#fff}
+
+/* ---------- jornada estruturada na equipe ---------- */
+#tab-equipe .horario-cel{min-width:238px;padding:5px 7px}
+#tab-equipe .horario-abrir{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:6px 7px;
+  border:1px solid transparent;border-radius:var(--radius-sm);background:transparent;color:var(--texto);text-align:left}
+#tab-equipe .horario-abrir:hover,#tab-equipe .horario-abrir[aria-expanded="true"]{border-color:#8DBFBA;background:var(--teal-suave)}
+#tab-equipe .horario-abrir .hora{display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+#tab-equipe .horario-abrir .modelo{display:block;margin-top:1px;color:var(--fraco);font-size:12px;line-height:1.35}
+#tab-equipe .horario-abrir .seta{width:8px;height:8px;flex:0 0 auto;border-right:2px solid var(--teal-escuro);border-bottom:2px solid var(--teal-escuro);transform:rotate(45deg) translateY(-2px);transition:transform .18s ease}
+#tab-equipe .horario-abrir[aria-expanded="true"] .seta{transform:rotate(225deg) translateY(-2px)}
+#tab-equipe tr.jornada-detalhe td{padding:0;background:#F7FAF8}
+#tab-equipe .jornada-box{padding:16px 18px 18px;border-bottom:1px solid var(--linha);animation:jornada-abre .2s cubic-bezier(.2,.75,.25,1)}
+@keyframes jornada-abre{from{opacity:.35;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+#tab-equipe .jornada-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:13px}
+#tab-equipe .jornada-topo strong{display:block;font-family:Archivo,Inter,sans-serif;font-size:14px}
+#tab-equipe .jornada-topo p{margin:2px 0 0;color:var(--fraco);font-size:12px;line-height:1.45}
+#tab-equipe .jornada-grade{display:grid;grid-template-columns:minmax(230px,1fr) 1.55fr;gap:14px}
+#tab-equipe .jornada-area{min-width:0}
+#tab-equipe .jornada-area+.jornada-area{padding-left:14px;border-left:1px solid var(--linha)}
+#tab-equipe .jornada-rot{display:block;margin-bottom:6px;color:var(--fraco);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+#tab-equipe .jornada-area select,#tab-equipe .jornada-area input{width:100%;border:1px solid var(--linha);border-radius:var(--radius-sm);background:#fff;color:var(--texto);padding:7px 8px}
+#tab-equipe .jornada-desc{margin:7px 0 0;color:var(--fraco);font-size:12px;line-height:1.45}
+#tab-equipe .jornada-desc b{color:var(--texto)}
+#tab-equipe .jornada-campos{display:grid;grid-template-columns:repeat(4,minmax(78px,1fr));gap:8px}
+#tab-equipe .jornada-campo label{display:block;margin:0 0 4px;color:var(--fraco);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#tab-equipe .jornada-campo input{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-variant-numeric:tabular-nums}
+#tab-equipe .jornada-rodape{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px}
+#tab-equipe .jornada-resultado{margin:0;font-size:12px;color:var(--fraco)}
+#tab-equipe .jornada-resultado b{color:var(--v-fg)}
+#tab-equipe .jornada-resultado.invalida b{color:var(--alerta)}
+#tab-equipe .jornada-acoes{display:flex;gap:7px;flex-shrink:0}
+@media(max-width:900px){#tab-equipe .jornada-grade{grid-template-columns:1fr}#tab-equipe .jornada-area+.jornada-area{padding:14px 0 0;border-left:0;border-top:1px solid var(--linha)}}
+@media(max-width:600px){#tab-equipe .jornada-campos{grid-template-columns:repeat(2,minmax(0,1fr))}#tab-equipe .jornada-rodape{align-items:stretch;flex-direction:column}#tab-equipe .jornada-acoes .btn{flex:1}}
 .cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){.cols2{grid-template-columns:1fr}}
 .vazio{color:var(--fraco);font-size:13.5px;padding:18px 0;text-align:center}
@@ -935,47 +968,72 @@ function bindDomPicker(tr,c){
 }
 const CARGOS = ['GERENTE','SUBGERENTE','SUB/FARMA','FARMACÊUTICO','BALCONISTA','CAIXA','AX. LOJA','REPOSITOR'];
 const DIAS_SEMANA_NOME = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+const MODELOS_JORNADA = [
+  {id:'07-1624', nome:'Abertura · 07:00–16:24', entrada:'07:00', saida:'16:24', intervalo:60, turno:'abertura'},
+  {id:'09-1824', nome:'Abertura · 09:00–18:24', entrada:'09:00', saida:'18:24', intervalo:60, turno:'abertura'},
+  {id:'10-1924', nome:'Intermediário · 10:00–19:24', entrada:'10:00', saida:'19:24', intervalo:60, turno:'intermediario'},
+  {id:'11-2024', nome:'Intermediário · 11:00–20:24', entrada:'11:00', saida:'20:24', intervalo:60, turno:'intermediario'},
+  {id:'12-2124', nome:'Intermediário · 12:00–21:24', entrada:'12:00', saida:'21:24', intervalo:60, turno:'intermediario'},
+  {id:'1237-2200', nome:'Fechamento · 12:37–22:00', entrada:'12:37', saida:'22:00', intervalo:60, turno:'fechamento'},
+  {id:'1345-2300', nome:'Fechamento · 13:45–23:00', entrada:'13:45', saida:'23:00', intervalo:60, turno:'fechamento'},
+  {id:'gerente-1', nome:'Gerente · 07:00–16:24 · 1 intervalo', entrada:'07:00', saida:'16:24', intervalo:60, turno:'abertura'},
+  {id:'gerente-2', nome:'Gerente · 07:00–17:24 · 2 intervalos', entrada:'07:00', saida:'17:24', intervalo:120, turno:'abertura'}
+];
+let jornadaAberta = null;
+function minutosHorario(v){ const p=String(v||'').split(':').map(Number); return p.length===2 ? p[0]*60+p[1] : 0; }
+function textoJornada(j){ return j && j.entrada && j.saida ? `${j.entrada} AS ${j.saida}` : ''; }
+function jornadaDe(c){
+  if(c.jornada && c.jornada.entrada && c.jornada.saida) return Object.assign({}, c.jornada);
+  const partes = String(c.horario||'').match(/(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/i);
+  return partes ? {modelo:'', entrada:partes[1].padStart(5,'0'), saida:partes[2].padStart(5,'0'), intervalo:60, turno:''} : {modelo:'', entrada:'09:00', saida:'18:00', intervalo:60, turno:''};
+}
+function jornadaLiquida(j){ let n=minutosHorario(j.saida)-minutosHorario(j.entrada)-Number(j.intervalo||0); if(n<0)n+=1440; return n; }
+function textoDuracao(n){ return Math.floor(n/60)+'h'+String(n%60).padStart(2,'0'); }
+function resumoModelo(c){ const j=jornadaDe(c); const m=MODELOS_JORNADA.find(x=>x.id===j.modelo); return m ? m.nome : 'Sem modelo oficial — clique para configurar'; }
+function salvarEquipe(){ return store.set('escala:lojas', S.lojas); }
+function detalhesJornada(c){
+  const j=jornadaDe(c), m=MODELOS_JORNADA.find(x=>x.id===j.modelo);
+  return `<tr class="jornada-detalhe"><td colspan="8"><section class="jornada-box" data-jornada="${c.id}">
+    <div class="jornada-topo"><div><strong>Definir a jornada padrão de ${esc(c.nome)}</strong><p>O domingo de folga, a folga fixa e os demais dados da pessoa continuam preservados.</p></div><span class="chip ${j.modelo?'ok':'mal'} jornada-status">${j.modelo?'Modelo oficial':'Modelo pendente'}</span></div>
+    <div class="jornada-grade"><div class="jornada-area"><label class="jornada-rot">Modelo oficial</label><select data-j="modelo"><option value="">Manter o horário atual sem modelo</option>${MODELOS_JORNADA.map(x=>`<option value="${x.id}"${x.id===j.modelo?' selected':''}>${x.nome}</option>`).join('')}</select><p class="jornada-desc">${m?`<b>${esc(m.nome)}.</b> Os horários abaixo podem ser conferidos antes de aplicar.`:`<b>Horário atual preservado:</b> ${esc(c.horario||textoJornada(j)||'não informado')}.`}</p></div>
+    <div class="jornada-area"><label class="jornada-rot">Conferir ou ajustar dados</label><div class="jornada-campos"><div class="jornada-campo"><label>Entrada</label><input type="time" data-j="entrada" value="${j.entrada}"></div><div class="jornada-campo"><label>Saída</label><input type="time" data-j="saida" value="${j.saida}"></div><div class="jornada-campo"><label>Intervalo</label><select data-j="intervalo"><option value="60"${Number(j.intervalo)===60?' selected':''}>1h00</option><option value="120"${Number(j.intervalo)===120?' selected':''}>2h00</option></select></div><div class="jornada-campo"><label>Jornada líquida</label><input readonly data-j="liquida" value="${textoDuracao(jornadaLiquida(j))}"></div></div><div class="jornada-rodape"><p class="jornada-resultado"></p><div class="jornada-acoes"><button class="btn ghost small" type="button" data-j="cancelar">Cancelar</button><button class="btn primary small" type="button" data-j="aplicar">Aplicar jornada</button></div></div></div>
+    </div></section></td></tr>`;
+}
+function configurarJornadaDetalhe(box,c){
+  const campos = k=>box.querySelector(`[data-j="${k}"]`);
+  const atualizar = ()=>{
+    const j={modelo:campos('modelo').value,entrada:campos('entrada').value,saida:campos('saida').value,intervalo:+campos('intervalo').value};
+    const liquida=jornadaLiquida(j), valida=liquida>=440&&liquida<=504;
+    campos('liquida').value=textoDuracao(liquida);
+    const resultado=box.querySelector('.jornada-resultado'), status=box.querySelector('.jornada-status');
+    resultado.classList.toggle('invalida',!valida);
+    resultado.innerHTML=valida ? `<b>Jornada dentro da faixa:</b> ${textoDuracao(liquida)} líquidas no dia.` : `<b>Revisar jornada:</b> precisa ficar entre 7h20 e 8h24 líquidas.`;
+    status.className='chip jornada-status '+(valida?(j.modelo?'ok':'mal'):'mal');
+    status.textContent=!valida?'Revisar jornada':(j.modelo?'Pronto para aplicar':'Modelo pendente');
+    return {j,valida};
+  };
+  campos('modelo').onchange=()=>{ const m=MODELOS_JORNADA.find(x=>x.id===campos('modelo').value); if(m){campos('entrada').value=m.entrada;campos('saida').value=m.saida;campos('intervalo').value=m.intervalo;} atualizar(); };
+  ['entrada','saida','intervalo'].forEach(k=>campos(k).onchange=atualizar);
+  campos('cancelar').onclick=()=>{ jornadaAberta=null; pintarEquipe(); };
+  campos('aplicar').onclick=async()=>{ const {j,valida}=atualizar(); if(!valida) return; c.jornada=j; c.horario=textoJornada(j); await salvarEquipe(); jornadaAberta=null; pintarEquipe(); };
+  atualizar();
+}
 function pintarEquipe(){
   const t = $('#tab-equipe');
-  t.innerHTML = `<thead><tr><th>Nome</th><th>Cargo</th><th>Horário</th><th style="width:70px">Gerente</th>
-    <th style="width:118px">Folga fixa</th>
-    <th style="width:190px">1º domingo de folga</th>
-    <th style="width:60px">Ativo</th><th style="width:40px"></th></tr></thead><tbody></tbody>`;
+  t.innerHTML = `<thead><tr><th>Nome</th><th>Cargo</th><th>Horário</th><th style="width:70px">Gerente</th><th style="width:118px">Folga fixa</th><th style="width:190px">1º domingo de folga</th><th style="width:60px">Ativo</th><th style="width:40px"></th></tr></thead><tbody></tbody>`;
   const tb = t.querySelector('tbody');
   loja().colabs.forEach((c,i)=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input value="${esc(c.nome)}" data-f="nome"></td>
-      <td><select data-f="cargo">${CARGOS.map(x=>`<option${x===c.cargo?' selected':''}>${x}</option>`).join('')}</select></td>
-      <td><input value="${esc(c.horario||'')}" data-f="horario" placeholder="07:00 AS 15:20"></td>
-      <td style="text-align:center"><input type="checkbox" data-f="gerente" ${c.gerente?'checked':''}></td>
-      <td><select data-f="folgaFixa"><option value="">variável</option>${DIAS_SEMANA_NOME.map((d,k)=>
-          `<option value="${k}"${String(c.folgaFixa)===String(k)?' selected':''}>${d}</option>`).join('')}</select></td>
-      <td>${renderDomPicker(c)}</td>
-      <td style="text-align:center"><input type="checkbox" data-f="ativo" ${c.ativo!==false?'checked':''}></td>
-      <td><button class="btn danger small" title="Remover">×</button></td>`;
-    tr.querySelectorAll('[data-f]').forEach(el=>{
-      el.onchange = async ()=>{
-        const f = el.dataset.f;
-        let v = el.type==='checkbox' ? el.checked : el.value;
-        if(f==='folgaFixa') v = v===''? null : +v;
-        if(f==='primeiroDomingo') v = v==='' ? null : v;
-        c[f]=v; await store.set('escala:lojas', S.lojas); pintarAus();
-      };
-    });
-    bindDomPicker(tr, c);
-    tr.querySelector('button').onclick = async ()=>{
-      if(!confirm(`Remover ${c.nome} da equipe?`)) return;
-      loja().colabs.splice(i,1); await store.set('escala:lojas', S.lojas); pintarEquipe(); pintarAus();
-    };
+    const tr = document.createElement('tr'); const j=jornadaDe(c);
+    tr.innerHTML = `<td><input value="${esc(c.nome)}" data-f="nome"></td><td><select data-f="cargo">${CARGOS.map(x=>`<option${x===c.cargo?' selected':''}>${x}</option>`).join('')}</select></td><td class="horario-cel"><button type="button" class="horario-abrir" aria-expanded="${jornadaAberta===c.id}" data-jornada-abrir><span><span class="hora">${esc(c.horario||textoJornada(j)||'Horário não informado')}</span><span class="modelo">${esc(resumoModelo(c))}</span></span><i class="seta" aria-hidden="true"></i></button></td><td style="text-align:center"><input type="checkbox" data-f="gerente" ${c.gerente?'checked':''}></td><td><select data-f="folgaFixa"><option value="">variável</option>${DIAS_SEMANA_NOME.map((d,k)=>`<option value="${k}"${String(c.folgaFixa)===String(k)?' selected':''}>${d}</option>`).join('')}</select></td><td>${renderDomPicker(c)}</td><td style="text-align:center"><input type="checkbox" data-f="ativo" ${c.ativo!==false?'checked':''}></td><td><button class="btn danger small" type="button" title="Remover" data-remover>×</button></td>`;
+    tr.querySelectorAll('[data-f]').forEach(el=>el.onchange=async()=>{const f=el.dataset.f;let v=el.type==='checkbox'?el.checked:el.value;if(f==='folgaFixa')v=v===''?null:+v;c[f]=v;await salvarEquipe();pintarAus();});
+    bindDomPicker(tr,c);
+    tr.querySelector('[data-jornada-abrir]').onclick=()=>{jornadaAberta=jornadaAberta===c.id?null:c.id;pintarEquipe();};
+    tr.querySelector('[data-remover]').onclick=async()=>{if(!confirm(`Remover ${c.nome} da equipe?`))return;loja().colabs.splice(i,1);await salvarEquipe();pintarEquipe();pintarAus();};
     tb.appendChild(tr);
+    if(jornadaAberta===c.id){const detalhe=document.createRange().createContextualFragment(detalhesJornada(c)).firstElementChild;tb.appendChild(detalhe);configurarJornadaDetalhe(detalhe.querySelector('.jornada-box'),c);}
   });
 }
-$('#btn-add-colab').onclick = async ()=>{
-  loja().colabs.push({id:gerarId(), nome:'NOVO COLABORADOR', cargo:'BALCONISTA', horario:'09:00 AS 18:00',
-                      gerente:false, ativo:true, domTrabConsec:null, diasDesdeFolga:0, folgaFixa:null, ausencias:[]});
-  await store.set('escala:lojas', S.lojas); pintarEquipe();
-};
+$('#btn-add-colab').onclick = async ()=>{loja().colabs.push({id:gerarId(),nome:'NOVO COLABORADOR',cargo:'BALCONISTA',horario:'09:00 AS 18:00',jornada:null,gerente:false,ativo:true,domTrabConsec:null,diasDesdeFolga:0,folgaFixa:null,ausencias:[]});await salvarEquipe();pintarEquipe();};
 
 /* ---------- ausências ---------- */
 function pintarAus(){

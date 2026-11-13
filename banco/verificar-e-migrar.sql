@@ -99,6 +99,17 @@ SET @sql := IF(@criou_publicada OR @criou_publicada_em,
   'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- Jornada estruturada por colaborador ------------------------------------------
+-- A coluna é opcional: o horário textual e, principalmente, a âncora de domingo
+-- já cadastrados permanecem intactos durante a migração.
+SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'colaboradores'
+               AND COLUMN_NAME = 'jornada');
+SET @sql := IF(@ja = 0,
+  'ALTER TABLE colaboradores ADD COLUMN jornada JSON NULL AFTER horario',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- 2. Acesso por loja (migração 003) ------------------------------------------
 SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
              WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'usuarios'
@@ -179,6 +190,8 @@ SELECT
     WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'colaboradores' AND COLUMN_NAME = 'email') AS colaboradores_email,
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'colaboradores' AND COLUMN_NAME = 'criado_em') AS colaboradores_criado_em,
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'colaboradores' AND COLUMN_NAME = 'jornada') AS colaboradores_jornada,
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'colaborador_id') AS usuarios_colaborador_id,
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS

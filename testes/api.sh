@@ -28,6 +28,7 @@ mysql -u root -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-003-acesso-por-loja.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-004-resumo-escala.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-005-jornada-estruturada.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
   || falha "verificar-e-migrar.sql após as migrações"
 mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
@@ -127,7 +128,7 @@ echo "$R" | grep -q "uma loja s" && ok "criar_loja bloqueado: conta presa a uma 
 
 PAYLOAD=$(cat <<JSON
 {"acao":"salvar","lojas":{"$LOJA_A":{"nome":"Loja 330","_ordem":0,"params":{"modelo":"5x2"},
-"colabs":[{"nome":"GUILHERME","cargo":"GERENTE","horario":"07:00","gerente":true,"ativo":true,
+"colabs":[{"nome":"GUILHERME","cargo":"GERENTE","horario":"07:00 AS 16:24","jornada":{"modelo":"gerente-1","entrada":"07:00","saida":"16:24","intervalo":60},"gerente":true,"ativo":true,
 "folgaFixa":null,"primeiroDomingo":null,"ausencias":[]},
 {"nome":"RENATA","cargo":"SUBGERENTE","horario":"10:00","gerente":false,"ativo":true,
 "folgaFixa":1,"primeiroDomingo":"2026-08-16","ausencias":[{"tipo":"F","ini":"2026-08-20","fim":"2026-08-25"}]}]}}}
@@ -143,6 +144,8 @@ NA=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM ausenc
 R=$(chamar "$COOKIES_A" dados.php '{"acao":"carregar"}' "$CSRF_A")
 echo "$R" | grep -q "RENATA" && ok "carregamento devolve a equipe" || falha "carregar: $R"
 echo "$R" | grep -q '"folgaFixa":1' && ok "folga fixa preservada" || falha "folga fixa perdida"
+echo "$R" | grep -q '"primeiroDomingo":"2026-08-16"' && ok "domingo de folga preservado" || falha "domingo de folga perdido"
+echo "$R" | grep -q '"modelo":"gerente-1"' && ok "jornada estruturada preservada" || falha "jornada estruturada perdida"
 
 echo ""
 echo "=== 9. ISOLAMENTO ENTRE EMPRESAS (o teste que mais importa) ==="

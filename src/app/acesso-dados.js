@@ -103,6 +103,7 @@ const DB = {
         .map(c=>({
           id: c.id, nome: c.nome, cargo: c.cargo, horario: c.horario,
           gerente: !!c.gerente, ativo: c.ativo !== false,
+          jornada: c.jornada || null,
           folgaFixa: c.folga_fixa, primeiroDomingo: c.primeiro_domingo,
           diasDesdeFolga: c.dias_desde_folga,
           ausencias: (c.ausencias||[]).map(a=>({id:a.id, tipo:a.tipo, ini:a.ini, fim:a.fim}))
@@ -123,7 +124,7 @@ const DB = {
 
       const linhas = (loja.colabs||[]).map((c,i)=>({
         id: c.id, loja_id: lojaId, nome: c.nome, cargo: c.cargo,
-        horario: c.horario, gerente: !!c.gerente, ativo: c.ativo !== false,
+        horario: c.horario, jornada: c.jornada || null, gerente: !!c.gerente, ativo: c.ativo !== false,
         folga_fixa: (c.folgaFixa === '' || c.folgaFixa == null) ? null : Number(c.folgaFixa),
         primeiro_domingo: c.primeiroDomingo || null,
         dias_desde_folga: (c.diasDesdeFolga == null || c.diasDesdeFolga === '') ? null : Number(c.diasDesdeFolga),

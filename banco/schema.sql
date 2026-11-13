@@ -53,6 +53,7 @@ create table if not exists public.colaboradores (
   nome             text not null check (char_length(btrim(nome)) between 1 and 80),
   cargo            text not null default 'BALCONISTA',
   horario          text,
+  jornada          jsonb,
   gerente          boolean not null default false,
   ativo            boolean not null default true,
   folga_fixa       smallint check (folga_fixa between 0 and 6),
@@ -66,6 +67,8 @@ comment on column public.colaboradores.folga_fixa is
   'Dia da semana da folga fixa: 0=domingo ... 6=sábado. Nulo = o sistema escolhe.';
 comment on column public.colaboradores.primeiro_domingo is
   'Primeiro domingo de folga. Âncora do ciclo. Nulo = o sistema distribui.';
+comment on column public.colaboradores.jornada is
+  'Modelo e tempos estruturados da jornada padrão. Nulo mantém o horário textual legado.';
 
 create table if not exists public.ausencias (
   id              uuid primary key default gen_random_uuid(),

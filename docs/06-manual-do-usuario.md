@@ -49,13 +49,13 @@ Observação não é erro. É o sistema mostrando o raciocínio.
 
 ## Cadastro da equipe
 
-| Campo | Para quê |
+|Campo|Para quê|
 |---|---|
-| Nome, cargo, horário | identificação e agrupamento na grade |
-| Gerente | folga todo sábado e domingo |
-| **Folga fixa** | em "variável" o sistema escolhe; escolhendo um dia, a folga cai sempre nele |
-| **1º domingo de folga** | escolha o mês e depois qual domingo; os seguintes saem do ciclo |
-| Ativo | desmarque em vez de excluir quem está afastado por longo prazo |
+|Nome, cargo, horário|identificação e agrupamento na grade. Clique no horário para escolher um modelo oficial ou ajustar entrada, saída e intervalo.|
+|Gerente|folga todo sábado e domingo|
+|**Folga fixa**|em "variável" o sistema escolhe; escolhendo um dia, a folga cai sempre nele|
+|**1º domingo de folga**|escolha o mês e depois qual domingo; os seguintes saem do ciclo|
+|Ativo|desmarque em vez de excluir quem está afastado por longo prazo|
 
 Sobre a folga fixa: até cerca de um terço da equipe com dia fixo, quase não
 custa nada. Concentrar várias pessoas no mesmo dia é o que aperta.

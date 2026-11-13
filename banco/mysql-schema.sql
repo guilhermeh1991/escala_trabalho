@@ -4,6 +4,7 @@
 --  ORDEM DE EXECUÇÃO
 --    1º  este arquivo (mysql-schema.sql)
 --    2º  migracao-002-colaborador.sql
+--    3º  migracao-005-jornada-estruturada.sql
 --
 --  Quem já rodou este arquivo antes só precisa rodar a migração.
 --
@@ -91,6 +92,7 @@ CREATE TABLE IF NOT EXISTS colaboradores (
   nome             VARCHAR(80) NOT NULL,
   cargo            VARCHAR(40) NOT NULL DEFAULT 'BALCONISTA',
   horario          VARCHAR(40) NULL,
+  jornada          JSON        NULL,
   gerente          TINYINT(1)  NOT NULL DEFAULT 0,
   ativo            TINYINT(1)  NOT NULL DEFAULT 1,
   folga_fixa       TINYINT     NULL,      -- 0=domingo ... 6=sábado
