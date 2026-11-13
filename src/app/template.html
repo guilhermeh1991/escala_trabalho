@@ -1012,8 +1012,12 @@ function configurarJornadaDetalhe(box,c){
     status.textContent=!valida?'Revisar jornada':(j.modelo?'Pronto para aplicar':'Modelo pendente');
     return {j,valida};
   };
-  campos('modelo').onchange=()=>{ const m=MODELOS_JORNADA.find(x=>x.id===campos('modelo').value); if(m){campos('entrada').value=m.entrada;campos('saida').value=m.saida;campos('intervalo').value=m.intervalo;} atualizar(); };
-  ['entrada','saida','intervalo'].forEach(k=>campos(k).onchange=atualizar);
+  const aplicarModelo = ()=>{ const m=MODELOS_JORNADA.find(x=>x.id===campos('modelo').value); if(m){campos('entrada').value=m.entrada;campos('saida').value=m.saida;campos('intervalo').value=String(m.intervalo);} atualizar(); };
+  // change cobre o seletor nativo; input dá retorno imediato em navegadores e teclados
+  // que atualizam a escolha antes de fechar a lista.
+  campos('modelo').onchange=aplicarModelo;
+  campos('modelo').oninput=aplicarModelo;
+  ['entrada','saida','intervalo'].forEach(k=>{campos(k).onchange=atualizar;campos(k).oninput=atualizar;});
   campos('cancelar').onclick=()=>{ jornadaAberta=null; pintarEquipe(); };
   campos('aplicar').onclick=async()=>{ const {j,valida}=atualizar(); if(!valida) return; c.jornada=j; c.horario=textoJornada(j); await salvarEquipe(); jornadaAberta=null; pintarEquipe(); };
   atualizar();
