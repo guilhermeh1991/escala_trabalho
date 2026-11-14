@@ -178,6 +178,8 @@ hg = hg.replace('/*ENGINE*/', motor + "\n\n" + planilha + "\n\n" + documento + "
 exigir(hg, 'pintarAcessos();', 'gancho de papel')
 hg = hg.replace('  pintarAcessos();', '  pintarAcessos();\n  aplicarPapel();', 1)
 (DIST / 'escala-hostgator.html').write_text(hg, encoding='utf-8')
+(RAIZ / 'escala-hostgator.html').write_text(hg, encoding='utf-8')
+(RAIZ / 'index.html').write_text(hg, encoding='utf-8')
 
 # ---------------------------------------------------------------- conferência
 conferir = {

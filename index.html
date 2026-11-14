@@ -9,78 +9,143 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --tinta:#16232B; --tinta2:#2C3F49; --fundo:#EDF0EE; --painel:#fff; --linha:#CBD5CE;
-  --texto:#16232B; --fraco:#63736F; --teal:#0E6E6B;
-  --v-bg:#D8EDE2; --v-fg:#14663F;   /* folga */
-  --a-bg:#D7E5F0; --a-fg:#1F5580;   /* férias */
-  --m-bg:#F6E7C4; --m-fg:#8A5E06;   /* folga compensatória */
-  --r-bg:#F3DBD7; --r-fg:#96332A;   /* atestado */
-  --p-bg:#E3DDF2; --p-fg:#50407E;   /* licença */
-  --alerta:#B4453C;
-  --radius:3px;
+  --tinta:#12262D; --tinta2:#1D3A42; --fundo:#F2F5F3; --painel:#FFFFFF; --linha:#D5DED9;
+  --linha-suave:#E8EEEA; --texto:#17272C; --fraco:#62736E; --teal:#087773; --teal-escuro:#075F5D;
+  --teal-suave:#E5F3F0; --superficie:#F7F9F8;
+  --v-bg:#DDF1E5; --v-fg:#12633E;   /* folga */
+  --a-bg:#DFECF6; --a-fg:#215A82;   /* férias */
+  --m-bg:#F8EAC9; --m-fg:#835A09;   /* folga compensatória */
+  --r-bg:#F6E1DE; --r-fg:#963A32;   /* atestado */
+  --p-bg:#EAE4F5; --p-fg:#584587;   /* licença */
+  --alerta:#B74339; --rota:#F2C94C; --rota-escura:#5B4700;
+  --info-bg:#E1EDF6; --info-fg:#1D5B7A;
+  --radius:9px; --radius-sm:6px; --radius-lg:14px;
+  --sombra:0 1px 2px rgba(18,38,45,.04),0 8px 24px rgba(18,38,45,.055);
+  --sombra-alta:0 16px 44px rgba(8,30,35,.18);
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;padding:0}
 body{background:var(--fundo);color:var(--texto);font:15px/1.5 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-h1,h2,h3,.disp{font-family:Archivo,Inter,sans-serif;letter-spacing:-.01em}
+h1,h2,h3,.disp{font-family:Archivo,Inter,sans-serif;letter-spacing:-.02em}
 button{font:inherit;cursor:pointer}
 input,select{font:inherit}
+button,input,select{transition:border-color .18s ease,background-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid rgba(8,119,115,.25);outline-offset:2px}
 .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
 
 /* ---------- pop-up de edição da célula ---------- */
 .cel-editada{position:relative}
-.cel-editada::after{content:'';position:absolute;left:4px;right:4px;bottom:1px;height:2px;background:var(--teal);border-radius:1px}
-#pop-cel{position:absolute;z-index:60;width:292px;background:#fff;border:1px solid var(--linha);
-  border-radius:10px;box-shadow:0 8px 28px rgba(22,35,43,.16);overflow:hidden;font-size:13px}
-#pop-cel .pc-topo{padding:11px 14px;border-bottom:1px solid #EDF1EE;background:#F7F9F7}
+.cel-editada::after{content:'';position:absolute;top:3px;right:3px;width:5px;height:5px;background:var(--teal);
+  border-radius:50%;box-shadow:0 0 0 2px #fff}
+#pop-cel{position:absolute;z-index:60;width:320px;max-width:calc(100vw - 16px);background:#fff;border:1px solid var(--linha);
+  border-radius:var(--radius-lg);box-shadow:var(--sombra-alta);overflow:hidden;font-size:13px}
+#pop-cel .pc-topo{padding:11px 14px;border-bottom:1px solid var(--linha-suave);background:var(--superficie)}
 #pop-cel .pc-nome{font-weight:600;font-size:13px}
-#pop-cel .pc-data{font-size:11.5px;color:var(--fraco)}
+#pop-cel .pc-data{font-size:12px;color:var(--fraco)}
 #pop-cel .pc-corpo{padding:12px 14px}
-#pop-cel .pc-rot{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#8A9995;margin-bottom:8px}
+#pop-cel .pc-rot{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#62736E;margin-bottom:8px}
+#pop-cel .pc-equipe{padding:8px 10px;margin-bottom:10px;border:1px solid var(--linha-suave);border-radius:6px;background:var(--superficie)}
+#pop-cel .pc-equipe-hora{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--texto)}
+#pop-cel .pc-equipe-meta{margin-top:2px;font-size:11.5px;color:var(--fraco);line-height:1.35}
+#pop-cel .pc-select{width:100%;padding:7px 8px;margin-bottom:10px;border:1px solid var(--linha);border-radius:6px;
+  background:#fff;color:var(--texto);font-size:12.5px}
 #pop-cel .pc-linha{display:flex;gap:6px;align-items:center;margin-bottom:8px}
 #pop-cel input[type=time]{flex:1;padding:7px 8px;border:1px solid var(--linha);border-radius:6px;
   font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
 #pop-cel .pc-aplicar{padding:7px 12px;border:0;border-radius:6px;background:var(--texto);color:#fff;
   font-size:12.5px;font-weight:500;cursor:pointer}
-#pop-cel .pc-atalhos{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
-#pop-cel .pc-atalho{padding:4px 9px;border:1px solid var(--linha);border-radius:20px;background:#fff;
-  font-family:'JetBrains Mono',monospace;font-size:11.5px;cursor:pointer}
-#pop-cel .pc-atalho:hover{border-color:var(--teal);color:var(--teal)}
-#pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--fraco);cursor:pointer}
+#pop-cel .pc-dias{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:8px}
+#pop-cel .pc-dia{padding:6px 2px;border:1px solid var(--linha);border-radius:20px;background:#fff;
+  font-size:12px;font-weight:600;cursor:pointer;color:var(--fraco);text-align:center}
+#pop-cel .pc-dia:hover{border-color:var(--teal);color:var(--teal)}
+#pop-cel .pc-dia.ativo{background:var(--teal);border-color:var(--teal);color:#fff}
+#pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:11.5px;color:var(--fraco);cursor:pointer}
 #pop-cel .pc-repetir input{accent-color:var(--teal);width:14px;height:14px}
+#pop-cel .pc-aviso-descanso{display:none;margin:8px 0 0;padding:8px 9px;border:1px solid #E4B7B1;border-radius:6px;background:var(--r-bg);color:var(--r-fg);font-size:11.5px;line-height:1.4}
+#pop-cel .pc-aviso-descanso[data-visivel="true"]{display:block}
 #pop-cel .pc-codigos{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 #pop-cel .pc-cod{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--linha);
   border-radius:6px;background:#fff;font-size:12px;cursor:pointer;text-align:left}
 #pop-cel .pc-cod:hover{border-color:var(--teal)}
 #pop-cel .pc-cod b{width:13px;height:13px;border-radius:3px;flex-shrink:0}
-#pop-cel .pc-rodape{padding:9px 14px;border-top:1px solid #EDF1EE;background:#F7F9F7;
+#pop-cel .pc-rodape{padding:9px 14px;border-top:1px solid var(--linha-suave);background:var(--superficie);
   display:flex;justify-content:space-between;align-items:center;gap:10px}
 #pop-cel .pc-link{border:0;background:none;color:var(--fraco);font-size:12px;cursor:pointer;padding:0}
 #pop-cel .pc-link:hover{color:var(--texto)}
 #pop-cel .pc-link.pc-voltar{text-decoration:underline}
 
+/* ---------- escalas salvas ---------- */
+.salva{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--linha)}
+.salva:last-child{border-bottom:0}
+.salva-info{flex:1;min-width:0}
+.salva-tit{font-weight:600;font-size:14px}
+.salva-desc{font-size:12.5px;color:var(--fraco);margin-top:2px;line-height:1.5}
+.salva-desc b{color:var(--texto);font-weight:600}
+.salva-acoes{display:flex;gap:7px;flex-shrink:0}
+.salva-atual{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;background:var(--v-bg);color:var(--v-fg);padding:2px 7px;
+  border-radius:10px;margin-left:7px;vertical-align:1px}
+@media(max-width:620px){
+  .salva{flex-direction:column;align-items:stretch;gap:9px}
+  .salva-acoes{justify-content:flex-start}
+}
+
+/* ---------- faixa de cargo na grade ---------- */
+table.esc tr.grupo td{background:#EAF0ED;border-bottom:1px solid #D9E2DD;height:23px}
+table.esc tr.grupo td.fixa{background:#EAF0ED;font-size:10px;font-weight:700;letter-spacing:.095em;
+  text-transform:uppercase;color:#50655F;padding:4px 10px}
+table.esc tr.grupo td.fixa::before{content:'';display:inline-block;width:3px;height:11px;margin-right:7px;
+  border-radius:2px;background:var(--teal);vertical-align:-1px}
+table.esc tr.grupo td.hr{background:#EAF0ED}
+
+/* ---------- excluir escala salva ---------- */
+.salva-excluir{color:var(--fraco)}
+.salva-excluir:hover{border-color:var(--r-fg);color:var(--r-fg);background:var(--r-bg)}
+
+/* ---------- códigos de convite por loja ---------- */
+.cod-loja{display:flex;justify-content:space-between;align-items:center;gap:14px;
+  padding:8px 11px;background:var(--superficie);border:1px solid var(--linha-suave);border-radius:var(--radius);margin-bottom:6px;font-size:13px}
+.cod-loja b{font-size:14px;letter-spacing:.09em;font-weight:600}
+
 /* ---------- minha escala ---------- */
 .me-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
 .me-cartoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px}
-.me-cartao{background:#F4F6F4;border-radius:var(--radius);padding:12px 14px}
-.me-rot{font-size:12px;color:var(--fraco);margin-bottom:3px}
-.me-val{font-size:24px;font-weight:600;line-height:1.2}
-.me-val-hora{font-size:15px;font-family:'JetBrains Mono',monospace;padding-top:6px}
-.me-proximas{background:var(--v-bg);border-radius:var(--radius);padding:12px 14px;margin-bottom:20px}
-.me-proximas-rot{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--v-fg);margin-bottom:6px}
-.me-proximas-lista{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;font-weight:600;color:var(--v-fg)}
-.me-grade{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
-.me-cab{text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--fraco);padding-bottom:4px}
-.me-dia{background:#F7F9F7;border-radius:var(--radius);padding:8px 4px;text-align:center;min-height:50px}
+.me-cartao{position:relative;overflow:hidden;background:var(--superficie);border:1px solid var(--linha-suave);
+  border-radius:var(--radius);padding:14px 16px}
+.me-cartao::before{content:'';position:absolute;inset:0 auto 0 0;width:3px;background:#93B9B3}
+.me-cartao:first-child::before{background:var(--v-fg)}
+.me-rot{font-size:11px;font-weight:600;letter-spacing:.035em;text-transform:uppercase;color:var(--fraco);margin-bottom:5px}
+.me-val{font-family:Archivo,Inter,sans-serif;font-size:26px;font-weight:700;line-height:1.15;color:var(--tinta)}
+.me-val-hora{font-size:15px;font-family:'JetBrains Mono',monospace;padding-top:6px;letter-spacing:-.02em}
+.me-proximas{background:linear-gradient(120deg,var(--v-bg),#EBF7F0);border:1px solid #CBE6D5;
+  border-radius:var(--radius);padding:13px 15px;margin-bottom:20px}
+.me-proximas-rot{font-size:10.5px;font-weight:700;letter-spacing:.075em;text-transform:uppercase;color:var(--v-fg);margin-bottom:8px}
+.me-proximas-lista{display:flex;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:600;color:var(--v-fg)}
+.me-proximas-lista span{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.68);border:1px solid rgba(18,99,62,.14);
+  border-radius:20px;padding:5px 10px}
+.me-proximas-lista b{font-weight:600}
+.me-proximas-lista small{padding-left:7px;border-left:1px solid rgba(18,99,62,.18);font-size:10.5px;font-weight:500;color:#3F765A}
+.me-grade{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.me-cab{text-align:center;font-size:10px;font-weight:700;letter-spacing:.075em;text-transform:uppercase;color:var(--fraco);padding:1px 0 5px}
+.me-dia{position:relative;background:var(--superficie);border:1px solid transparent;border-radius:var(--radius-sm);padding:9px 4px;text-align:center;min-height:54px}
+.me-dia:hover{border-color:#B9CBC3}
 .me-dia-marcado{font-weight:600}
-.me-num{font-size:15px;font-weight:600}
-.me-hora{font-size:10.5px;color:#8A9995;font-family:'JetBrains Mono',monospace}
+.me-dia.me-dia-hoje{border-color:var(--teal);box-shadow:0 0 0 2px rgba(8,119,115,.12)}
+.me-dia-hoje::after{content:'hoje';position:absolute;top:-7px;left:50%;transform:translateX(-50%);background:var(--teal);color:#fff;
+  border-radius:8px;padding:0 5px;font:700 8px/14px Inter,sans-serif;text-transform:uppercase;letter-spacing:.04em}
+.me-num{font-size:15px;font-weight:700}
+.me-hora{font-size:10.5px;color:#7C8E88;font-family:'JetBrains Mono',monospace}
 .me-tipo{font-size:10px;font-weight:600;text-transform:lowercase}
 @media(max-width:620px){
+  .me-cartoes{grid-template-columns:1fr 1fr;gap:8px}
+  .me-cartao{padding:12px 13px}
+  .me-cartao:last-child{grid-column:1/-1}
+  .me-val{font-size:23px}
   .me-grade{gap:3px}
-  .me-dia{padding:6px 2px;min-height:44px}
+  .me-dia{padding:7px 1px;min-height:47px;border-radius:5px}
   .me-num{font-size:13px}
-  .me-tipo,.me-hora{font-size:9px}
+  .me-tipo,.me-hora{font-size:9px;letter-spacing:-.02em}
 }
 
 /* ---------- params ---------- */
@@ -98,66 +163,170 @@ input,select{font:inherit}
 .dias-semana{display:grid;grid-template-columns:repeat(7,1fr);gap:0;border:1px solid var(--linha);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
 .ds-cel{text-align:center;border-right:1px solid var(--linha)}
 .ds-cel:last-child{border-right:0}
-.ds-cel .ds-nome{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);background:#F4F6F4;padding:6px 4px;border-bottom:1px solid var(--linha)}
+.ds-cel .ds-nome{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);background:var(--superficie);padding:6px 4px;border-bottom:1px solid var(--linha)}
 .ds-cel input{width:100%;text-align:center;border:0;padding:10px 4px;font-size:15px;font-weight:600;color:var(--texto);background:#fff}
 .ds-cel input:focus{outline:2px solid var(--teal);outline-offset:-2px}
-.ds-cel.fds .ds-nome{background:#EDF0EE}
+.ds-cel.fds .ds-nome{background:#EDF2EF}
 .ds-cel.fds input{background:#FAFBFA}
 .params-actions{display:flex;align-items:center;gap:12px;padding:4px 0}
 
 
 /* ---------- login ---------- */
-#login{min-height:100vh;display:grid;place-items:center;padding:24px;
-  background:linear-gradient(160deg,var(--tinta) 0%,#1E3238 55%,#28464A 100%)}
-.card-login{width:100%;max-width:380px;background:var(--painel);border-radius:var(--radius);padding:32px;
-  box-shadow:0 24px 60px rgba(0,0,0,.34)}
-.card-login .marca{font-family:Archivo;font-weight:800;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--teal)}
-.card-login h1{font-size:27px;font-weight:700;margin:6px 0 4px}
-.card-login p.sub{margin:0 0 24px;color:var(--fraco);font-size:13.5px}
-label{display:block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:14px 0 5px}
-.inp{width:100%;padding:10px 12px;border:1px solid var(--linha);border-radius:var(--radius);background:#fff}
-.inp:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:var(--teal)}
-.btn{background:var(--tinta);color:#fff;border:0;padding:11px 16px;border-radius:var(--radius);font-weight:600}
-.btn:hover{background:var(--teal)}
-.btn.ghost{background:transparent;color:var(--tinta);border:1px solid var(--linha)}
-.btn.ghost:hover{background:#fff;border-color:var(--teal);color:var(--teal)}
+#login{position:relative;isolation:isolate;min-height:100dvh;display:grid;place-items:center;padding:28px;overflow:hidden;
+  background:#0D1D22;color:var(--texto)}
+#login::before{content:'';position:absolute;z-index:-2;inset:-20%;pointer-events:none;
+  background:radial-gradient(ellipse 50% 48% at 76% 18%,rgba(119,180,171,.16),transparent 66%),
+             radial-gradient(ellipse 42% 50% at 15% 92%,rgba(255,255,255,.055),transparent 67%),
+             linear-gradient(122deg,#0A181D 0%,#10262C 57%,#16373A 100%)}
+#login::after{content:'';position:absolute;z-index:-1;inset:0;pointer-events:none;opacity:.6;
+  background:linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px);
+  background-size:72px 72px;mask-image:linear-gradient(to bottom,transparent,black 22%,black 76%,transparent)}
+#login ::selection{background:#BCE9E1;color:#10262B}
+.card-login{width:100%;max-width:406px;padding:40px;background:#FCFDFC;border:1px solid rgba(255,255,255,.72);
+  border-radius:18px;box-shadow:0 28px 72px rgba(0,0,0,.30),0 4px 14px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.9);
+  animation:login-chegada .48s cubic-bezier(.2,.75,.25,1) both}
+.card-login .marca{font-family:Archivo,Inter,sans-serif;font-weight:700;font-size:14px;letter-spacing:-.015em;color:#075F5D}
+.card-login h1{font-size:32px;font-weight:700;line-height:1.1;margin:18px 0 7px;color:var(--tinta)}
+.card-login p.sub{margin:0 0 26px;color:#50625F;font-size:14px;line-height:1.5}
+.card-login .inp{background:#FEFFFE;border-color:#CDD8D3;caret-color:var(--teal)}
+.card-login .inp:hover{border-color:#8EA9A1}
+.card-login .inp:focus{border-color:var(--teal);box-shadow:0 0 0 4px rgba(8,119,115,.14)}
+.card-login .btn{min-height:44px;box-shadow:0 7px 16px rgba(0,0,0,.12)}
+.card-login .btn:hover{box-shadow:0 9px 20px rgba(0,0,0,.17)}
+.card-login .aviso{margin-top:16px;padding-top:14px}
+.card-login a{color:var(--teal-escuro);font-weight:600;text-decoration-color:rgba(7,95,93,.35);text-underline-offset:3px}
+.card-login a:hover{color:var(--teal);text-decoration-thickness:2px}
+@keyframes login-chegada{from{opacity:0;transform:translateY(10px);box-shadow:0 16px 42px rgba(0,0,0,.18)}to{opacity:1;transform:translateY(0);box-shadow:0 28px 72px rgba(0,0,0,.30),0 4px 14px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.9)}}
+@media(prefers-reduced-motion:reduce){.card-login{animation:none}}
+label{display:block;font-size:12px;font-weight:600;letter-spacing:.055em;text-transform:uppercase;color:var(--fraco);margin:14px 0 5px}
+.inp{width:100%;padding:10px 12px;border:1px solid var(--linha);border-radius:var(--radius-sm);background:#fff;color:var(--texto)}
+.inp:hover{border-color:#A9BBB3}
+.inp:focus{outline:3px solid rgba(8,119,115,.16);outline-offset:0;border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--tinta);color:#fff;
+  border:1px solid var(--tinta);padding:10px 16px;border-radius:var(--radius-sm);font-weight:600;line-height:1.25}
+.btn:hover{background:var(--teal-escuro);border-color:var(--teal-escuro);box-shadow:0 4px 12px rgba(18,38,45,.14)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--teal);border-color:var(--teal);box-shadow:0 4px 12px rgba(18,38,45,.14)}
+.btn.primary:hover{background:var(--teal-escuro);border-color:var(--teal-escuro);box-shadow:0 6px 16px rgba(18,38,45,.18)}
+.btn.publish{background:#fff;color:var(--teal-escuro);border-color:#8DBFBA}
+.btn.publish:hover{background:var(--teal-suave);border-color:var(--teal)}
+.btn.ghost{background:#fff;color:var(--tinta);border:1px solid var(--linha)}
+.btn.ghost:hover{background:var(--teal-suave);border-color:#8DBFBA;color:var(--teal-escuro);box-shadow:none}
 .btn.small{padding:6px 10px;font-size:13px}
 .btn.danger{background:transparent;border:1px solid var(--linha);color:var(--alerta)}
-.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
 .aviso{margin-top:14px;font-size:12.5px;color:var(--fraco);border-top:1px solid var(--linha);padding-top:12px}
 .erro{color:var(--alerta);font-size:13px;margin-top:10px;min-height:18px}
 
 /* ---------- shell ---------- */
 #app{display:none}
-header.top{background:var(--tinta);color:#fff;padding:0 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;min-height:56px}
-header.top .marca{font-family:Archivo;font-weight:800;letter-spacing:.16em;font-size:12.5px;text-transform:uppercase;color:#8FC9BE}
+header.top{background:var(--tinta);color:#fff;padding:0 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;min-height:60px;
+  border-bottom:1px solid rgba(255,255,255,.06)}
+header.top .marca{font-family:Archivo;font-weight:800;letter-spacing:.145em;font-size:12.5px;text-transform:uppercase;color:#9DD7CD}
 header.top .sel{margin-left:auto;display:flex;gap:12px;align-items:center;font-size:13px;color:#C6D2CE}
-header.top select{background:#26383F;color:#fff;border:1px solid #3C525A;border-radius:var(--radius);
-  padding:7px 10px;font-size:13.5px;font-weight:500;max-width:220px}
-header.top .divisa{width:1px;height:22px;background:#3C525A;flex-shrink:0}
-header.top .quem{width:29px;height:29px;border-radius:50%;background:#2E4750;color:#8FC9BE;
-  display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;
-  border:1px solid #3C525A;flex-shrink:0;cursor:default;text-transform:uppercase}
-header.top .quem:focus{outline:2px solid #8FC9BE;outline-offset:2px}
+header.top .unidade{display:none;align-items:center;min-height:34px;padding:0 10px;border:1px solid #3B555D;border-radius:var(--radius-sm);background:#182F36;color:#E1ECE8;font-size:13px;font-weight:600;white-space:nowrap}
+header.top[data-troca-loja="false"] .unidade{display:inline-flex}
+header.top select{background:#20383F;color:#fff;border:1px solid #416069;border-radius:var(--radius-sm);
+  padding:7px 30px 7px 10px;font-size:13.5px;font-weight:600;max-width:220px}
+header.top select:hover{border-color:#79A59F}
+header.top[data-troca-loja="false"] #sel-loja{display:none}
+header.top .divisa{width:1px;height:24px;background:#3B555D;flex-shrink:0}
+header.top .quem{width:32px;height:32px;border-radius:50%;background:#2A4850;color:#A7DED5;
+  display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;
+  border:1px solid #45646C;flex-shrink:0;cursor:default;text-transform:uppercase}
+header.top .quem:focus{outline:2px solid #9DD7CD;outline-offset:2px}
 @media(max-width:560px){
-  header.top{padding:0 12px;gap:10px}
-  header.top .marca{font-size:11px;letter-spacing:.12em}
-  header.top .sel{gap:8px}
-  header.top select{max-width:130px;font-size:12.5px}
+  header.top{padding:8px 16px;gap:10px;min-height:58px}
+  header.top .marca{font-size:11px;letter-spacing:.11em}
+  header.top .sel{gap:7px;flex:1;justify-content:flex-end}
+  header.top select{max-width:126px;font-size:12.5px}
+  header.top .unidade{max-width:126px;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
   header.top .divisa{display:none}
+  header.top #sync-estado{display:none}
+  #btn-sair{padding-inline:9px}
 }
-nav.tabs{background:var(--tinta2);display:flex;gap:2px;padding:0 20px;overflow-x:auto}
-nav.tabs button{background:transparent;border:0;color:#B9C8C5;padding:11px 15px;font-size:13.5px;font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
-nav.tabs button[aria-current="true"]{color:#fff;border-bottom-color:#8FC9BE}
-main{padding:20px;max-width:1900px;margin:0 auto}
+nav.tabs{background:var(--tinta2);display:flex;gap:4px;padding:0 24px;overflow-x:auto;box-shadow:0 3px 10px rgba(18,38,45,.10)}
+nav.tabs button{position:relative;background:transparent;border:0;color:#BBD0CB;padding:12px 15px;font-size:13.5px;font-weight:500;
+  border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.04)}
+nav.tabs button[aria-current="true"]{color:#fff;border-bottom-color:#91D4C9;font-weight:600}
+main{padding:24px;max-width:1900px;margin:0 auto}
 .view{display:none}
 .view[data-ativa="true"]{display:block}
-.painel{background:var(--painel);border:1px solid var(--linha);border-radius:var(--radius);padding:18px;margin-bottom:16px}
-.painel h2{font-size:17px;margin:0 0 4px}
+.painel{background:var(--painel);border:1px solid var(--linha);border-radius:var(--radius-lg);padding:20px;margin-bottom:18px;box-shadow:var(--sombra)}
+.painel h2{font-size:18px;margin:0 0 4px;color:var(--tinta)}
 .painel .desc{color:var(--fraco);font-size:13px;margin:0 0 16px}
 .barra{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .grade-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px 16px}
 .grade-form label{margin-top:0}
+
+/* ---------- comando da escala ---------- */
+.esc-comandos{padding:0;overflow:hidden}
+.esc-rota{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:22px;background:var(--rota);color:#211A00;padding:16px 20px;border-bottom:1px solid #D6AE24}
+.esc-rota strong{display:block;font-family:Archivo,Inter,sans-serif;font-size:20px;letter-spacing:-.015em;line-height:1.15}
+.esc-rota p{margin:3px 0 0;font-size:13px;line-height:1.4;color:#4A3A00}
+.esc-rota .chip{background:#211A00;color:#fff;font-size:12px;padding:5px 10px}
+.esc-barra{display:grid;grid-template-columns:minmax(300px,auto) auto minmax(280px,1fr);align-items:end;gap:18px;padding:18px 20px 0}
+.esc-status{margin-inline:20px}
+.esc-status:empty{display:none}
+.esc-visao{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:14px;padding:14px 20px 16px;border-top:1px solid var(--linha-suave);background:var(--superficie)}
+.esc-visao-copy{min-width:0}
+.esc-visao h2{margin:0;font-size:15px;line-height:1.25}
+.esc-visao p{margin:3px 0 0;font-size:12.5px;line-height:1.45;color:var(--fraco)}
+.esc-metricas{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}
+.esc-metrica{display:inline-flex;align-items:baseline;gap:5px;padding:5px 8px;border:1px solid var(--linha);border-radius:var(--radius-sm);background:#fff;color:var(--fraco);font-size:11.5px;white-space:nowrap}
+.esc-metrica b{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:var(--texto)}
+.esc-metrica.ok{background:var(--v-bg);border-color:transparent;color:var(--v-fg)}
+.esc-metrica.ok b{color:var(--v-fg)}
+.esc-metrica.alerta{background:var(--r-bg);border-color:transparent;color:var(--r-fg)}
+.esc-metrica.alerta b{color:var(--r-fg)}
+.esc-metrica.info{background:var(--info-bg);border-color:transparent;color:var(--info-fg)}
+.esc-metrica.info b{color:var(--info-fg)}
+.esc-periodo{display:flex;align-items:flex-end;gap:8px;padding-right:18px;border-right:1px solid var(--linha)}
+.esc-periodo label{margin:0;flex:1;min-width:132px}
+.esc-periodo .inp{margin-top:5px;min-width:0}
+.esc-fluxo{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.esc-saidas{display:flex;align-items:center;justify-content:flex-end;gap:0;min-width:0}
+.esc-saidas-rot{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--fraco);margin-right:9px}
+.esc-saidas .btn{border-radius:0;margin-left:-1px;padding-inline:11px;white-space:nowrap}
+.esc-saidas .btn:first-of-type{border-radius:var(--radius-sm) 0 0 var(--radius-sm);margin-left:0}
+.esc-saidas .btn:last-child{border-radius:0 var(--radius-sm) var(--radius-sm) 0}
+#status-salvo:empty{display:none}
+.esc-status{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:13px;border-top:1px solid var(--linha-suave)}
+.esc-status #resumo-cobertura{flex:1;min-width:0}
+.esc-status #status-salvo{flex-shrink:0}
+.resumo-cobertura-linha{display:flex;align-items:center;gap:5px 13px;flex-wrap:wrap;font-size:12.5px;color:var(--fraco)}
+.resumo-cobertura-linha>span:not(.cobertura-estado){position:relative}
+.resumo-cobertura-linha>span:not(.cobertura-estado)+span:not(.cobertura-estado)::before{content:'·';position:absolute;left:-9px;color:#A7B4AF}
+.cobertura-estado{display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:3px 8px;font-size:11.5px;font-weight:600}
+.cobertura-ok{background:var(--v-bg);color:var(--v-fg)}
+.cobertura-alerta{background:var(--r-bg);color:var(--r-fg)}
+@media(max-width:1120px){
+  .esc-barra{grid-template-columns:minmax(300px,1fr) auto}
+  .esc-saidas{grid-column:1/-1;justify-content:flex-start;padding-top:12px;border-top:1px solid var(--linha-suave)}
+}
+@media(max-width:720px){
+  .esc-barra{display:flex;flex-direction:column;align-items:stretch;gap:13px}
+  .esc-periodo{padding-right:0;padding-bottom:13px;border-right:0;border-bottom:1px solid var(--linha-suave)}
+  .esc-fluxo{display:grid;grid-template-columns:1fr 1fr}
+  .esc-fluxo .btn:first-child{grid-column:1/-1}
+  .esc-saidas{display:grid;grid-template-columns:repeat(3,1fr);padding-top:13px}
+  .esc-saidas-rot{grid-column:1/-1;margin:0 0 6px}
+  .esc-saidas .btn{width:100%;font-size:12px;padding-inline:6px}
+  .esc-status{align-items:flex-start;flex-direction:column-reverse}
+  .esc-visao{grid-template-columns:1fr;gap:10px}
+  .esc-metricas{justify-content:flex-start}
+}
+@media(max-width:620px){
+  table.esc th.intervalo,table.esc td.intervalo{display:none}
+  main{padding:16px}
+  nav.tabs{padding-inline:12px}
+  .painel{padding:16px;border-radius:12px;margin-bottom:14px}
+  .esc-comandos{padding:0}
+  .esc-rota{padding:14px 16px;gap:10px}
+  .esc-rota strong{font-size:18px}
+  .esc-visao{padding:13px 16px 15px}
+}
 
 /* ---------- tabela escala ----------
    As duas primeiras colunas ficam presas na rolagem horizontal. As larguras
@@ -166,72 +335,131 @@ main{padding:20px;max-width:1900px;margin:0 auto}
    solto, e quando um nome comprido esticava a coluna, a coluna ENTRA subia
    por cima e escondia o primeiro dia. */
 .esc-quadro{position:relative}
-.scroll{overflow:auto;border:1px solid var(--linha);background:#fff;max-height:72vh;
-  scrollbar-color:#B9C6C0 #EDF1EE;scrollbar-width:thin}
+.scroll{overflow:auto;border:1px solid var(--linha);border-radius:var(--radius);background:#fff;max-height:72vh;
+  scrollbar-color:#ADBCB5 #EEF2F0;scrollbar-width:thin}
 .scroll::-webkit-scrollbar{height:12px;width:12px}
-.scroll::-webkit-scrollbar-track{background:#EDF1EE}
-.scroll::-webkit-scrollbar-thumb{background:#B9C6C0;border-radius:6px;border:3px solid #EDF1EE}
-.scroll::-webkit-scrollbar-thumb:hover{background:#94A59E}
+.scroll::-webkit-scrollbar-track{background:#EEF2F0}
+.scroll::-webkit-scrollbar-thumb{background:#ADBCB5;border-radius:6px;border:3px solid #EEF2F0}
+.scroll::-webkit-scrollbar-thumb:hover{background:#879C93}
 
-table.esc{--w-nome:168px;--w-hora:60px;
+table.esc{--w-nome:168px;--w-hora:60px;--w-intervalo:84px;
   border-collapse:separate;border-spacing:0;font-size:12px;white-space:nowrap}
-table.esc th,table.esc td{border-right:1px solid #E4E9E5;border-bottom:1px solid #E4E9E5;padding:0}
-table.esc thead th{position:sticky;top:0;z-index:3;background:#F4F6F4;font-weight:600;color:var(--fraco);
-  font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:5px 4px;text-align:center;
-  height:24px;box-sizing:border-box}
-table.esc thead tr.datas th{top:24px;font-family:'JetBrains Mono',monospace;font-size:11px;
-  color:var(--texto);letter-spacing:0;text-transform:none}
+table.esc th,table.esc td{border-right:1px solid var(--linha-suave);border-bottom:1px solid var(--linha-suave);padding:0}
+table.esc thead th{position:sticky;top:0;z-index:3;background:#EFF4F1;font-weight:700;color:#576A64;
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.055em;padding:6px 4px;text-align:center;
+  height:27px;box-sizing:border-box;box-shadow:inset 0 -1px 0 #D6E0DB}
+table.esc thead tr.datas th{top:27px;font-family:'JetBrains Mono',monospace;font-size:11px;
+  color:var(--texto);letter-spacing:0;text-transform:none;background:#F6F8F7}
 
-/* coluna 1 — nome e cargo */
+/* coluna 1 — nome */
 table.esc th.fixa,table.esc td.fixa{position:sticky;left:0;z-index:2;background:#fff;text-align:left;
-  padding:5px 9px;width:var(--w-nome);min-width:var(--w-nome);max-width:var(--w-nome);
+  padding:6px 10px;width:var(--w-nome);min-width:var(--w-nome);max-width:var(--w-nome);
   box-sizing:border-box;overflow:hidden}
-table.esc thead th.fixa{z-index:5;background:#F4F6F4}
-table.esc td.fixa .nome{font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis}
-table.esc td.fixa .cargo{color:var(--fraco);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
+table.esc thead th.fixa{z-index:5;background:#EFF4F1}
+table.esc thead tr.datas th.fixa{background:#F6F8F7}
+table.esc td.fixa .nome{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px}
+table.esc td.fixa .tag-gerente{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  background:#E6EEEC;color:#1E3238;padding:1px 5px;border-radius:4px}
 
 /* coluna 2 — horário de entrada. O left vem da largura da coluna 1. */
 table.esc th.hr,table.esc td.hr{position:sticky;left:var(--w-nome);z-index:2;background:#fff;
   font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--fraco);padding:0 6px;text-align:center;
   width:var(--w-hora);min-width:var(--w-hora);max-width:var(--w-hora);box-sizing:border-box}
-table.esc thead th.hr{z-index:5;background:#F4F6F4}
+table.esc thead th.hr{z-index:5;background:#EFF4F1}
+table.esc thead tr.datas th.hr{background:#F6F8F7}
 
+/* coluna 3 — intervalo. Propriedade da pessoa, mostrada uma vez em vez de
+   repetir a pausa em cada um dos 31 dias da grade. */
+table.esc th.intervalo,table.esc td.intervalo{position:sticky;left:calc(var(--w-nome) + var(--w-hora));z-index:2;background:#fff;
+  font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--fraco);padding:0 6px;text-align:center;
+  width:var(--w-intervalo);min-width:var(--w-intervalo);max-width:var(--w-intervalo);box-sizing:border-box;
+  overflow:hidden;text-overflow:ellipsis}
+table.esc thead th.intervalo{z-index:5;background:#EFF4F1}
+table.esc thead tr.datas th.intervalo{background:#F6F8F7}
 /* sombra na divisa, para ficar claro que a tabela corre para o lado */
-table.esc th.hr::after,table.esc td.hr::after{content:'';position:absolute;top:0;right:0;bottom:0;
+table.esc th.intervalo::after,table.esc td.intervalo::after{content:'';position:absolute;top:0;right:0;bottom:0;
   width:6px;transform:translateX(100%);pointer-events:none;
   background:linear-gradient(to right,rgba(22,35,43,.10),transparent)}
-td.cel{text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;width:38px;min-width:38px;height:30px;cursor:pointer;user-select:none}
-td.cel:hover{outline:2px solid var(--teal);outline-offset:-2px}
-td.cel.fds{background:#F7F9F7}
-td.cel[data-cod="X"]{background:var(--v-bg);color:var(--v-fg);font-weight:600}
-td.cel[data-cod="FC"]{background:var(--m-bg);color:var(--m-fg);font-weight:600}
-td.cel[data-cod="F"]{background:var(--a-bg);color:var(--a-fg);font-weight:600}
-td.cel[data-cod="AT"]{background:var(--r-bg);color:var(--r-fg);font-weight:600}
-td.cel[data-cod="LC"]{background:var(--p-bg);color:var(--p-fg);font-weight:600}
+td.cel{text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;width:40px;min-width:40px;height:33px;cursor:pointer;user-select:none;
+  transition:background-color .12s ease,box-shadow .12s ease;position:relative}
+td.cel:hover{outline:0;box-shadow:inset 0 0 0 2px var(--teal);background-color:var(--teal-suave)}
+td.cel.fds{background:#F1F4F2}
+td.cel.domingo,th.domingo{box-shadow:inset 3px 0 0 #C49418}
+td.cel.domingo{background:#F8F6ED}
+td.cel.domingo[data-cod]::before{content:'';position:absolute;inset:0 auto 0 0;width:3px;background:#C49418;z-index:1}
+td.cel[data-cod="X"]{background:repeating-linear-gradient(135deg,var(--v-bg) 0 5px,#C5E2D0 5px 6px);color:var(--v-fg);font-weight:700;box-shadow:inset 0 0 0 1px var(--v-fg)}
+td.cel[data-cod="FC"]{background:repeating-linear-gradient(45deg,var(--m-bg) 0 5px,#F0D8A5 5px 6px);color:var(--m-fg);font-weight:700;box-shadow:inset 0 0 0 1px var(--m-fg)}
+td.cel[data-cod="F"]{background:var(--a-bg);color:var(--a-fg);font-weight:700;box-shadow:inset 0 0 0 2px var(--a-fg)}
+td.cel[data-cod="AT"]{background:var(--r-bg);color:var(--r-fg);font-weight:700;box-shadow:inset 0 0 0 2px var(--r-fg)}
+td.cel[data-cod="AT"]::after{content:'+';position:absolute;right:3px;top:1px;font-size:9px}
+td.cel[data-cod="LC"]{background:repeating-linear-gradient(0deg,var(--p-bg) 0 4px,#DED4ED 4px 5px);color:var(--p-fg);font-weight:700;box-shadow:inset 0 0 0 1px var(--p-fg)}
+td.cel.interjornada{background:var(--r-bg);box-shadow:inset 0 0 0 1px var(--r-fg)}
+td.cel.interjornada .hora-interjornada{color:var(--r-fg);font-weight:700}
+td.cel.interjornada .marca-interjornada{position:absolute;right:3px;top:1px;color:var(--r-fg);font-size:10px;font-style:normal;font-weight:800;line-height:1}
 tr.sep td{height:6px;background:var(--fundo);border:0}
-tr.sep td.fixa,tr.sep td.hr{background:var(--fundo);border:0}
-tfoot td{font-size:11px;text-align:center;font-family:'JetBrains Mono',monospace;background:#F4F6F4;height:24px}
+tr.sep td.fixa,tr.sep td.hr,tr.sep td.intervalo{background:var(--fundo);border:0}
+tfoot td{font-size:11px;text-align:center;font-family:'JetBrains Mono',monospace;background:#EFF4F1;height:25px}
 tfoot td{position:sticky;bottom:0;z-index:3}
-tfoot td.fixa{position:sticky;left:0;z-index:5;font-family:Inter;font-weight:600;font-size:11px;
-  text-transform:uppercase;letter-spacing:.05em;color:var(--fraco);background:#F4F6F4}
-tfoot td.hr{position:sticky;left:var(--w-nome);z-index:5;background:#F4F6F4}
-tfoot td.furo{background:var(--r-bg);color:var(--r-fg);font-weight:700}
+tfoot td.fixa{position:sticky;left:0;z-index:5;font-family:Inter;font-weight:700;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.055em;color:#52665F;background:#EFF4F1}
+tfoot td.hr{position:sticky;left:var(--w-nome);z-index:5;background:#EFF4F1}
+tfoot td.intervalo{position:sticky;left:calc(var(--w-nome) + var(--w-hora));z-index:5;background:#EFF4F1}
+tfoot td.furo{background:var(--r-bg);color:var(--r-fg);font-weight:700;box-shadow:inset 0 0 0 1px rgba(150,58,50,.13)}
 tfoot td.leve{background:var(--m-bg);color:var(--m-fg);font-weight:600}
-th.domingo{color:var(--v-fg)}
-.legenda{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--fraco);margin:12px 0 0}
-.legenda span b{display:inline-block;width:16px;height:12px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-.chip{display:inline-block;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600;background:#E7EDE9;color:var(--fraco)}
+th.domingo{color:var(--texto);background:#F8F3E3!important}
+.legenda{display:flex;gap:7px 16px;flex-wrap:wrap;font-size:11.5px;color:var(--fraco);margin:13px 0 0;padding:0 2px}
+.legenda span{display:inline-flex;align-items:center;gap:5px}
+.legenda span b{display:inline-block;width:16px;height:12px;border-radius:3px;margin:0;vertical-align:0}
+.legenda span b.legenda-ajuste{position:relative;background:#fff;border:1px solid var(--linha)}
+.legenda span b.legenda-ajuste::after{content:'';position:absolute;top:1px;right:1px;width:4px;height:4px;border-radius:50%;background:var(--teal)}
+.legenda span b.legenda-interjornada{position:relative;background:var(--r-bg);border:1px solid var(--r-fg)}
+.legenda span b.legenda-interjornada::after{content:'*';position:absolute;right:2px;top:-3px;color:var(--r-fg);font-size:10px;font-weight:800}
+.chip{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#E7EDE9;color:var(--fraco);white-space:nowrap}
 .chip.ok{background:var(--v-bg);color:var(--v-fg)}
 .chip.mal{background:var(--r-bg);color:var(--r-fg)}
 ul.alertas{list-style:none;margin:0;padding:0;max-height:230px;overflow:auto}
-ul.alertas li{padding:6px 0;border-bottom:1px solid #EDF0EE;font-size:13px;display:flex;gap:8px}
+ul.alertas li{padding:8px 0;border-bottom:1px solid var(--linha-suave);font-size:13px;display:flex;gap:8px}
 ul.alertas li b{min-width:120px;font-weight:600}
 table.simples{width:100%;border-collapse:collapse;font-size:13.5px}
-table.simples th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--fraco);border-bottom:1px solid var(--linha);padding:7px 8px}
-table.simples td{border-bottom:1px solid #EDF0EE;padding:6px 8px}
-table.simples td input,table.simples td select{width:100%;border:1px solid transparent;background:transparent;padding:4px 5px;border-radius:2px}
+table.simples th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.065em;color:var(--fraco);border-bottom:1px solid var(--linha);padding:8px}
+table.simples td{border-bottom:1px solid var(--linha-suave);padding:7px 8px}
+table.simples tbody tr:hover{background:#FAFCFB}
+table.simples td input,table.simples td select{width:100%;border:1px solid transparent;background:transparent;padding:5px 6px;border-radius:var(--radius-sm)}
 table.simples td input:hover,table.simples td select:hover{border-color:var(--linha);background:#fff}
 table.simples td input:focus,table.simples td select:focus{outline:2px solid var(--teal);outline-offset:0;background:#fff}
+
+/* ---------- jornada estruturada na equipe ---------- */
+#tab-equipe .horario-cel{min-width:238px;padding:5px 7px}
+#tab-equipe .horario-abrir{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:6px 7px;
+  border:1px solid transparent;border-radius:var(--radius-sm);background:transparent;color:var(--texto);text-align:left}
+#tab-equipe .horario-abrir:hover,#tab-equipe .horario-abrir[aria-expanded="true"]{border-color:#8DBFBA;background:var(--teal-suave)}
+#tab-equipe .horario-abrir .hora{display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+#tab-equipe .horario-abrir .modelo{display:block;margin-top:1px;color:var(--fraco);font-size:12px;line-height:1.35}
+#tab-equipe .horario-abrir .seta{width:8px;height:8px;flex:0 0 auto;border-right:2px solid var(--teal-escuro);border-bottom:2px solid var(--teal-escuro);transform:rotate(45deg) translateY(-2px);transition:transform .18s ease}
+#tab-equipe .horario-abrir[aria-expanded="true"] .seta{transform:rotate(225deg) translateY(-2px)}
+#tab-equipe tr.jornada-detalhe td{padding:0;background:#F7FAF8}
+#tab-equipe .jornada-box{padding:16px 18px 18px;border-bottom:1px solid var(--linha);animation:jornada-abre .2s cubic-bezier(.2,.75,.25,1)}
+@keyframes jornada-abre{from{opacity:.35;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+#tab-equipe .jornada-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:13px}
+#tab-equipe .jornada-topo strong{display:block;font-family:Archivo,Inter,sans-serif;font-size:14px}
+#tab-equipe .jornada-topo p{margin:2px 0 0;color:var(--fraco);font-size:12px;line-height:1.45}
+#tab-equipe .jornada-grade{display:grid;grid-template-columns:minmax(230px,1fr) 1.55fr;gap:14px}
+#tab-equipe .jornada-area{min-width:0}
+#tab-equipe .jornada-area+.jornada-area{padding-left:14px;border-left:1px solid var(--linha)}
+#tab-equipe .jornada-rot{display:block;margin-bottom:6px;color:var(--fraco);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+#tab-equipe .jornada-area select,#tab-equipe .jornada-area input{width:100%;border:1px solid var(--linha);border-radius:var(--radius-sm);background:#fff;color:var(--texto);padding:7px 8px}
+#tab-equipe .jornada-desc{margin:7px 0 0;color:var(--fraco);font-size:12px;line-height:1.45}
+#tab-equipe .jornada-desc b{color:var(--texto)}
+#tab-equipe .jornada-campos{display:grid;grid-template-columns:repeat(4,minmax(78px,1fr));gap:8px}
+#tab-equipe .jornada-campo label{display:block;margin:0 0 4px;color:var(--fraco);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#tab-equipe .jornada-campo input{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-variant-numeric:tabular-nums}
+#tab-equipe .jornada-rodape{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px}
+#tab-equipe .jornada-resultado{margin:0;font-size:12px;color:var(--fraco)}
+#tab-equipe .jornada-resultado b{color:var(--v-fg)}
+#tab-equipe .jornada-resultado.invalida b{color:var(--alerta)}
+#tab-equipe .jornada-acoes{display:flex;gap:7px;flex-shrink:0}
+@media(max-width:900px){#tab-equipe .jornada-grade{grid-template-columns:1fr}#tab-equipe .jornada-area+.jornada-area{padding:14px 0 0;border-left:0;border-top:1px solid var(--linha)}}
+@media(max-width:600px){#tab-equipe .jornada-campos{grid-template-columns:repeat(2,minmax(0,1fr))}#tab-equipe .jornada-rodape{align-items:stretch;flex-direction:column}#tab-equipe .jornada-acoes .btn{flex:1}}
 .cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){.cols2{grid-template-columns:1fr}}
 .vazio{color:var(--fraco);font-size:13.5px;padding:18px 0;text-align:center}
@@ -240,7 +468,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
   header.top,nav.tabs,.barra,.painel.naoimprime,.cols2{display:none!important}
   body{background:#fff}
   main{padding:0;max-width:none}
-  .painel{border:0;padding:0;margin:0}
+  .painel{border:0;padding:0;margin:0;box-shadow:none}
   .scroll{max-height:none;overflow:visible;border:0}
 }
 </style>
@@ -332,7 +560,12 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
       <p class="sub">Crie uma empresa nova ou entre em uma já existente.</p>
       <label for="vn-empresa">Nome da empresa</label>
       <input id="vn-empresa" class="inp" placeholder="Drogaria Bauru">
-      <button class="btn" style="width:100%;margin-top:10px" id="btn-criar-empresa">Criar empresa</button>
+      <label for="vn-loja">Nome da primeira loja</label>
+      <input id="vn-loja" class="inp" placeholder="Filial 330">
+      <div class="aviso" style="margin:4px 0 0;text-align:left;font-size:11.5px">
+        Em branco, usa o nome da empresa. Outras lojas você acrescenta depois.
+      </div>
+      <label for="vn-chave">Código de administrador</label><input id="vn-chave" class="inp" placeholder="Fornecido pelo administrador"><button class="btn" style="width:100%;margin-top:10px" id="btn-criar-empresa">Criar empresa</button>
       <div style="display:flex;align-items:center;gap:10px;margin:20px 0 6px">
         <div style="flex:1;height:1px;background:var(--linha)"></div>
         <span style="font-size:11.5px;color:var(--fraco)">ou</span>
@@ -351,7 +584,8 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
   <header class="top">
     <div class="marca">Quadro de escala</div>
     <div class="sel">
-      <select id="sel-loja" aria-label="Loja"></select>
+      <select id="sel-loja" aria-label="Trocar de loja"></select>
+      <span class="unidade" id="nome-unidade" aria-label="Loja atual"></span>
       <span class="divisa" aria-hidden="true"></span>
       <span id="sync-estado" style="font-size:12px"></span><span id="quem" class="quem" tabindex="0"></span>
       <button class="btn ghost small" id="btn-sair" style="border-color:#3C525A;color:#C6D2CE;background:transparent">Sair</button>
@@ -367,31 +601,66 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
 
     <!-- ESCALA -->
     <section class="view" data-view="escala" data-ativa="true">
-      <div class="painel naoimprime">
-        <div class="barra">
-          <label style="margin:0">Início<input type="date" id="p-inicio" class="inp" style="width:150px"></label>
-          <label style="margin:0">Fim<input type="date" id="p-fim" class="inp" style="width:150px"></label>
-          <button class="btn" id="btn-gerar">Gerar escala</button>
-          <button class="btn ghost" id="btn-salvar">Salvar</button>
-          <button class="btn ghost" id="btn-xlsx">Baixar planilha</button>
-          <button class="btn ghost" id="btn-print">Imprimir</button>
+      <div class="painel naoimprime esc-comandos">
+        <div class="esc-rota" id="esc-rota" aria-live="polite">
+          <div>
+            <strong id="esc-rota-titulo">Prepare a escala do período</strong>
+            <p id="esc-rota-desc">Escolha as datas e gere uma proposta para revisar a cobertura da loja.</p>
+          </div>
+          <span class="chip" id="esc-rota-status">Aguardando geração</span>
+        </div>
+        <div class="esc-barra">
+          <div class="esc-periodo" aria-label="Período da escala">
+            <label>Início<input type="date" id="p-inicio" class="inp"></label>
+            <label>Fim<input type="date" id="p-fim" class="inp"></label>
+          </div>
+          <div class="esc-fluxo">
+            <button class="btn primary" id="btn-gerar">Gerar escala</button>
+            <button class="btn ghost" id="btn-salvar" disabled>Salvar</button>
+            <button class="btn publish" id="btn-publicar" style="display:none">Publicar</button>
+          </div>
+          <div class="esc-saidas" aria-label="Exportar escala">
+            <span class="esc-saidas-rot">Exportar</span>
+            <button class="btn ghost" id="btn-xlsx">Planilha</button>
+            <button class="btn ghost" id="btn-pdf">PDF</button>
+            <button class="btn ghost" id="btn-print">Imprimir</button>
+          </div>
+        </div>
+        <div class="esc-status" id="esc-status" hidden>
+          <div id="resumo-cobertura"></div>
           <span id="status-salvo" class="chip"></span>
         </div>
-        <div id="resumo-cobertura"></div>
+        <section class="esc-visao" id="esc-visao" aria-live="polite" hidden>
+          <div class="esc-visao-copy">
+            <h2 id="esc-visao-titulo">Leitura do período</h2>
+            <p id="esc-visao-desc">Gere a escala para conferir pessoas, cobertura e pendências.</p>
+          </div>
+          <div class="esc-metricas" id="esc-metricas" aria-label="Resumo operacional"></div>
+        </section>
       </div>
 
       <div class="painel">
         <div class="scroll" id="grade"></div>
         <div class="legenda">
-          <span><b style="background:var(--v-bg);border:1px solid var(--v-fg)"></b>X folga</span>
-          <span><b style="background:var(--m-bg);border:1px solid var(--m-fg)"></b>FC compensatória</span>
-          <span><b style="background:var(--a-bg);border:1px solid var(--a-fg)"></b>F férias</span>
-          <span><b style="background:var(--r-bg);border:1px solid var(--r-fg)"></b>AT atestado</span>
-          <span><b style="background:var(--p-bg);border:1px solid var(--p-fg)"></b>LC licença</span>
-          <span><b style="background:var(--m-bg);border:1px solid var(--m-fg)"></b>rodapé amarelo: abaixo do alvo, tolerado</span>
-          <span><b style="background:var(--r-bg);border:1px solid var(--r-fg)"></b>rodapé vermelho: abaixo do mínimo</span>
-          <span style="margin-left:auto">Clique na célula para trocar o código.</span>
+          <span><b style="background:repeating-linear-gradient(135deg,var(--v-bg) 0 5px,#C5E2D0 5px 6px);border:1px solid var(--v-fg)"></b>X folga</span>
+          <span><b style="background:repeating-linear-gradient(45deg,var(--m-bg) 0 5px,#F0D8A5 5px 6px);border:1px solid var(--m-fg)"></b>FC compensatória</span>
+          <span><b style="background:var(--a-bg);border:2px solid var(--a-fg)"></b>F férias</span>
+          <span><b style="background:var(--r-bg);border:2px solid var(--r-fg)"></b>AT atestado</span>
+          <span><b style="background:repeating-linear-gradient(0deg,var(--p-bg) 0 4px,#DED4ED 4px 5px);border:1px solid var(--p-fg)"></b>LC licença</span>
+          <span><b style="background:#F8F3E3;border-left:3px solid #C49418"></b>domingo</span>
+          <span><b style="background:var(--m-bg);border:1px solid var(--m-fg)"></b>~ abaixo do alvo</span>
+          <span><b style="background:var(--r-bg);border:2px solid var(--r-fg)"></b>! abaixo do mínimo</span>
+          <span><b class="legenda-ajuste"></b>horário alterado</span>
+          <span><b class="legenda-interjornada"></b>* descanso menor que 11h</span>
+          <span style="margin-left:auto">Clique na célula para editar.</span>
         </div>
+      </div>
+
+      <div class="painel naoimprime" id="painel-salvas" style="display:none">
+        <h2>Escalas salvas</h2>
+        <p class="desc">Cada gravação fica registrada aqui. Baixe em PDF para
+        imprimir, arquivar ou mandar para a equipe.</p>
+        <div id="lista-salvas"></div>
       </div>
 
       <div class="cols2 naoimprime">
@@ -553,8 +822,14 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             </div>
           </div>
         </div>
-        <p class="desc">Para dar acesso a alguém: peça que crie a conta na tela de entrada
-          e informe este código quando o sistema pedir a empresa.</p>
+        <p class="desc">Quem entra com o <b>código da empresa</b> enxerga todas as lojas.
+          Para prender alguém a uma loja só, passe o <b>código daquela loja</b> — ou ajuste
+          na coluna "Enxerga" da tabela abaixo.</p>
+
+        <div id="bloco-codigos-loja" style="display:none;margin:14px 0 18px">
+          <div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);margin-bottom:6px">Código por loja</div>
+          <div id="codigos-loja"></div>
+        </div>
         <div id="lista-acessos" style="margin-top:14px"></div>
       </div>
     </section>
@@ -587,6 +862,10 @@ function grupoDe(c){
   if(cargo.includes('CAIXA')) return 'caixa';
   return 'balcao';
 }
+// O grupo serve à cobertura geral; o cargo exato distribui as folgas de domingo.
+function cargoDe(c){
+  return String(c.cargo || (c.gerente ? 'GERENTE' : 'SEM CARGO')).trim().toUpperCase();
+}
 function isFarma(c){ return (c.cargo||'').toUpperCase().includes('FARMA'); }
 function isSubger(c){ const x=(c.cargo||'').toUpperCase(); return x.includes('SUBGER') || x.startsWith('SUB/'); }
 function turnoDe(c){
@@ -598,8 +877,53 @@ function turnoDe(c){
   return 'fechamento';
 }
 function horaEntrada(c){
+  if(c && c.jornada && /^\d{1,2}:\d{2}$/.test(c.jornada.entrada||''))
+    return String(c.jornada.entrada).padStart(5,'0');
   const m = /(\d{1,2}):(\d{2})/.exec(c.horario||'');
   return m ? (m[1].padStart(2,'0')+':'+m[2]) : '--:--';
+}
+function minutosDaHora(hora){
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hora||''));
+  if(!m) return null;
+  const h=+m[1], min=+m[2];
+  return h>=0 && h<24 && min>=0 && min<60 ? h*60+min : null;
+}
+function horaDosMinutos(minutos){
+  const n=((Number(minutos)%1440)+1440)%1440;
+  return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+}
+function textoDuracao(minutos){ return Math.floor(minutos/60)+'h'+String(minutos%60).padStart(2,'0'); }
+/* Jornada estruturada tem precedência; o texto legado só é usado quando traz
+   entrada e saída completas. Nunca se inventa uma saída onde ela não existe. */
+function jornadaPadrao(c){
+  if(c && c.jornada && minutosDaHora(c.jornada.entrada)!=null && minutosDaHora(c.jornada.saida)!=null)
+    return {entrada:String(c.jornada.entrada).padStart(5,'0'), saida:String(c.jornada.saida).padStart(5,'0')};
+  const horas=String(c&&c.horario||'').match(/\d{1,2}:\d{2}/g)||[];
+  if(horas.length<2) return null;
+  return {entrada:horas[0].padStart(5,'0'), saida:horas[1].padStart(5,'0')};
+}
+function entradaDoDia(c, i, res){
+  const ajustada=res && res.horas && res.horas[c.id] && res.horas[c.id][i];
+  if(minutosDaHora(ajustada)!=null) return String(ajustada).padStart(5,'0');
+  const jornada=jornadaPadrao(c);
+  return jornada ? jornada.entrada : null;
+}
+function fimDoDiaMinutos(c, i, res){
+  const jornada=jornadaPadrao(c);
+  if(!jornada) return null;
+  const entrada=entradaDoDia(c,i,res), inicioPadrao=minutosDaHora(jornada.entrada), fimPadrao=minutosDaHora(jornada.saida), inicio=minutosDaHora(entrada);
+  if(inicioPadrao==null || fimPadrao==null || inicio==null) return null;
+  let bruto=fimPadrao-inicioPadrao; if(bruto<0) bruto+=1440;
+  return inicio+bruto;
+}
+function saidaDoDia(c, i, res){
+  const fim=fimDoDiaMinutos(c,i,res);
+  return fim==null ? null : horaDosMinutos(fim);
+}
+function intervaloEntreJornadas(c, i, res){
+  const fim=fimDoDiaMinutos(c,i,res), inicio=minutosDaHora(entradaDoDia(c,i+1,res));
+  if(fim==null || inicio==null) return null;
+  return inicio + 1440 - fim;
 }
 
 /* ---------- ausências fixas (férias, atestado, licença) ---------- */
@@ -706,6 +1030,9 @@ function gerarEscala(colabs, params){
     soDomingo: 30000,          // no 6x1, ficar sem a folga da semana por causa do domingo
     diaFixo: 25000,            // não respeitar o dia de folga fixa escolhido para a pessoa
     domingoAncorado: 28000,    // furar o domingo de folga que o usuário fixou na data
+    domingoExtra: 28000,       // folgar em domingo fora do ciclo ancorado
+    domingoForaRotacao: 24000, // folgar em domingo fora da fase automática
+    domingoRotacao: 24000,     // deixar passar o domingo da fase automática
     // faixa 3: cobertura da loja
     farmaCritico: 5000, farmaAlvo: 900, subger: 1400, subgerFds: 900,
     curva: 400, equipe: 600, teto: 150, outroDomingo: 450,
@@ -746,6 +1073,10 @@ function gerarEscala(colabs, params){
   function folgasNoDia(i, grupo){
     return ativos.filter(c=>grupoDe(c)===grupo && grid[c.id][i]==='X').length;
   }
+  function folgasDoCargoNoDomingo(i, cargo){
+    if(days[i].getDay() !== 0) return 0;
+    return ativos.filter(c=>cargoDe(c)===cargo && grid[c.id][i]==='X').length;
+  }
   function folgasTotaisNoDia(i){
     return ativos.filter(c=>grid[c.id][i]==='X').length;
   }
@@ -772,7 +1103,8 @@ function gerarEscala(colabs, params){
   const domingos = [];
   days.forEach((d,i)=>{ if(d.getDay()===0) domingos.push(i); });
 
-  const contadorOffset = {caixa:0, balcao:0, gerencia:0};
+  const contadorCargoDomingo = {};
+  const fasesOcupadasPorCargo = {};
   const domFolga = {};   // id -> Set de índices
   /* Quem teve o 1º domingo informado por data. Para essas pessoas o ciclo
      deixa de ser preferência e passa a ser regra: a data marcada é o domingo
@@ -791,11 +1123,7 @@ function gerarEscala(colabs, params){
       && dd.getDay()===0);
     return idx >= 0 ? idx : null;
   }
-
-  ativos.filter(c=>!c.gerente).forEach(c=>{
-    const g = grupoDe(c);
-    let primeiro;
-
+  function fasePreferida(c){
     if(c.primeiroDomingo){
       domAncorado[c.id] = true;
       /* Usuário informou o primeiro domingo de folga: âncora exata. */
@@ -803,26 +1131,51 @@ function gerarEscala(colabs, params){
       if(ancora != null){
         /* o índice dentro de domingos[] que contém ancora */
         const posNaLista = domingos.indexOf(ancora);
-        primeiro = posNaLista >= 0 ? posNaLista : 0;
-      } else {
-        /* domingo informado fora do período: calcular a distância e
-           extrapolá-la para dentro do período */
-        const [y,m,d] = String(c.primeiroDomingo).split('-').map(Number);
-        const alvoDt = new Date(y, m-1, d);
-        const difMs  = days[domingos[0]].getTime() - alvoDt.getTime();
-        const difSem = Math.round(difMs / (7*24*3600*1000));
-        const resto  = ((difSem % P.cicloDomingo) + P.cicloDomingo) % P.cicloDomingo;
-        primeiro = (P.cicloDomingo - resto) % P.cicloDomingo;
+        return posNaLista >= 0 ? posNaLista % P.cicloDomingo : 0;
       }
-    } else if(Number.isInteger(c.domTrabConsec)){
-      primeiro = Math.max(0, (P.cicloDomingo-1) - c.domTrabConsec);
-    } else {
-      primeiro = contadorOffset[g] % P.cicloDomingo;
+      /* Domingo informado fora do período: calcular a distância e
+         extrapolá-la para dentro do período. */
+      const [y,m,d] = String(c.primeiroDomingo).split('-').map(Number);
+      const alvoDt = new Date(y, m-1, d);
+      const difMs  = days[domingos[0]].getTime() - alvoDt.getTime();
+      const difSem = Math.round(difMs / (7*24*3600*1000));
+      const resto  = ((difSem % P.cicloDomingo) + P.cicloDomingo) % P.cicloDomingo;
+      return (P.cicloDomingo - resto) % P.cicloDomingo;
     }
-    contadorOffset[g]++;
+    if(Number.isInteger(c.domTrabConsec))
+      return Math.max(0, (P.cicloDomingo-1) - c.domTrabConsec) % P.cicloDomingo;
+    return null;
+  }
+  function registrarFase(c, primeiro){
+    const cargo = cargoDe(c);
+    const ocupadas = fasesOcupadasPorCargo[cargo] || (fasesOcupadasPorCargo[cargo] = []);
+    ocupadas[primeiro] = (ocupadas[primeiro] || 0) + 1;
     const set = new Set();
     for(let k=primeiro; k<domingos.length; k+=P.cicloDomingo) set.add(domingos[k]);
     domFolga[c.id] = set;
+  }
+
+  /* Uma âncora ou histórico real também ocupa uma fase da rotação do cargo.
+     Só depois os automáticos escolhem a fase menos ocupada; isso impede que o
+     contador automático comece em uma fase já reservada. */
+  const semGerente = ativos.filter(c=>!c.gerente);
+  const faseDefinida = {};
+  semGerente.forEach(c=>{ faseDefinida[c.id] = fasePreferida(c); });
+  semGerente.filter(c=>faseDefinida[c.id] != null).forEach(c=>{
+    registrarFase(c, faseDefinida[c.id]);
+  });
+  semGerente.filter(c=>faseDefinida[c.id] == null).forEach(c=>{
+    const cargo = cargoDe(c);
+    const ocupadas = fasesOcupadasPorCargo[cargo] || [];
+    const inicio = (contadorCargoDomingo[cargo] || 0) % P.cicloDomingo;
+    let primeiro = inicio, menor = Infinity;
+    for(let desloc=0; desloc<P.cicloDomingo; desloc++){
+      const fase = (inicio + desloc) % P.cicloDomingo;
+      const ocupacao = ocupadas[fase] || 0;
+      if(ocupacao < menor){ menor = ocupacao; primeiro = fase; }
+    }
+    contadorCargoDomingo[cargo] = inicio + 1;
+    registrarFase(c, primeiro);
   });
 
   /* ---- 3) folgas: cadeia do mês inteiro por colaborador (programação dinâmica) ----
@@ -834,7 +1187,19 @@ function gerarEscala(colabs, params){
   const naoGerentes = ativos.filter(c=>!c.gerente);
   const ritmo = {}, slotBase = {}, desdeFolga = {}, domInicial = {};
   naoGerentes.forEach((c,k)=>{
-    domInicial[c.id] = k % Math.max(1, (params.cicloDomingo||3));
+    /* A âncora também informa o histórico antes do período. Sem isso, a
+       posição da pessoa na lista fingia que ela já tinha trabalhado domingos
+       e forçava uma folga extra no primeiro domingo da nova escala. */
+    if(c.primeiroDomingo && domingos.length){
+      const [ano, mes, dia] = String(c.primeiroDomingo).split('-').map(Number);
+      const ancora = new Date(ano, mes-1, dia);
+      const primeiroDomingo = days[domingos[0]];
+      const semanasDaAncora = Math.round((primeiroDomingo.getTime() - ancora.getTime()) / (7*24*3600*1000));
+      const posicaoNoCiclo = ((semanasDaAncora % P.cicloDomingo) + P.cicloDomingo) % P.cicloDomingo;
+      domInicial[c.id] = posicaoNoCiclo === 0 ? P.cicloDomingo - 1 : posicaoNoCiclo - 1;
+    } else {
+      domInicial[c.id] = 0;
+    }
     ritmo[c.id] = Math.max(3, P.maxSeq - 1 - (k % 3));
     slotBase[c.id] = k % 6;
     desdeFolga[c.id] = (c.diasDesdeFolga!=null && c.diasDesdeFolga!=='')
@@ -890,13 +1255,37 @@ function gerarEscala(colabs, params){
     /* 6x1: a folga da semana e a folga de domingo são direitos separados —
        na semana em que cai o domingo do ciclo, a pessoa folga duas vezes. */
     if(P.modelo === '6x1')
-      return opcoes6x1(c, sem, {fixos, jaX, nDias, ausentes, domSemana, marcar, meuDomingo});
+        return opcoes6x1(c, sem, {fixos, jaX, nDias, ausentes, domSemana, marcar, meuDomingo});
 
     let alvo = nDias>=7 ? P.folgasSemana : (nDias>=3 ? 1 : 0);
     const semOpcao = [Object.assign({tipo:'fixo', custo:0}, marcar([]))];
     if(ausentes >= nDias - 1) return semOpcao;
     const faltam = Math.max(0, alvo - jaX);
     const ok = i => sem.dias.includes(i) && !bloqueioRigido(c,i);
+    const custoDomingo = (dias, novos, custoInicial=0) => {
+      let custo = custoInicial;
+      novos.forEach(i=>{
+        custo += custoSuave(c,i);
+        if(days[i].getDay()!==0) return;
+        if(i !== meuDomingo){
+          custo += PESO.outroDomingo;
+          custo += domAncorado[c.id] ? PESO.domingoExtra : PESO.domingoForaRotacao;
+        }
+        const minhasFolgas = folgasDoCargoNoDomingo(i, cargoDe(c));
+        const faseDoDomingo = domingos.indexOf(i) % P.cicloDomingo;
+        const domingosDaFase = domingos.filter(domingo =>
+          domingos.indexOf(domingo) % P.cicloDomingo === faseDoDomingo);
+        const menorNaFase = domingosDaFase.reduce((menor, domingo) =>
+          Math.min(menor, folgasDoCargoNoDomingo(domingo, cargoDe(c))), Infinity);
+        if(minhasFolgas > menorNaFase)
+          custo += (minhasFolgas - menorNaFase) * PESO.outroDomingo;
+      });
+      if(meuDomingo != null
+         && !dias.includes(meuDomingo)
+         && !AUSENTE.includes(grid[c.id][meuDomingo]))
+        custo += domAncorado[c.id] ? PESO.domingoAncorado : PESO.domingoRotacao;
+      return custo;
+    };
     if(faltam === 0){
       // semana já fechada: normalmente não se mexe. Mas em semana curta ou na última,
       // deixa a opção de uma folga a mais, que é o que evita a ponta de 7 dias no fim do mês.
@@ -962,17 +1351,7 @@ function gerarEscala(colabs, params){
       const info = marcar(o.novos);
       let custo = (o.tipo==='separado' ? PESO.separado : o.tipo==='avulso' ? PESO.avulso : 0);
       if(o.extra) custo += (o.extra==='colado' ? PESO.extraFolga : PESO.extraFolgaSolta);
-
-      o.novos.forEach(i=>{
-        custo += custoSuave(c,i);
-        if(days[i].getDay()===0 && i !== meuDomingo) custo += PESO.outroDomingo;
-      });
-
-      /* Domingo fixado pelo usuário: só cede quando o dia está bloqueado por
-         ausência. Fora isso, é regra. */
-      if(domAncorado[c.id] && meuDomingo != null
-         && !info.dias.includes(meuDomingo)
-         && !AUSENTE.includes(grid[c.id][meuDomingo])) custo += PESO.domingoAncorado;
+      custo = custoDomingo(info.dias, o.novos, custo);
 
       // par que inclui o domingo dele: é o formato que a regra pede
       if(meuDomingo != null && o.novos.includes(meuDomingo) && o.tipo==='par') custo -= PESO.bonusDomColado;
@@ -1053,13 +1432,19 @@ function gerarEscala(colabs, params){
       if(o.extra) custo += PESO.extraFolgaSolta;
       o.novos.forEach(i=>{
         custo += custoSuave(c,i);
-        if(days[i].getDay()===0 && i !== ctx.meuDomingo) custo += 0;   // no 6x1 o domingo é do ciclo, não penaliza
+        if(days[i].getDay()===0){
+          // No 6x1 o domingo é direito do ciclo, mas a preferência continua
+          // sendo distribuir as folgas do mesmo cargo de forma equilibrada.
+          const minhasFolgas = folgasDoCargoNoDomingo(i, cargoDe(c));
+          const menorNoCiclo = domingos.reduce((menor, outroDomingo) =>
+            Math.min(menor, folgasDoCargoNoDomingo(outroDomingo, cargoDe(c))), Infinity);
+          if(minhasFolgas > menorNoCiclo) custo += (minhasFolgas - menorNoCiclo) * PESO.outroDomingo;
+        }
       });
       custo += pesoBalanceamento(c, o.novos);
-      if(domAncorado[c.id] && ctx.meuDomingo != null
-         && !info.dias.includes(ctx.meuDomingo)
-         && !AUSENTE.includes(grid[c.id][ctx.meuDomingo])) custo += PESO.domingoAncorado;
-
+  if(domAncorado[c.id] && ctx.meuDomingo != null
+     && !info.dias.includes(ctx.meuDomingo)
+     && !AUSENTE.includes(grid[c.id][ctx.meuDomingo])) custo += PESO.domingoAncorado;
       if(fixo != null){
         // dia de folga escolhido para a pessoa: só cede quando não há alternativa
         const temODia = o.novos.some(i => days[i].getDay() === fixo);
@@ -1085,7 +1470,15 @@ function gerarEscala(colabs, params){
     let estados = new Map([[chave(u0,d0,0), {custo:0, caminho:[], ult:u0, dom:d0, run:0}]]);
 
     semanas.forEach(sem=>{
-      const opcoes = opcoesDaSemana(c, sem);
+      let opcoes = opcoesDaSemana(c, sem);
+      // A primeira semana parcial pode não exigir folga própria, mas o histórico
+      // contíguo pode obrigar o descanso antes de mais um dia ou domingo trabalhado.
+      if(sem.idx === 0 && ((desdeFolga[c.id]||0) >= P.maxSeq ||
+         (sem.dias.includes(0) && days[0].getDay()===0 && domIni >= maxDomSeguidos))){
+        const indiceObrigatorio = (desdeFolga[c.id]||0) >= P.maxSeq ? sem.ini : 0;
+        const comFolgaObrigatoria = opcoes.filter(op=>op.dias.includes(indiceObrigatorio));
+        if(comFolgaObrigatoria.length) opcoes = comFolgaObrigatoria;
+      }
       const proximos = new Map();
       const guardar = (ult, dom, run, custo, caminho)=>{
         const k = chave(ult,dom,run);
@@ -1218,6 +1611,28 @@ function gerarEscala(colabs, params){
   return {days, grid, semanas, ativos, params:P, diag, desdeFolga};
 }
 
+/* Estado que uma grade salva deixa para o período seguinte. Uma linha ausente
+   ou curta não é uma base confiável: nesse caso ela não produz continuidade. */
+function estadoFinalDaGrade(grade, inicio, fim){
+  const days = listDays(inicio, fim);
+  if(!grade || typeof grade !== 'object' || !days.length) return {};
+  const estado = {};
+  Object.keys(grade).forEach(id=>{
+    const arr = grade[id];
+    if(!Array.isArray(arr) || arr.length < days.length) return;
+    let diasDesdeFolga = 0;
+    for(let i=days.length-1;i>=0 && arr[i]==='';i--) diasDesdeFolga++;
+    let domTrabConsec = 0;
+    for(let i=days.length-1;i>=0;i--){
+      if(days[i].getDay()!==0) continue;
+      if(arr[i] === '') domTrabConsec++;
+      else break;
+    }
+    estado[id] = {diasDesdeFolga, domTrabConsec};
+  });
+  return estado;
+}
+
 /* ============================================================
    VALIDAÇÃO
    ============================================================ */
@@ -1258,7 +1673,8 @@ function validar(res, colabs){
     const dom = [];
     days.forEach((d,i)=>{ if(d.getDay()===0) dom.push(i); });
     const domTrab = dom.filter(i=>arr[i]===''), domFol = dom.filter(i=>arr[i]!=='');
-    let corrida=0, avisouDom=false;
+    let corrida = Number.isInteger(c.domTrabConsec) ? c.domTrabConsec : 0;
+    let avisouDom = false;
     dom.forEach(i=>{
       if(arr[i]===''){
         corrida++;
@@ -1303,6 +1719,18 @@ function validar(res, colabs){
       }
     }
 
+    // 5) intervalo entre o fim de um turno e o início do dia seguinte.
+    // Só há como cobrar quando os dois dias são trabalhados e a jornada informa
+    // entrada e saída; cadastros legados de uma única hora ficam fora da conta.
+    const minimoInterjornada = P.minInterjornada != null ? Number(P.minInterjornada) : 660;
+    for(let i=0;i<N-1;i++){
+      if(arr[i]!=='' || arr[i+1]!=='') continue;
+      const descanso=intervaloEntreJornadas(c,i,res);
+      if(descanso==null || descanso>=minimoInterjornada) continue;
+      av.push({tipo:'interjornada', nivel:'regra', dia:i+1,
+        txt:`Sai ${saidaDoDia(c,i,res)} em ${ddmm(days[i])} e entra ${entradaDoDia(c,i+1,res)} em ${ddmm(days[i+1])}: ${textoDuracao(descanso)} de descanso, mínimo 11h`});
+    }
+
     porColab[c.id] = {av, domTrab:domTrab.length, domFolga:domFol.length, pior,
                       totalFolgas: arr.filter(v=>v==='X'||v==='FC').length};
     av.forEach(a=>alertas.push({colab:c.nome, ...a}));
@@ -1337,7 +1765,7 @@ function validar(res, colabs){
   return {alertas, porColab, cobertura};
 }
 
-if(typeof module !== 'undefined' && typeof module.exports !== 'undefined') module.exports = {gerarEscala, validar, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, DIA_NOME, DIA_ABREV};
+if(typeof module !== 'undefined' && typeof module.exports !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, entradaDoDia, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};
 
 
 /* =========================================================================
@@ -1422,10 +1850,13 @@ function zipar(arquivos) {
 
 /* ---------- XML ---------- */
 function xesc(s) {
-  return String(s == null ? '' : s)
+  const semControles = Array.from(String(s == null ? '' : s), caractere => {
+    const codigo = caractere.charCodeAt(0);
+    return (codigo < 32 && codigo !== 9 && codigo !== 10 && codigo !== 13) ? '' : caractere;
+  }).join('');
+  return semControles
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 function colLetra(n) {                    // 1 -> A, 27 -> AA
   let s = '';
@@ -1467,6 +1898,7 @@ const ESTILOS = [
   { nome: 'contaFuro', centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'F3DBD7', corTexto: '96332A' },
   { nome: 'contaLeve', centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'F6E7C4', corTexto: '8A5E06' },
   { nome: 'legenda',   cor: '556660', tamanho: 9 },
+  { nome: 'interjornada', centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'F3DBD7', corTexto: '96332A' },
 ];
 const idEstilo = {};
 ESTILOS.forEach((e, i) => idEstilo[e.nome] = i);
@@ -1567,6 +1999,429 @@ ${merges}
 
 
 
+/* =========================================================================
+   DOCUMENTOS DA ESCALA
+   Regras de apresentação compartilhadas pela impressão e pelo PDF, além do
+   gerador de PDF em JavaScript puro. Não depende de biblioteca externa.
+   ========================================================================= */
+
+const CARACTERES_INVISIVEIS_DOCUMENTO = new RegExp('[\\u200B-\\u200D\\u2060\\uFEFF]', 'g');
+const ACENTOS_DOCUMENTO = new RegExp('[\\u0300-\\u036f]', 'g');
+
+function limparEspacosDocumento(valor){
+  return String(valor == null ? '' : valor)
+    .replace(CARACTERES_INVISIVEIS_DOCUMENTO, '')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function normalizarTextoDocumento(valor){
+  const texto = limparEspacosDocumento(valor);
+  return (typeof texto.normalize === 'function' ? texto.normalize('NFD') : texto)
+    .replace(ACENTOS_DOCUMENTO, '')
+    .toUpperCase();
+}
+
+/* O cabeçalho da faixa já informa o cargo principal. O subtítulo só aparece
+   quando acrescenta algo, e abreviações internas viram texto legível. */
+function descricaoCargoImpressao(c, chaveFaixa){
+  const cargo = limparEspacosDocumento(c && c.cargo);
+  const normalizado = normalizarTextoDocumento(cargo);
+  if(!normalizado) return '';
+
+  if(/^SUB(?:GERENTE)?\s*\/\s*FARMA(?:CEUTIC[OA])?$/.test(normalizado))
+    return 'Subgerente · Farmacêutico';
+
+  if(/^(?:(?:AX|AUX)\.?|AUXILIAR)\s*(?:DE\s+)?LOJA$/.test(normalizado))
+    return 'Auxiliar de loja';
+
+  const redundante = {
+    gerencia: /^(?:GERENTE|GERENCIA)$/,
+    subger: /^(?:SUBGERENTE|SUBGERENCIA)$/,
+    farma: /^FARMACEUTIC[OA]S?$/,
+    balcao: /^(?:BALCONISTAS?|BALCAO)$/,
+    caixa: /^CAIXAS?$/,
+    apoio: /^APOIO$/
+  };
+  if(redundante[chaveFaixa] && redundante[chaveFaixa].test(normalizado)) return '';
+
+  const descricoes = {
+    GERENTE: 'Gerente',
+    GERENCIA: 'Gerência',
+    SUBGERENTE: 'Subgerente',
+    SUBGERENCIA: 'Subgerência',
+    FARMACEUTICO: 'Farmacêutico',
+    FARMACEUTICA: 'Farmacêutica',
+    BALCONISTA: 'Balconista',
+    CAIXA: 'Caixa',
+    REPOSITOR: 'Repositor',
+    REPOSITORA: 'Repositora'
+  };
+  return descricoes[normalizado] || cargo;
+}
+
+/* Nomes iguais não são removidos: podem representar pessoas diferentes. A
+   emissão é interrompida para que o responsável diferencie os cadastros. */
+/* Classes e marcadores textuais são compartilhados pelas saídas impressas.
+   A cor fica como reforço visual, nunca como a única informação. */
+function marcaMonocromaticaDocumento(codigo){
+  const marcas = {X:'status-x', FC:'status-fc', F:'status-f', AT:'status-at', LC:'status-lc'};
+  return marcas[codigo] || '';
+}
+function marcadorCoberturaDocumento(tipo){
+  return tipo === 'minimo' ? '!' : (tipo === 'alvo' ? '~' : '');
+}
+
+function nomesDuplicadosDocumento(lista){
+  const grupos = new Map();
+  (lista || []).forEach((c, indice)=>{
+    const nome = limparEspacosDocumento(c && c.nome);
+    const chave = normalizarTextoDocumento(nome);
+    if(!chave) return;
+    if(!grupos.has(chave)) grupos.set(chave, {nome, quantidade:0, indices:[], ids:[]});
+    const grupo = grupos.get(chave);
+    grupo.quantidade++;
+    grupo.indices.push(indice);
+    grupo.ids.push(c && c.id != null ? c.id : null);
+  });
+  return Array.from(grupos.values()).filter(g=>g.quantidade > 1);
+}
+
+/* ---------- texto para bytes WinAnsi (Latin-1) ---------- */
+const WINANSI_EXTRA = {
+  '€':128,'‚':130,'ƒ':131,'„':132,'…':133,'†':134,'‡':135,'ˆ':136,'‰':137,
+  'Š':138,'‹':139,'Œ':140,'Ž':142,'‘':145,'’':146,'“':147,'”':148,'•':149,
+  '–':150,'—':151,'˜':152,'™':153,'š':154,'›':155,'œ':156,'ž':158,'Ÿ':159
+};
+function winAnsi(txt){
+  const saida = [];
+  for(const ch of String(txt == null ? '' : txt)){
+    const c = ch.codePointAt(0);
+    if(c < 256) saida.push(c);
+    else if(WINANSI_EXTRA[ch] != null) saida.push(WINANSI_EXTRA[ch]);
+    else saida.push(63);
+  }
+  return saida;
+}
+function textoPdf(txt){
+  return winAnsi(txt).map(b=>{
+    if(b === 40 || b === 41 || b === 92) return '\\' + String.fromCharCode(b);
+    if(b < 32 || b > 126) return '\\' + b.toString(8).padStart(3, '0');
+    return String.fromCharCode(b);
+  }).join('');
+}
+
+/* ---------- medida aproximada para centralizar e cortar texto ---------- */
+const LARG_HELV = (()=>{
+  const m = {};
+  const def = 556;
+  const tab = {
+    ' ':278,'!':278,'"':355,'#':556,'$':556,'%':889,'&':667,"'":191,'(':333,')':333,
+    '*':389,'+':584,',':278,'-':333,'.':278,'/':278,':':278,';':278,'<':584,'=':584,
+    '>':584,'?':556,'@':1015,'[':278,'\\':278,']':278,'^':469,'_':556,'`':333,
+    '{':334,'|':260,'}':334,'~':584
+  };
+  for(let i=48;i<=57;i++) m[String.fromCharCode(i)] = 556;
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((c,k)=>{
+    m[c] = [667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,
+            667,778,722,667,611,722,667,944,667,667,611][k];
+  });
+  'abcdefghijklmnopqrstuvwxyz'.split('').forEach((c,k)=>{
+    m[c] = [556,556,500,556,556,278,556,556,222,222,500,222,833,556,
+            556,556,556,333,500,278,556,500,722,500,500,500][k];
+  });
+  Object.assign(m, tab);
+  return {m, def};
+})();
+
+function larguraTexto(txt, tamanho, negrito){
+  let total = 0;
+  for(const ch of String(txt||'')){
+    let w = LARG_HELV.m[ch];
+    if(w == null){
+      const base = typeof ch.normalize === 'function' ? ch.normalize('NFD')[0] : ch;
+      w = LARG_HELV.m[base] != null ? LARG_HELV.m[base] : LARG_HELV.def;
+    }
+    total += w;
+  }
+  if(negrito) total *= 1.06;
+  return total * tamanho / 1000;
+}
+
+function cortarTexto(txt, tamanho, limite, negrito){
+  if(larguraTexto(txt, tamanho, negrito) <= limite) return txt;
+  let s = String(txt||'');
+  while(s.length > 1 && larguraTexto(s + '…', tamanho, negrito) > limite) s = s.slice(0, -1);
+  return s + '…';
+}
+
+/* ---------- construtor de página ---------- */
+function PaginaPdf(largura, altura){
+  this.largura = largura;
+  this.altura  = altura;
+  this.ops = [];
+}
+PaginaPdf.prototype.retangulo = function(x, y, l, a, cor){
+  if(!cor) return;
+  const [r,g,b] = cor;
+  this.ops.push(`${r} ${g} ${b} rg`);
+  this.ops.push(`${x.toFixed(2)} ${(this.altura-y-a).toFixed(2)} ${l.toFixed(2)} ${a.toFixed(2)} re f`);
+};
+PaginaPdf.prototype.linha = function(x1, y1, x2, y2, cor, esp){
+  const [r,g,b] = cor || [0.85,0.88,0.86];
+  this.ops.push(`${r} ${g} ${b} RG ${(esp||0.4).toFixed(2)} w`);
+  this.ops.push(`${x1.toFixed(2)} ${(this.altura-y1).toFixed(2)} m ${x2.toFixed(2)} ${(this.altura-y2).toFixed(2)} l S`);
+};
+PaginaPdf.prototype.texto = function(txt, x, y, opc){
+  const o = opc || {};
+  const tam = o.tamanho || 8;
+  const fonte = o.negrito ? '/F2' : '/F1';
+  const [r,g,b] = o.cor || [0.09,0.14,0.17];
+  let px = x;
+  if(o.centro){
+    const larg = larguraTexto(txt, tam, o.negrito);
+    px = x + (o.largura - larg) / 2;
+  }
+  this.ops.push('BT');
+  this.ops.push(`${r} ${g} ${b} rg`);
+  this.ops.push(`${fonte} ${tam} Tf`);
+  this.ops.push(`${px.toFixed(2)} ${(this.altura - y - tam * 0.78).toFixed(2)} Td`);
+  this.ops.push(`(${textoPdf(txt)}) Tj`);
+  this.ops.push('ET');
+};
+PaginaPdf.prototype.conteudo = function(){ return this.ops.join('\n'); };
+
+/* ---------- arquivo PDF e tabela de referência cruzada ---------- */
+function montarPdf(paginas, meta){
+  const objetos = [];
+  const add = (txt)=>{ objetos.push(txt); return objetos.length; };
+
+  const nCatalogo = 1, nPaginas = 2;
+  objetos.push('', '');
+
+  const idsFontes = [];
+  idsFontes.push(add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'));
+  idsFontes.push(add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'));
+
+  const idsPaginas = [];
+  paginas.forEach(pg=>{
+    const fluxo = pg.conteudo();
+    const nFluxo = add(`<< /Length ${winAnsi(fluxo).length} >>\nstream\n${fluxo}\nendstream`);
+    const nPag = add(`<< /Type /Page /Parent ${nPaginas} 0 R `
+      + `/MediaBox [0 0 ${pg.largura} ${pg.altura}] `
+      + `/Resources << /Font << /F1 ${idsFontes[0]} 0 R /F2 ${idsFontes[1]} 0 R >> >> `
+      + `/Contents ${nFluxo} 0 R >>`);
+    idsPaginas.push(nPag);
+  });
+
+  const nInfo = add(`<< /Title (${textoPdf(meta && meta.titulo || 'Escala')}) `
+    + `/Producer (Quadro de Escala) /Creator (Quadro de Escala) >>`);
+
+  objetos[nCatalogo-1] = `<< /Type /Catalog /Pages ${nPaginas} 0 R >>`;
+  objetos[nPaginas-1]  = `<< /Type /Pages /Kids [${idsPaginas.map(i=>i+' 0 R').join(' ')}] `
+                       + `/Count ${idsPaginas.length} >>`;
+
+  let corpo = '%PDF-1.4\n';
+  const posicoes = [];
+  objetos.forEach((obj, i)=>{
+    posicoes.push(winAnsi(corpo).length);
+    corpo += `${i+1} 0 obj\n${obj}\nendobj\n`;
+  });
+  const inicioXref = winAnsi(corpo).length;
+  corpo += `xref\n0 ${objetos.length+1}\n0000000000 65535 f \n`;
+  posicoes.forEach(p=>{ corpo += String(p).padStart(10,'0') + ' 00000 n \n'; });
+  corpo += `trailer\n<< /Size ${objetos.length+1} /Root ${nCatalogo} 0 R /Info ${nInfo} 0 R >>\n`
+         + `startxref\n${inicioXref}\n%%EOF\n`;
+
+  return new Uint8Array(winAnsi(corpo));
+}
+
+const COR_PDF = {
+  texto:    [0.09, 0.14, 0.17],
+  fraco:    [0.42, 0.47, 0.45],
+  linha:    [0.84, 0.87, 0.85],
+  cabecalho:[0.09, 0.14, 0.17],
+  branco:   [1, 1, 1],
+  faixa:    [0.96, 0.97, 0.96],
+  fds:      [0.94, 0.96, 0.95],
+  X:  [[0.847,0.929,0.886],[0.078,0.400,0.247]],
+  FC: [[0.965,0.906,0.769],[0.541,0.369,0.024]],
+  F:  [[0.843,0.898,0.941],[0.122,0.333,0.502]],
+  AT: [[0.953,0.859,0.843],[0.588,0.200,0.165]],
+  LC: [[0.890,0.867,0.949],[0.314,0.251,0.494]]
+};
+const DIA_ABREV_PDF = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+function ddmmPdf(d){ return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'); }
+
+/* A4 paisagem, com quebra automática quando a equipe não cabe em uma página. */
+function gerarPdfEscala(D, nomeLoja){
+  if(!D) throw new Error('Dados da escala não fornecidos.');
+  const days = Array.isArray(D.days) ? D.days : [];
+  const grid = D.grid || {};
+  const ativos = Array.isArray(D.ativos) ? D.ativos : [];
+  const P = D.P || {};
+  const cob = Array.isArray(D.cob) ? D.cob : [];
+  const nome = String(nomeLoja || 'Escala');
+  const periodo = String(D.periodo || '');
+
+  if(!days.length) throw new Error('A escala precisa ter ao menos um dia para gerar o PDF.');
+  if(days.length > 62) throw new Error('O PDF aceita períodos de até 62 dias.');
+  const L = 842, A = 595;
+  const margem = 22;
+  const larguraNome = 96, larguraHora = 30, larguraIntervalo = 44;
+  const areaDias = L - margem*2 - larguraNome - larguraHora - larguraIntervalo;
+  const largDia = areaDias / days.length;
+  const altLinha = 15;
+  const topoTabela = 74;
+
+  const rodapes = [
+    ['Caixa',        (c)=>c.cx,  P.minCaixa,  null],
+    ['Balcão',       (c)=>c.bl,  P.minBalcao, null],
+    ['Farmacêutico', (c)=>c.fa,  1,           P.minFarma != null ? P.minFarma : 2],
+    ['Subgerente',   (c)=>c.sg||0, P.minSubger != null ? P.minSubger : 1, null],
+    ['Total na loja',(c)=>c.total, null, null],
+    ['De folga',     (c,i)=>ativos.filter(x=>grid[x.id] && (grid[x.id][i]==='X'||grid[x.id][i]==='FC')).length, null, null]
+  ];
+
+  const notaInterjornada = ativos.some(c=>Object.keys((D.interjornadas && D.interjornadas[c.id]) || {}).length);
+  const alturaUtil = A - topoTabela - margem - (rodapes.length * altLinha) - 26 - 6*11 - (notaInterjornada ? 10 : 0);
+  const porPagina = Math.max(1, Math.floor(alturaUtil / altLinha));
+  const paginas = [];
+  const totalPag = Math.max(1, Math.ceil(ativos.length / porPagina));
+
+  for(let pg = 0; pg < totalPag; pg++){
+    const p = new PaginaPdf(L, A);
+    const fatia = ativos.slice(pg * porPagina, (pg+1) * porPagina);
+
+    p.texto('Escala — ' + nome, margem, 22, {tamanho:15, negrito:true});
+    p.texto(periodo + '  ·  ' + ativos.length + ' colaboradores  ·  emitida em '
+            + new Date().toLocaleDateString('pt-BR'),
+            margem, 43, {tamanho:8.5, cor:COR_PDF.fraco});
+    if(totalPag > 1){
+      const rot = 'Página ' + (pg+1) + ' de ' + totalPag;
+      p.texto(rot, L - margem - larguraTexto(rot, 8.5, false), 43, {tamanho:8.5, cor:COR_PDF.fraco});
+    }
+
+    let y = topoTabela;
+    p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.cabecalho);
+    p.texto('COLABORADOR', margem + 4, y + 4, {tamanho:6.5, negrito:true, cor:COR_PDF.branco});
+    p.texto('ENTRA', margem + larguraNome + 2, y + 4,
+            {tamanho:6.5, negrito:true, cor:COR_PDF.branco, centro:true, largura:larguraHora});
+    p.texto('INTERVALO', margem + larguraNome + larguraHora, y + 4,
+            {tamanho:5.5, negrito:true, cor:COR_PDF.branco, centro:true, largura:larguraIntervalo});
+    days.forEach((d,i)=>{
+      const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+      p.texto(DIA_ABREV_PDF[d.getDay()], x, y + 4,
+              {tamanho:5.8, negrito:true, cor:COR_PDF.branco, centro:true, largura:largDia});
+    });
+
+    y += altLinha;
+    p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.faixa);
+    days.forEach((d,i)=>{
+      const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+      if(d.getDay()===0 || d.getDay()===6) p.retangulo(x, y, largDia, altLinha, [0.88,0.91,0.89]);
+      p.texto(ddmmPdf(d), x, y + 4, {tamanho:6, negrito:true, centro:true, largura:largDia});
+    });
+
+    y += altLinha;
+    let faixaPdf = null;
+    fatia.forEach((c)=>{
+      const g = D.faixaDe ? D.faixaDe(c) : null;
+      if(g !== null && g !== faixaPdf){
+        const rotulo = D.rotuloFaixa ? D.rotuloFaixa(g) : '';
+        p.retangulo(margem, y, L - margem*2, 11, [0.93,0.945,0.935]);
+        p.texto(String(rotulo).toUpperCase(), margem + 4, y + 2.5,
+                {tamanho:5.5, negrito:true, cor:COR_PDF.fraco});
+        p.linha(margem, y + 11, L - margem, y + 11, COR_PDF.linha);
+        y += 11;
+        faixaPdf = g;
+      }
+      const descricao = D.descricaoCargo
+        ? D.descricaoCargo(c, g)
+        : limparEspacosDocumento(c.cargo);
+      p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.branco);
+      p.texto(cortarTexto(c.nome, 7.5, larguraNome - 8, true), margem + 4, y + (descricao ? 2.5 : 4.5),
+              {tamanho:7.5, negrito:true});
+      if(descricao){
+        p.texto(cortarTexto(descricao, 5, larguraNome - 8, false), margem + 4, y + 9.5,
+                {tamanho:5, cor:COR_PDF.fraco});
+      }
+      const horaEntrada = String(D.horaDe ? D.horaDe(c, 0) : '');
+      p.texto(horaEntrada.slice(0,5), margem + larguraNome, y + 4.5,
+              {tamanho:6, cor:COR_PDF.fraco, centro:true, largura:larguraHora});
+      const intervalo = String(D.intervaloDe ? D.intervaloDe(c) : (c.jornada && c.jornada.intervalo ? c.jornada.intervalo + ' min' : ''));
+      p.texto(cortarTexto(intervalo, 5.2, larguraIntervalo - 3, false), margem + larguraNome + larguraHora, y + 4.5,
+              {tamanho:5.2, cor:COR_PDF.fraco, centro:true, largura:larguraIntervalo});
+
+      days.forEach((d,i)=>{
+        const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+        const cod = (grid[c.id] && grid[c.id][i]) || '';
+        const interjornada = D.interjornadas && D.interjornadas[c.id] && D.interjornadas[c.id][i];
+        const fds = d.getDay()===0 || d.getDay()===6;
+        if(COR_PDF[cod]){
+          p.retangulo(x, y, largDia, altLinha, COR_PDF[cod][0]);
+          p.texto(cod, x, y + 4.5, {tamanho:6.5, negrito:true, cor:COR_PDF[cod][1],
+                                    centro:true, largura:largDia});
+          p.linha(x, y, x + largDia, y, COR_PDF[cod][1], 0.65);
+        } else {
+          if(interjornada) p.retangulo(x, y, largDia, altLinha, [0.90,0.90,0.90]);
+          else if(fds) p.retangulo(x, y, largDia, altLinha, COR_PDF.fds);
+          const horaDia = String(D.horaDe ? D.horaDe(c, i) : '');
+          p.texto((interjornada?'* ':'') + horaDia.slice(0,5), x, y + 4.5,
+                  {tamanho:5.6, negrito:!!interjornada, cor:interjornada?COR_PDF.texto:COR_PDF.fraco, centro:true, largura:largDia});
+        }
+        p.linha(x, y, x, y + altLinha, COR_PDF.linha, d.getDay()===0 ? 0.9 : 0.35);
+        if(d.getDay()===0) p.linha(x + 1.4, y, x + 1.4, y + altLinha, COR_PDF.texto, 0.35);
+      });
+      p.linha(margem, y + altLinha, L - margem, y + altLinha, COR_PDF.linha);
+      y += altLinha;
+    });
+
+    if(pg === totalPag - 1){
+      y += 3;
+      rodapes.forEach(([rot, fn, minimo, alvo])=>{
+        p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.faixa);
+        p.texto(rot.toUpperCase(), margem + 4, y + 4.5, {tamanho:6, negrito:true, cor:COR_PDF.fraco});
+        cob.forEach((c,i)=>{
+          const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+          const v = fn(c, i);
+          let corFundo = null, corTexto = COR_PDF.texto, marca = '';
+          const lim = typeof minimo === 'function' ? minimo(c,i) : minimo;
+          if(lim != null && v < lim){ corFundo = COR_PDF.AT[0]; corTexto = COR_PDF.AT[1]; marca = marcadorCoberturaDocumento('minimo'); }
+          else if(alvo != null && v < alvo){ corFundo = COR_PDF.FC[0]; corTexto = COR_PDF.FC[1]; marca = marcadorCoberturaDocumento('alvo'); }
+          if(corFundo) p.retangulo(x, y, largDia, altLinha, corFundo);
+          p.texto(marca + String(v != null ? v : 0), x, y + 4.5, {tamanho:6.5, negrito:!!corFundo, cor:corTexto,
+                                          centro:true, largura:largDia});
+        });
+        p.linha(margem, y + altLinha, L - margem, y + altLinha, COR_PDF.linha);
+        y += altLinha;
+      });
+
+      y += 8;
+      let x = margem;
+      [['X','folga'],['FC','compensatória'],['F','férias'],['AT','atestado'],['LC','licença']]
+      .forEach(([k, rot])=>{
+        p.retangulo(x, y, 8, 6, COR_PDF[k][0]);
+        p.linha(x, y, x + 8, y, COR_PDF[k][1], 0.7);
+        p.texto(k + ' ' + rot, x + 11, y - 0.5, {tamanho:6.5, cor:COR_PDF.fraco});
+        x += 13 + larguraTexto(k + ' ' + rot, 6.5, false) + 10;
+      });
+      p.texto('* descanso menor que 11h   ! abaixo do mínimo   ~ abaixo do alvo', margem, y + 11, {tamanho:6.5, cor:COR_PDF.fraco});
+      const notas=[];
+      ativos.forEach(c=>Object.values((D.interjornadas && D.interjornadas[c.id]) || {}).forEach(a=>notas.push(c.nome + ': ' + a.txt)));
+      if(notas.length) p.texto('Revisar descanso: ' + cortarTexto(notas.join(' · '), 5.6, L-margem*2, false), margem, y + 20, {tamanho:5.6, cor:COR_PDF.fraco});
+    }
+
+    p.linha(margem, topoTabela, L - margem, topoTabela, COR_PDF.linha, 0.6);
+    paginas.push(p);
+  }
+
+  return montarPdf(paginas, {titulo: 'Escala ' + nome + ' — ' + periodo});
+}
+
+
+
+
 /* ============================================================
    MINHA ESCALA — visão individual do colaborador
    Recebe do servidor apenas a própria linha. A extração acontece
@@ -1587,6 +2442,18 @@ function dataBR(iso){
   if(!iso) return '';
   const [a,m,d] = iso.split('-');
   return `${d}/${m}`;
+}
+
+function contagemAte(iso){
+  const [a,m,d] = String(iso||'').split('-').map(Number);
+  if(!a || !m || !d) return '';
+  const agora = new Date();
+  const hoje = Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  const alvo = Date.UTC(a, m-1, d);
+  const dias = Math.round((alvo-hoje)/86400000);
+  if(dias === 0) return 'hoje';
+  if(dias === 1) return 'amanhã';
+  return `em ${dias} dias`;
 }
 
 async function pintarMinhaEscala(periodo){
@@ -1640,14 +2507,18 @@ async function pintarMinhaEscala(periodo){
   const vazios = e.dias.length ? e.dias[0].semana : 0;
   const celulas = [];
   for(let i=0;i<vazios;i++) celulas.push('<div></div>');
+  const agora = new Date();
+  const hojeIso = agora.getFullYear() + '-' + String(agora.getMonth()+1).padStart(2,'0') + '-'
+                + String(agora.getDate()).padStart(2,'0');
   e.dias.forEach(d=>{
     const [bg, fg, sec] = CORES_TIPO[d.tipo] || CORES_TIPO.trabalho;
     const trabalho = d.tipo === 'trabalho';
+    const hoje = d.data === hojeIso;
     const rotulo = trabalho
       ? `<div class="me-hora">${esc((d.rotulo||'').slice(0,5))}</div>`
       : `<div class="me-tipo" style="color:${sec}">${esc(d.rotulo.toLowerCase())}</div>`;
     celulas.push(`
-      <div class="me-dia${trabalho?'':' me-dia-marcado'}" style="${bg?`background:${bg}`:''}">
+      <div class="me-dia${trabalho?'':' me-dia-marcado'}${hoje?' me-dia-hoje':''}" style="${bg?`background:${bg}`:''}"${hoje?' aria-current="date"':''}>
         <div class="me-num" style="${fg?`color:${fg}`:''}">${d.dia}</div>
         ${rotulo}
       </div>`);
@@ -1678,7 +2549,7 @@ async function pintarMinhaEscala(periodo){
         <div class="me-proximas">
           <div class="me-proximas-rot">Próximas folgas</div>
           <div class="me-proximas-lista">
-            ${resumo.proximas.map(d=>`<span>${DIAS_CURTO[d.semana]} ${String(d.dia).padStart(2,'0')}/${String(d.mes).padStart(2,'0')}</span>`).join('')}
+            ${resumo.proximas.map(d=>`<span><b>${DIAS_CURTO[d.semana]} ${String(d.dia).padStart(2,'0')}/${String(d.mes).padStart(2,'0')}</b><small>${contagemAte(d.data)}</small></span>`).join('')}
           </div>
         </div>` : ''}
 
@@ -1692,7 +2563,7 @@ async function pintarMinhaEscala(periodo){
         <span><b style="background:#D7E5F0"></b>férias</span>
         <span><b style="background:#F3DBD7"></b>atestado</span>
         <span><b style="background:#E3DDF2"></b>licença</span>
-        <span><b style="background:#F4F6F4;border:1px solid var(--linha)"></b>trabalho</span>
+        <span><b style="background:var(--superficie);border:1px solid var(--linha)"></b>trabalho</span>
       </div>
     </div>
 
@@ -1780,7 +2651,7 @@ async function chamar(arquivo, dados){
     throw new Error(
       'O servidor respondeu algo inesperado (HTTP ' + r.status + ').' +
       (trecho ? ' Ele disse: "' + trecho + '"' : ' A resposta veio vazia.') +
-      ' Abra api/diagnostico.php para o relatório completo.'
+      ' Avise o administrador do sistema.'
     );
   }
   if(corpo && corpo.csrf) SESSAO.csrf = corpo.csrf;
@@ -1870,9 +2741,21 @@ const DB = {
     delete params._horas;
     return Object.assign({}, r.escala, {inicio, fim, params, horas});
   },
-  async salvarEscala(lojaId, inicio, fim, grade, params, horas){
+  async escalaAnterior(lojaId, inicio){
+    const r = await dadosApi({acao:'escala_anterior', loja_id:lojaId, inicio});
+    return r.escala || null;
+  },
+  async salvarEscala(lojaId, inicio, fim, grade, params, horas, resumo, publicar){
     const p = Object.assign({}, params || {}, {_horas: horas || {}});
-    await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:p});
+    await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:p,
+                    resumo:resumo || null, publicar:!!publicar});
+  },
+  async listarEscalas(lojaId){
+    const r = await dadosApi({acao:'listar_escalas', loja_id:lojaId});
+    return r.escalas || [];
+  },
+  async excluirEscala(lojaId, inicio, fim){
+    await dadosApi({acao:'excluir_escala', loja_id:lojaId, inicio, fim});
   },
   async criarLoja(nome, params){
     const r = await dadosApi({acao:'criar_loja', nome, params});
@@ -1888,16 +2771,40 @@ const DB = {
 /* ---------- store: mesma interface de sempre ---------- */
 let _timerSync = null, _pendente = null, _sincronizando = false;
 const store = {
+  async del(chave){
+    if(!chave.startsWith('escala:grade:')) return;
+    const [, , lojaId, periodo] = chave.split(':');
+    const [inicio, fim] = (periodo||'').split('_');
+    if(!lojaId || !inicio || !fim) return;
+    await DB.excluirEscala(lojaId, inicio, fim);
+  },
   async get(chave){
     if(chave === 'escala:lojas') return await DB.carregarLojas();
     if(chave.startsWith('escala:grade:')){
-      const [, , , lojaId, periodo] = chave.split(':');
+      const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       if(!lojaId || !inicio || !fim) return null;
-      try { return await DB.carregarEscala(lojaId, inicio, fim); }
-      catch(e){ return null; }
+      return await DB.carregarEscala(lojaId, inicio, fim);
     }
     return null;
+  },
+  async listarEscalas(lojaId){
+    return await DB.listarEscalas(lojaId);
+  },
+  async escalaAnterior(lojaId, inicio){
+    return await DB.escalaAnterior(lojaId, inicio);
+  },
+  async publicar(chave, valor){
+    if(!chave.startsWith('escala:grade:')) throw new Error('Não é possível publicar isso.');
+    const [, , lojaId, periodo] = chave.split(':');
+    const [inicio, fim] = (periodo||'').split('_');
+    if(!lojaId || !inicio || !fim) throw new Error('Período inválido.');
+    marcarSync('salvando');
+    try{
+      await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas,
+                            valor.resumo, true);
+      marcarSync('salvo');
+    }catch(e){ marcarSync('erro', erroAmigavel(e)); throw e; }
   },
   async set(chave, valor){
     if(chave === 'escala:lojas'){
@@ -1914,12 +2821,13 @@ const store = {
       return;
     }
     if(chave.startsWith('escala:grade:')){
-      const [, , , lojaId, periodo] = chave.split(':');
+      const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       try{
-        await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas);
+        await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas,
+                              valor.resumo, false);
         marcarSync('salvo');
-      }catch(e){ marcarSync('erro', erroAmigavel(e)); }
+      }catch(e){ marcarSync('erro', erroAmigavel(e)); throw e; }
     }
   }
 };
@@ -2113,10 +3021,10 @@ async function criarEmpresa(){
   erroEm('#erro-vinculo','');
   if(nome.length < 2){ erroEm('#erro-vinculo','Informe o nome da empresa.'); return; }
   btn.disabled = true; btn.textContent = 'Criando…';
-  try{ await auth({acao:'criar_empresa', nome}); }
+  const nomeLoja = ($('#vn-loja') && $('#vn-loja').value.trim()) || ''; const chave = ($('#vn-chave') && $('#vn-chave').value.trim()) || '';
+  try{ await auth({acao:'criar_empresa', nome, loja: nomeLoja, chave}); }
   catch(e){ btn.disabled=false; btn.textContent='Criar empresa'; erroEm('#erro-vinculo', erroAmigavel(e)); return; }
   await DB.carregarEmpresa();
-  await semearLojas();
   btn.disabled = false; btn.textContent = 'Criar empresa';
   await abrirApp();
 }
@@ -2134,19 +3042,6 @@ async function entrarPorConvite(){
   await abrirApp();
 }
 
-/* semeia as duas lojas de exemplo na primeira vez */
-async function semearLojas(){
-  const base = seedLojas();
-  const novas = {};
-  for(const [, l] of Object.entries(base)){
-    const id = await DB.criarLoja(l.nome, l.params);
-    novas[id] = {nome: l.nome, params: l.params, _ordem: Object.keys(novas).length,
-                 colabs: l.colabs.map(c=>({nome:c.nome, cargo:c.cargo, horario:c.horario,
-                                           gerente:!!c.gerente, ativo:true, ausencias:[]}))};
-  }
-  await DB.salvarLojas(novas);
-}
-
 /* ---------- pós-login ---------- */
 async function aposLogin(){
   let r;
@@ -2159,6 +3054,7 @@ async function aposLogin(){
 
 async function abrirApp(){
   mostrarTela('app');
+  S.usuario = {papel: SESSAO.usuario.papel, nome: SESSAO.usuario.nome};
   pintarIdentidade({
     nome:    SESSAO.usuario.nome,
     email:   SESSAO.usuario.email,
@@ -2167,9 +3063,15 @@ async function abrirApp(){
   });
   S.lojas = await store.get('escala:lojas');
   if(!S.lojas || !Object.keys(S.lojas).length){
-    await semearLojas();
-    S.lojas = await store.get('escala:lojas');
+    // Empresa sem loja: acontece se a criação falhou pela metade. Em vez de
+    // encher com dados de exemplo, a pessoa nomeia a própria loja.
+    const nome = prompt('Qual o nome da sua loja?', SESSAO.empresa ? SESSAO.empresa.nome : 'Minha loja');
+    if(nome && nome.trim()){
+      try{ await DB.criarLoja(nome.trim(), {}); }catch(e){}
+      S.lojas = await store.get('escala:lojas');
+    }
   }
+  if(!S.lojas || !Object.keys(S.lojas).length){ S.lojas = {}; }
   S.loja = Object.keys(S.lojas)[0];
   montar();
   pintarAcessos();
@@ -2187,13 +3089,53 @@ async function pintarAcessos(){
   const cx = $('#lista-acessos');
   if(!cx) return;
   $('#codigo-convite').textContent = SESSAO.empresa?.codigo_convite || '—';
+  const cxl = document.getElementById('codigos-loja');
+  if(cxl){
+    const lojas = Object.entries(S.lojas || {}).filter(([,l])=>l.codigo);
+    cxl.innerHTML = lojas.length
+      ? lojas.map(([id,l])=>`<div class="cod-loja"><span>${esc(l.nome)}</span>
+          <b class="mono">${esc(l.codigo)}</b></div>`).join('')
+      : '';
+    const bloco = document.getElementById('bloco-codigos-loja');
+    if(bloco) bloco.style.display = lojas.length ? '' : 'none';
+  }
   $('#nome-empresa').textContent = SESSAO.empresa?.nome || '—';
   try{
     const gente = await DB.listarAcessos();
-    cx.innerHTML = `<table class="simples"><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Último acesso</th></tr></thead><tbody>${
-      gente.map(p=>`<tr><td>${esc(p.nome||'—')}</td><td>${esc(p.email||'')}</td><td>${esc(p.papel)}</td>
-        <td class="mono">${p.ultimo_acesso ? new Date(p.ultimo_acesso.replace(' ','T')).toLocaleDateString('pt-BR') : '—'}</td></tr>`).join('')
+    const souAdmin = SESSAO.usuario && SESSAO.usuario.papel === 'admin';
+    const lojas = S.lojas || {};
+    const opcoesLoja = (sel)=> '<option value="">todas as lojas</option>' +
+      Object.entries(lojas).map(([id,l])=>
+        `<option value="${id}"${String(sel)===id?' selected':''}>${esc(l.nome)}</option>`).join('');
+
+    cx.innerHTML = `<table class="simples"><thead><tr>
+        <th>Nome</th><th>E-mail</th><th>Perfil</th><th>Enxerga</th><th>Último acesso</th>
+      </tr></thead><tbody>${
+      gente.map(p=>{
+        const euMesmo = SESSAO.usuario && p.id === SESSAO.usuario.id;
+        const podeMexer = souAdmin && !euMesmo && p.papel !== 'colaborador';
+        const enxerga = podeMexer
+          ? `<select data-loja-de="${p.id}" style="font-size:12px;padding:3px 5px">${opcoesLoja(p.loja_id)}</select>`
+          : esc(p.loja || (p.papel === 'admin' ? 'todas as lojas' : 'todas as lojas'));
+        return `<tr>
+          <td>${esc(p.nome||'—')}${euMesmo?' <span class="chip">você</span>':''}</td>
+          <td>${esc(p.email||'')}</td>
+          <td>${esc(p.papel)}</td>
+          <td>${enxerga}</td>
+          <td class="mono">${p.ultimo_acesso ? new Date(p.ultimo_acesso.replace(' ','T')).toLocaleDateString('pt-BR') : '—'}</td>
+        </tr>`;
+      }).join('')
     }</tbody></table>`;
+
+    cx.querySelectorAll('[data-loja-de]').forEach(sel=>{
+      sel.onchange = async ()=>{
+        try{
+          await auth({acao:'definir_loja', usuario_id: sel.dataset.lojaDe, loja_id: sel.value});
+          sel.style.borderColor = 'var(--v-fg)';
+          setTimeout(()=>{ sel.style.borderColor = ''; }, 1200);
+        }catch(e){ alert(erroAmigavel(e)); pintarAcessos(); }
+      };
+    });
   }catch(e){ cx.innerHTML = `<p class="vazio">${esc(erroAmigavel(e))}</p>`; }
 }
 
@@ -2262,19 +3204,81 @@ $$('nav.tabs button').forEach(b=>b.onclick=()=>{
 });
 
 /* ---------- montagem ---------- */
+function podeTrocarLoja(){
+  return S.usuario && S.usuario.papel === 'admin';
+}
+function atualizarContextoLoja(){
+  const atual = loja();
+  const nome = atual && atual.nome ? atual.nome : 'Loja atual';
+  const topo = document.querySelector('header.top');
+  const unidade = $('#nome-unidade');
+  if(unidade){ unidade.textContent = nome; unidade.title = nome; }
+  if(topo) topo.dataset.trocaLoja = String(podeTrocarLoja());
+}
 function montar(){
   const sel = $('#sel-loja'); sel.innerHTML='';
   Object.keys(S.lojas).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=S.lojas[k].nome; sel.appendChild(o); });
   sel.value = S.loja;
-  sel.onchange = async ()=>{ S.loja = sel.value; await carregarPeriodoSalvo(); pintarParams(); pintarEquipe(); pintarAus(); };
+  atualizarContextoLoja();
+  sel.onchange = async ()=>{
+    S.loja = sel.value;
+    atualizarContextoLoja();
+    // A lista anterior ainda tem botões ligados à outra loja. Escondê-la antes
+    // das consultas impede abrir ou excluir o mesmo período na loja nova.
+    ultimaListaSalvas = [];
+    const painelSalvas = $('#painel-salvas');
+    if(painelSalvas) painelSalvas.style.display = 'none';
+    pintarParams(); pintarEquipe(); pintarAus();
+    await carregarPeriodoSalvo();
+    await pintarSalvas();
+  };
   const hoje = new Date();
   const ini = new Date(hoje.getFullYear(), hoje.getMonth()+1, 11);
   const fim = new Date(hoje.getFullYear(), hoje.getMonth()+2, 10);
   $('#p-inicio').value = ymd(ini); $('#p-fim').value = ymd(fim);
-  pintarParams(); pintarEquipe(); pintarAus(); carregarPeriodoSalvo();
+  pintarParams(); pintarEquipe(); pintarAus(); carregarPeriodoSalvo(); pintarSalvas();
 }
 const loja = ()=>S.lojas[S.loja];
-const chaveGrade = ()=>`escala:grade:${S.loja}:${$('#p-inicio').value}_${$('#p-fim').value}`;
+const chaveGradeDe = (lojaId, inicio, fim)=>`escala:grade:${lojaId}:${inicio}_${fim}`;
+const chaveGrade = ()=>chaveGradeDe(S.loja, $('#p-inicio').value, $('#p-fim').value);
+const dataIsoSeguinte = iso => {
+  const [ano, mes, dia] = String(iso).split('-').map(Number);
+  const d = new Date(ano, mes-1, dia+1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+
+async function escalaAnteriorLocal(inicio){
+  const anterior = lerSalvas()
+    .filter(x => x && x.inicio && x.fim && x.fim < inicio)
+    .sort((a,b) => String(b.fim).localeCompare(String(a.fim)))[0];
+  if(!anterior) return null;
+  const salva = await store.get(chaveGradeDe(S.loja, anterior.inicio, anterior.fim));
+  if(!salva || !salva.grid) return null;
+  return {inicio:anterior.inicio, fim:anterior.fim, grid:salva.grid};
+}
+
+async function equipeComHistoricoAnterior(inicio){
+  const equipe = loja().colabs.map(c => Object.assign({}, c));
+  let anterior = null;
+  try{
+    anterior = typeof store.escalaAnterior === 'function'
+      ? await store.escalaAnterior(S.loja, inicio)
+      : await escalaAnteriorLocal(inicio);
+  }catch(e){
+    console.error('Não foi possível obter a escala anterior para continuidade:', e);
+    return equipe;
+  }
+  if(!anterior || !anterior.grid || dataIsoSeguinte(anterior.fim) !== inicio) return equipe;
+
+  const estado = estadoFinalDaGrade(anterior.grid, anterior.inicio, anterior.fim);
+  return equipe.map(c => estado[c.id]
+    ? Object.assign({}, c, estado[c.id])
+    : c);
+}
+
+function validarEscalaAtual(){
+  S.val = validar(S.res, S.equipeEscala || loja().colabs);
+}
 
 /* ---------- parâmetros ---------- */
 const DIAS_SEM = ['dom','seg','ter','qua','qui','sex','sáb'];
@@ -2370,47 +3374,101 @@ function bindDomPicker(tr,c){
 }
 const CARGOS = ['GERENTE','SUBGERENTE','SUB/FARMA','FARMACÊUTICO','BALCONISTA','CAIXA','AX. LOJA','REPOSITOR'];
 const DIAS_SEMANA_NOME = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+const MODELOS_JORNADA = [
+  {id:'07-1624', nome:'Abertura · 07:00–16:24', entrada:'07:00', saida:'16:24', intervalo:60, intervalos:[{ini:'12:00',fim:'13:00'}], turno:'abertura'},
+  {id:'09-1824', nome:'Abertura · 09:00–18:24', entrada:'09:00', saida:'18:24', intervalo:60, intervalos:[{ini:'13:00',fim:'14:00'}], turno:'abertura'},
+  {id:'10-1924', nome:'Intermediário · 10:00–19:24', entrada:'10:00', saida:'19:24', intervalo:60, intervalos:[{ini:'14:00',fim:'15:00'}], turno:'intermediario'},
+  {id:'11-2024', nome:'Intermediário · 11:00–20:24', entrada:'11:00', saida:'20:24', intervalo:60, intervalos:[{ini:'15:00',fim:'16:00'}], turno:'intermediario'},
+  {id:'12-2124', nome:'Intermediário · 12:00–21:24', entrada:'12:00', saida:'21:24', intervalo:60, intervalos:[{ini:'16:00',fim:'17:00'}], turno:'intermediario'},
+  {id:'1237-2200', nome:'Fechamento · 12:37–22:00', entrada:'12:37', saida:'22:00', intervalo:60, intervalos:[{ini:'16:30',fim:'17:30'}], turno:'fechamento'},
+  {id:'1345-2300', nome:'Fechamento · 13:45–23:00', entrada:'13:45', saida:'23:00', intervalo:60, intervalos:[{ini:'17:30',fim:'18:30'}], turno:'fechamento'},
+  {id:'gerente-1', nome:'Gerente · 07:00–16:24 · 1 intervalo', entrada:'07:00', saida:'16:24', intervalo:60, intervalos:[{ini:'12:00',fim:'13:00'}], turno:'abertura'},
+  {id:'gerente-2', nome:'Gerente · 07:00–17:24 · 2 intervalos', entrada:'07:00', saida:'17:24', intervalo:120, intervalos:[{ini:'10:30',fim:'11:30'},{ini:'14:00',fim:'15:00'}], turno:'abertura'}
+];
+let jornadaAberta = null;
+function minutosHorario(v){ const p=String(v||'').split(':').map(Number); return p.length===2 ? p[0]*60+p[1] : 0; }
+function textoJornada(j){ return j && j.entrada && j.saida ? `${j.entrada} AS ${j.saida}` : ''; }
+function jornadaDe(c){
+  if(c.jornada && c.jornada.entrada && c.jornada.saida){
+    const modelo=MODELOS_JORNADA.find(x=>x.id===c.jornada.modelo);
+    // Jornadas salvas antes dos horários de pausa continuam válidas: o modelo
+    // completa os intervalos oficiais sem sobrescrever ajustes já existentes.
+    return Object.assign({}, modelo||{}, c.jornada, {intervalos:Array.isArray(c.jornada.intervalos)
+      ? c.jornada.intervalos : intervalosDaJornada(modelo).map(x=>({ini:x.ini,fim:x.fim}))});
+  }
+  const partes = String(c.horario||'').match(/(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/i);
+  return partes ? {modelo:'', entrada:partes[1].padStart(5,'0'), saida:partes[2].padStart(5,'0'), intervalo:null, turno:'',intervalos:[]} : {modelo:'', entrada:'09:00', saida:'18:00', intervalo:null, turno:'',intervalos:[]};
+}
+function jornadaLiquida(j){ let n=minutosHorario(j.saida)-minutosHorario(j.entrada)-Number(j.intervalo||0); if(n<0)n+=1440; return n; }
+function textoDuracao(n){ return Math.floor(n/60)+'h'+String(n%60).padStart(2,'0'); }
+function intervalosDaJornada(j){ return Array.isArray(j&&j.intervalos) ? j.intervalos.filter(x=>x&&x.ini&&x.fim) : []; }
+function intervaloDaJornada(j, detalhado=false){
+  const lista=intervalosDaJornada(j);
+  if(!lista.length) return 'Intervalo não informado';
+  if(lista.length===1) return `${lista[0].ini}–${lista[0].fim}`;
+  return detalhado ? lista.map(x=>`${x.ini}–${x.fim}`).join(' · ') : `${lista.length} intervalos`;
+}
+function intervaloDe(c, detalhado=false){ return intervaloDaJornada(jornadaDe(c), detalhado); }
+function resumoModelo(c){ const j=jornadaDe(c); const m=MODELOS_JORNADA.find(x=>x.id===j.modelo); return m ? m.nome : 'Sem modelo oficial — clique para configurar'; }
+function salvarEquipe(){ return store.set('escala:lojas', S.lojas); }
+/* Devolve apenas o conteúdo da célula. A linha é criada com insertRow para que
+   o navegador mantenha o contexto de tabela: um fragmento solto com <tr> e <td>
+   é descartado pelo analisador, e era isso que impedia os controles de
+   funcionarem. */
+function detalhesJornada(c){
+  const j=jornadaDe(c), m=MODELOS_JORNADA.find(x=>x.id===j.modelo);
+  return `<section class="jornada-box" data-jornada="${c.id}">
+    <div class="jornada-topo"><div><strong>Definir a jornada padrão de ${esc(c.nome)}</strong><p>O domingo de folga, a folga fixa e os demais dados da pessoa continuam preservados.</p></div><span class="chip ${j.modelo?'ok':'mal'} jornada-status">${j.modelo?'Modelo oficial':'Modelo pendente'}</span></div>
+    <div class="jornada-grade"><div class="jornada-area"><label class="jornada-rot">Modelo oficial</label><select data-j="modelo"><option value="">Manter o horário atual sem modelo</option>${MODELOS_JORNADA.map(x=>`<option value="${x.id}"${x.id===j.modelo?' selected':''}>${x.nome}</option>`).join('')}</select><p class="jornada-desc">${m?`<b>${esc(m.nome)}.</b> Os horários abaixo podem ser conferidos antes de aplicar.`:`<b>Horário atual preservado:</b> ${esc(c.horario||textoJornada(j)||'não informado')}.`}</p></div>
+    <div class="jornada-area"><label class="jornada-rot">Conferir ou ajustar dados</label><div class="jornada-campos"><div class="jornada-campo"><label>Entrada</label><input type="time" data-j="entrada" value="${j.entrada}"></div><div class="jornada-campo"><label>Saída</label><input type="time" data-j="saida" value="${j.saida}"></div><div class="jornada-campo"><label>Intervalo</label><select data-j="intervalo"><option value="60"${Number(j.intervalo)!==120?' selected':''}>1h00</option><option value="120"${Number(j.intervalo)===120?' selected':''}>2h00</option></select></div><div class="jornada-campo"><label>Jornada líquida</label><input readonly data-j="liquida" value="${textoDuracao(jornadaLiquida(j))}"></div></div><div class="jornada-rodape"><p class="jornada-resultado"></p><div class="jornada-acoes"><button class="btn ghost small" type="button" data-j="cancelar">Cancelar</button><button class="btn primary small" type="button" data-j="aplicar">Aplicar jornada</button></div></div></div>
+    </div></section>`;
+}
+function configurarJornadaDetalhe(box,c){
+  const campos = k=>box.querySelector(`[data-j="${k}"]`);
+  box._intervalos = intervalosDaJornada(jornadaDe(c)).map(x=>({ini:x.ini,fim:x.fim}));
+  const atualizar = ()=>{
+    const j={modelo:campos('modelo').value,entrada:campos('entrada').value,saida:campos('saida').value,
+             intervalo:+campos('intervalo').value,intervalos:box._intervalos.map(x=>({ini:x.ini,fim:x.fim}))};
+    const liquida=jornadaLiquida(j), valida=liquida>=440&&liquida<=504;
+    campos('liquida').value=textoDuracao(liquida);
+    const resultado=box.querySelector('.jornada-resultado'), status=box.querySelector('.jornada-status');
+    resultado.classList.toggle('invalida',!valida);
+    resultado.innerHTML=valida ? `<b>Jornada dentro da faixa:</b> ${textoDuracao(liquida)} líquidas no dia.` : `<b>Revisar jornada:</b> precisa ficar entre 7h20 e 8h24 líquidas.`;
+    status.className='chip jornada-status '+(valida?(j.modelo?'ok':'mal'):'mal');
+    status.textContent=!valida?'Revisar jornada':(j.modelo?'Pronto para aplicar':'Modelo pendente');
+    return {j,valida};
+  };
+  const aplicarModelo = ()=>{ const m=MODELOS_JORNADA.find(x=>x.id===campos('modelo').value); if(m){campos('entrada').value=m.entrada;campos('saida').value=m.saida;campos('intervalo').value=String(m.intervalo);box._intervalos=intervalosDaJornada(m).map(x=>({ini:x.ini,fim:x.fim}));}else{box._intervalos=[];} atualizar(); };
+  campos('modelo').addEventListener('change', aplicarModelo);
+  campos('modelo').addEventListener('input', aplicarModelo);
+  ['entrada','saida','intervalo'].forEach(k=>{campos(k).addEventListener('change',atualizar);campos(k).addEventListener('input',atualizar);});
+  campos('cancelar').addEventListener('click',()=>{ jornadaAberta=null; pintarEquipe(); });
+  campos('aplicar').addEventListener('click',async()=>{ const {j,valida}=atualizar(); if(!valida) return; c.jornada=j; c.horario=textoJornada(j); if(S.equipeEscala){ const eq=S.equipeEscala.find(x=>x.id===c.id); if(eq){eq.jornada=j;eq.horario=c.horario;} } if(S.res&&S.res.ativos){ const at=S.res.ativos.find(x=>x.id===c.id); if(at){at.jornada=j;at.horario=c.horario;} validarEscalaAtual(); pintarGrade(); } await salvarEquipe(); jornadaAberta=null; pintarEquipe(); });
+  atualizar();
+}
 function pintarEquipe(){
   const t = $('#tab-equipe');
-  t.innerHTML = `<thead><tr><th>Nome</th><th>Cargo</th><th>Horário</th><th style="width:70px">Gerente</th>
-    <th style="width:118px">Folga fixa</th>
-    <th style="width:190px">1º domingo de folga</th>
-    <th style="width:60px">Ativo</th><th style="width:40px"></th></tr></thead><tbody></tbody>`;
+  t.innerHTML = `<thead><tr><th>Nome</th><th>Cargo</th><th>Horário</th><th style="width:70px">Gerente</th><th style="width:118px">Folga fixa</th><th style="width:190px">1º domingo de folga</th><th style="width:60px">Ativo</th><th style="width:40px"></th></tr></thead><tbody></tbody>`;
   const tb = t.querySelector('tbody');
   loja().colabs.forEach((c,i)=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input value="${esc(c.nome)}" data-f="nome"></td>
-      <td><select data-f="cargo">${CARGOS.map(x=>`<option${x===c.cargo?' selected':''}>${x}</option>`).join('')}</select></td>
-      <td><input value="${esc(c.horario||'')}" data-f="horario" placeholder="07:00 AS 15:20"></td>
-      <td style="text-align:center"><input type="checkbox" data-f="gerente" ${c.gerente?'checked':''}></td>
-      <td><select data-f="folgaFixa"><option value="">variável</option>${DIAS_SEMANA_NOME.map((d,k)=>
-          `<option value="${k}"${String(c.folgaFixa)===String(k)?' selected':''}>${d}</option>`).join('')}</select></td>
-      <td>${renderDomPicker(c)}</td>
-      <td style="text-align:center"><input type="checkbox" data-f="ativo" ${c.ativo!==false?'checked':''}></td>
-      <td><button class="btn danger small" title="Remover">×</button></td>`;
-    tr.querySelectorAll('[data-f]').forEach(el=>{
-      el.onchange = async ()=>{
-        const f = el.dataset.f;
-        let v = el.type==='checkbox' ? el.checked : el.value;
-        if(f==='folgaFixa') v = v===''? null : +v;
-        if(f==='primeiroDomingo') v = v==='' ? null : v;
-        c[f]=v; await store.set('escala:lojas', S.lojas); pintarAus();
-      };
-    });
-    bindDomPicker(tr, c);
-    tr.querySelector('button').onclick = async ()=>{
-      if(!confirm(`Remover ${c.nome} da equipe?`)) return;
-      loja().colabs.splice(i,1); await store.set('escala:lojas', S.lojas); pintarEquipe(); pintarAus();
-    };
+    const tr = document.createElement('tr'); const j=jornadaDe(c);
+    tr.innerHTML = `<td><input value="${esc(c.nome)}" data-f="nome"></td><td><select data-f="cargo">${CARGOS.map(x=>`<option${x===c.cargo?' selected':''}>${x}</option>`).join('')}</select></td><td class="horario-cel"><button type="button" class="horario-abrir" aria-expanded="${jornadaAberta===c.id}" data-jornada-abrir><span><span class="hora">${esc(c.horario||textoJornada(j)||'Horário não informado')}</span><span class="modelo">${esc(resumoModelo(c))}</span></span><i class="seta" aria-hidden="true"></i></button></td><td style="text-align:center"><input type="checkbox" data-f="gerente" ${c.gerente?'checked':''}></td><td><select data-f="folgaFixa"><option value="">variável</option>${DIAS_SEMANA_NOME.map((d,k)=>`<option value="${k}"${String(c.folgaFixa)===String(k)?' selected':''}>${d}</option>`).join('')}</select></td><td>${renderDomPicker(c)}</td><td style="text-align:center"><input type="checkbox" data-f="ativo" ${c.ativo!==false?'checked':''}></td><td><button class="btn danger small" type="button" title="Remover" data-remover>×</button></td>`;
+    tr.querySelectorAll('[data-f]').forEach(el=>el.onchange=async()=>{const f=el.dataset.f;let v=el.type==='checkbox'?el.checked:el.value;if(f==='folgaFixa')v=v===''?null:+v;c[f]=v;await salvarEquipe();pintarAus();});
+    bindDomPicker(tr,c);
+    tr.querySelector('[data-jornada-abrir]').onclick=()=>{jornadaAberta=jornadaAberta===c.id?null:c.id;pintarEquipe();};
+    tr.querySelector('[data-remover]').onclick=async()=>{if(!confirm(`Remover ${c.nome} da equipe?`))return;loja().colabs.splice(i,1);await salvarEquipe();pintarEquipe();pintarAus();};
     tb.appendChild(tr);
+    if(jornadaAberta===c.id){
+      const linha=tb.insertRow();
+      linha.className='jornada-detalhe';
+      const celula=linha.insertCell();
+      celula.colSpan=8;
+      celula.innerHTML=detalhesJornada(c);
+      configurarJornadaDetalhe(celula.querySelector('.jornada-box'),c);
+    }
   });
 }
-$('#btn-add-colab').onclick = async ()=>{
-  loja().colabs.push({id:'n'+Date.now(), nome:'NOVO COLABORADOR', cargo:'BALCONISTA', horario:'09:00 AS 18:00',
-                      gerente:false, ativo:true, domTrabConsec:null, diasDesdeFolga:0, folgaFixa:null, ausencias:[]});
-  await store.set('escala:lojas', S.lojas); pintarEquipe();
-};
+$('#btn-add-colab').onclick = async ()=>{loja().colabs.push({id:gerarId(),nome:'NOVO COLABORADOR',cargo:'BALCONISTA',horario:'09:00 AS 18:00',jornada:null,gerente:false,ativo:true,domTrabConsec:null,diasDesdeFolga:0,folgaFixa:null,ausencias:[]});await salvarEquipe();pintarEquipe();};
 
 /* ---------- ausências ---------- */
 function pintarAus(){
@@ -2448,38 +3506,351 @@ $('#btn-add-aus').onclick = async ()=>{
 /* ============================================================
    GERAR / PINTAR GRADE
    ============================================================ */
-$('#btn-gerar').onclick = ()=>{
+$('#btn-gerar').onclick = async ()=>{
   const p = Object.assign({}, loja().params, {inicio:$('#p-inicio').value, fim:$('#p-fim').value});
   if(!p.inicio || !p.fim || p.inicio>=p.fim){ alert('Confira o período: a data final precisa ser depois da inicial.'); return; }
-  S.res = gerarEscala(loja().colabs, p);
+  S.equipeEscala = await equipeComHistoricoAnterior(p.inicio);
+  S.res = gerarEscala(S.equipeEscala, p);
   S.res.horas = {};
-  S.val = validar(S.res, loja().colabs);
+  validarEscalaAtual();
   S.salvo = false; pintarGrade();
 };
+function dadosDaGrade(){
+  const inicio = $('#p-inicio').value, fim = $('#p-fim').value;
+  if(String(S.res.params.inicio) !== inicio || String(S.res.params.fim) !== fim){
+    throw new Error('O período mudou. Gere ou abra a escala dessas datas antes de salvar.');
+  }
+  const resumo = resumoDaEscala();
+  return {inicio, fim, grid:S.res.grid, params:S.res.params,
+          horas:S.res.horas||{}, ordem:S.res.ativos.map(c=>c.id), resumo};
+}
+
 $('#btn-salvar').onclick = async ()=>{
   if(!S.res) return;
-  const dados = {inicio:$('#p-inicio').value, fim:$('#p-fim').value, grid:S.res.grid, params:S.res.params,
-                 horas:S.res.horas||{}, ordem:S.res.ativos.map(c=>c.id)};
-  await store.set(chaveGrade(), dados);
+  try{
+    await store.set(chaveGrade(), dadosDaGrade());
+  }catch(e){
+    alert('Não foi possível salvar no servidor: ' + (e && e.message ? e.message : e));
+    return;
+  }
   S.salvo = true; marcarSalvo();
+  registrarSalva();
+  await pintarSalvas();
 };
+
+if(typeof store.publicar === 'function'){
+  $('#btn-publicar').style.display = '';
+  $('#btn-publicar').onclick = async ()=>{
+    if(!S.res) return;
+    if(!S.salvo){ alert('Salve a escala antes de publicar.'); return; }
+    if(!confirm('Publicar esta escala? A partir de agora ela fica visível para a equipe.')) return;
+    try{
+      await store.publicar(chaveGrade(), dadosDaGrade());
+    }catch(e){
+      alert('Não foi possível publicar: ' + (e && e.message ? e.message : e));
+      return;
+    }
+    const status = $('#status-salvo');
+    status.textContent = 'Escala publicada';
+    status.className = 'chip ok';
+    setTimeout(()=>{ if(status.textContent === 'Escala publicada') marcarSalvo(); }, 3000);
+    await pintarSalvas();
+  };
+}
+
+/* ---------- registro das escalas salvas ---------- */
+function chaveSalvas(){ return 'escala:salvas:' + S.loja; }
+
+function resumoDaEscala(){
+  const feridas = S.val ? S.val.alertas.filter(a=>a.nivel!=='nota').length : 0;
+  const notas   = S.val ? S.val.alertas.filter(a=>a.nivel==='nota').length : 0;
+  const folgas  = S.res.ativos.reduce((t,c)=>t + S.res.grid[c.id].filter(v=>v==='X').length, 0);
+  const ajustes = Object.values(S.res.horas||{}).reduce((t,m)=>t + Object.keys(m).length, 0);
+  return {inicio:$('#p-inicio').value, fim:$('#p-fim').value,
+    dias:S.res.days.length, pessoas:S.res.ativos.length,
+    modelo:(S.res.params.modelo || '5x2'), folgas, feridas, notas, ajustes,
+    em:new Date().toISOString()};
+}
+
+function lerSalvas(){
+  try{ return JSON.parse(localStorage.getItem(chaveSalvas()) || '[]'); }catch(e){ return []; }
+}
+
+function registrarSalva(){
+  if(typeof store.listarEscalas === 'function') return;
+  const lista = lerSalvas().filter(x=>!(x.inicio===$('#p-inicio').value && x.fim===$('#p-fim').value));
+  lista.unshift(resumoDaEscala());
+  try{ localStorage.setItem(chaveSalvas(), JSON.stringify(lista.slice(0,24))); }catch(e){}
+}
+
+let ultimaListaSalvas = [];
+
+async function obterListaSalvas(lojaId){
+  if(typeof store.listarEscalas === 'function') return await store.listarEscalas(lojaId);
+  return lerSalvas();
+}
+
+async function pintarSalvas(){
+  const painel = $('#painel-salvas'), cx = $('#lista-salvas');
+  if(!painel || !cx) return;
+  const lojaId = S.loja;
+  let lista;
+  try{
+    lista = await obterListaSalvas(lojaId);
+  }catch(e){
+    if(lojaId !== S.loja) return;
+    painel.style.display = '';
+    cx.innerHTML = '<p class="vazio">Não foi possível carregar as escalas salvas do servidor: '
+                 + esc(e && e.message ? e.message : e) + '</p>';
+    ultimaListaSalvas = [];
+    return;
+  }
+  if(lojaId !== S.loja) return;
+  ultimaListaSalvas = lista;
+  if(!lista.length){ painel.style.display = 'none'; return; }
+  painel.style.display = '';
+  const dt = iso => { const [a,m,d] = String(iso).split('-'); return d + '/' + m; };
+  cx.innerHTML = lista.map((x,k)=>{
+    const atual = x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value;
+    const selo = typeof x.publicada === 'boolean'
+      ? (x.publicada ? '<span class="chip ok" style="margin-left:6px">Publicada</span>'
+                     : '<span class="chip mal" style="margin-left:6px">Rascunho</span>')
+      : '';
+    const partes = [`<b>${x.pessoas}</b> pessoas`, `<b>${x.dias}</b> dias`,
+                    `modelo <b>${esc(x.modelo)}</b>`, `<b>${x.folgas}</b> folgas no total`];
+    if(x.ajustes) partes.push(`<b>${x.ajustes}</b> horário(s) ajustado(s)`);
+    partes.push(x.feridas ? `<b style="color:var(--alerta)">${x.feridas} regra(s) ferida(s)</b>`
+                          : 'sem regra ferida');
+    const q = new Date(x.em);
+    return `<div class="salva">
+      <div class="salva-info">
+        <div class="salva-tit">${dt(x.inicio)} a ${dt(x.fim)}${atual ? '<span class="salva-atual">aberta</span>' : ''}${selo}</div>
+        <div class="salva-desc">${partes.join(' · ')}<br>salva em ${q.toLocaleDateString('pt-BR')} às ${q.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div class="salva-acoes">${atual
+        ? '<button class="btn small" data-pdf="1">Baixar PDF</button><button class="btn ghost small" data-editar="1">Editar</button>'
+        : '<button class="btn ghost small" data-abrir="' + k + '">Abrir</button>'}
+        <button class="btn ghost small salva-excluir" data-excluir="${k}" title="Excluir esta escala">Excluir</button></div>
+    </div>`;
+  }).join('');
+  cx.querySelectorAll('[data-pdf]').forEach(b=>{ b.onclick = baixarPdf; });
+  cx.querySelectorAll('[data-abrir]').forEach(b=>{
+    b.onclick = async ()=>{
+      const x = ultimaListaSalvas[+b.dataset.abrir];
+      if(!x) return;
+      const anterior = {inicio:$('#p-inicio').value, fim:$('#p-fim').value,
+                        res:S.res, val:S.val, salvo:S.salvo, equipeEscala:S.equipeEscala};
+      $('#p-inicio').value = x.inicio; $('#p-fim').value = x.fim;
+      const carregou = await carregarPeriodoSalvo();
+      if(!carregou){
+        $('#p-inicio').value = anterior.inicio; $('#p-fim').value = anterior.fim;
+        S.res = anterior.res; S.val = anterior.val; S.salvo = anterior.salvo;
+        S.equipeEscala = anterior.equipeEscala;
+        pintarGrade();
+      }
+      await pintarSalvas();
+    };
+  });
+  cx.querySelectorAll('[data-editar]').forEach(b=>{
+        b.onclick = () => {
+                const grade = document.getElementById('grade');
+                if (grade) grade.scrollIntoView({behavior:'smooth', block:'start'});
+        };
+  });
+  cx.querySelectorAll('[data-excluir]').forEach(b=>{
+    b.onclick = ()=> excluirSalva(+b.dataset.excluir);
+  });
+}
+
+/* Exclui a escala do período: apaga do banco (ou do dispositivo, na versão
+   offline) e tira da lista. O que fica na tela continua até você gerar outra —
+   assim dá para desfazer salvando de novo, se tiver sido engano. */
+async function excluirSalva(k){
+  const x = ultimaListaSalvas[k];
+  if(!x) return;
+  const dt = iso => { const [a,m,d] = String(iso).split('-'); return d + '/' + m; };
+  if(!confirm(`Excluir a escala de ${dt(x.inicio)} a ${dt(x.fim)}?\n\n`
+            + `A escala gravada será apagada e não dá para desfazer. `
+            + `A equipe e os parâmetros não são afetados.`)) return;
+
+  try{
+    if(store.del) await store.del(`escala:grade:${S.loja}:${x.inicio}_${x.fim}`);
+  }catch(e){
+    alert('Não foi possível excluir no servidor: ' + (e && e.message ? e.message : e));
+    return;
+  }
+  if(typeof store.listarEscalas !== 'function'){
+    const restante = lerSalvas().filter(y=>!(y.inicio===x.inicio && y.fim===x.fim));
+    try{ localStorage.setItem(chaveSalvas(), JSON.stringify(restante)); }catch(e){}
+  }
+
+  // se era o período aberto, limpa a tela
+  if(x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value){
+    S.res = null; S.val = null; S.equipeEscala = null; S.salvo = true;
+    $('#grade').innerHTML = '<p class="vazio">Escala excluída. Clique em Gerar escala para montar outra.</p>';
+    $('#lista-alertas').innerHTML = '';
+    $('#cont-alertas').textContent = '';
+    $('#resumo-cobertura').innerHTML = '';
+    marcarSalvo();
+  }
+  await pintarSalvas();
+}
+
+function conferirNomesParaDocumento(){
+  const duplicados = typeof nomesDuplicadosDocumento === 'function'
+    ? nomesDuplicadosDocumento(S.res ? S.res.ativos : [])
+    : [];
+  if(!duplicados.length) return true;
+  const nomes = duplicados.map(g=>`${g.nome} (${g.quantidade} cadastros)`).join(', ');
+  return confirm('Há colaboradores com a mesma identificação na equipe:\n' + nomes + '.\n\n'
+      + 'Recomendamos diferenciar os nomes na aba Equipe (por exemplo, usando o sobrenome) para evitar ambiguidades no documento impresso.\n\n'
+      + 'Deseja gerar o documento mesmo assim?');
+}
+
+function baixarPdf(){
+  if(!S.res){ alert('Gere a escala antes de baixar.'); return; }
+  if(!conferirNomesParaDocumento()) return;
+  try{
+    const D = dadosDaEscala();
+    if(!D || !D.days || !D.days.length){
+      alert('Não há dados da escala para gerar o PDF. Gere a escala novamente.');
+      return;
+    }
+    D.horaDe = (c, i) => horaDoDia(c, i);
+    D.faixaDe = typeof faixaDe === 'function' ? faixaDe : () => 0;
+    D.rotuloFaixa = (g) => (typeof FAIXAS_CARGO !== 'undefined' && FAIXAS_CARGO[g] ? FAIXAS_CARGO[g].rotulo : 'Equipe');
+    D.descricaoCargo = (c, g) => (typeof descricaoCargoImpressao === 'function'
+      ? descricaoCargoImpressao(c, typeof FAIXAS_CARGO !== 'undefined' && FAIXAS_CARGO[g] ? FAIXAS_CARGO[g].chave : 'apoio')
+      : (c ? c.cargo : ''));
+    const nomeLoja = (typeof loja === 'function' && loja() && loja().nome) || S.loja || 'Escala';
+    const bytes = typeof gerarPdfEscala === 'function' ? gerarPdfEscala(D, nomeLoja) : null;
+    if(!bytes || !bytes.length){
+      throw new Error('O gerador de PDF não retornou o arquivo.');
+    }
+    const blob = new Blob([bytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    const iniVal = ($('#p-inicio') && $('#p-inicio').value) || 'inicio';
+    const fimVal = ($('#p-fim') && $('#p-fim').value) || 'fim';
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'escala_' + nomeLoja.replace(/[^\w]+/g,'_') + '_' + iniVal + '_a_' + fimVal + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{
+      try{ URL.revokeObjectURL(url); a.remove(); }catch(e){}
+    }, 2000);
+  }catch(err){
+    console.error('Erro ao gerar PDF:', err);
+    alert('Não foi possível gerar o PDF: ' + (err && err.message ? err.message : err));
+  }
+}
 async function carregarPeriodoSalvo(){
-  S.res=null; S.val=null;
-  const d = await store.get(chaveGrade());
+  S.res=null; S.val=null; S.equipeEscala=null;
+  let d;
+  try{
+    d = await store.get(chaveGrade());
+  }catch(e){
+    alert('Não foi possível carregar a escala salva do servidor: ' + (e && e.message ? e.message : e));
+    pintarGrade();
+    return false;
+  }
   if(d){
     const p = Object.assign({}, loja().params, d.params||{}, {inicio:d.inicio, fim:d.fim});
-    const base = gerarEscala(loja().colabs, p);
+    S.equipeEscala = await equipeComHistoricoAnterior(p.inicio);
+    const base = gerarEscala(S.equipeEscala, p);
     Object.keys(d.grid).forEach(id=>{ if(base.grid[id]) base.grid[id] = d.grid[id]; });
     base.horas = d.horas || {};
-    S.res = base; S.val = validar(S.res, loja().colabs); S.salvo = true;
+    S.res = base; validarEscalaAtual(); S.salvo = true;
+  } else {
+    S.salvo = true;
   }
   pintarGrade();
+  return true;
 }
+function atualizarFaixaRota(){
+  const titulo = $('#esc-rota-titulo'), desc = $('#esc-rota-desc'), status = $('#esc-rota-status');
+  const visao = $('#esc-visao'), visaoTitulo = $('#esc-visao-titulo'),
+        visaoDesc = $('#esc-visao-desc'), metricas = $('#esc-metricas');
+  if(!titulo || !desc || !status) return;
+  if(!S.res){
+    titulo.textContent = 'Prepare a escala do período';
+    desc.textContent = 'Escolha as datas e gere uma proposta para revisar a cobertura da loja.';
+    status.textContent = 'Aguardando geração';
+    if(visao) visao.hidden = true;
+    return;
+  }
+
+  const alertas = S.val && S.val.alertas ? S.val.alertas : [];
+  const regras = alertas.filter(a=>a.nivel!=='nota').length;
+  const notas = alertas.length - regras;
+  const cob = S.val && S.val.cobertura ? S.val.cobertura : [];
+  const abaixoMinimo = cob.filter(c=>c.falta && c.falta.length).length;
+  const pessoas = S.res.ativos ? S.res.ativos.length : 0;
+  const dias = S.res.days ? S.res.days.length : 0;
+
+  if(visao && visaoTitulo && visaoDesc && metricas){
+    visao.hidden = false;
+    visaoTitulo.textContent = regras || abaixoMinimo ? 'O que precisa de revisão' : 'Leitura do período';
+    visaoDesc.textContent = regras || abaixoMinimo
+      ? 'A grade já está montada. Comece pelos dias e pessoas marcados com pendência.'
+      : 'A cobertura mínima e as regras de folga fecharam para este período.';
+    metricas.innerHTML = [
+      `<span class="esc-metrica"><b>${pessoas}</b> pessoas</span>`,
+      `<span class="esc-metrica"><b>${dias}</b> dias</span>`,
+      `<span class="esc-metrica ${abaixoMinimo ? 'alerta' : 'ok'}"><b>${abaixoMinimo}</b> dia(s) abaixo do mínimo</span>`,
+      regras
+        ? `<span class="esc-metrica alerta"><b>${regras}</b> pendência(s)</span>`
+        : `<span class="esc-metrica ok"><b>0</b> pendências</span>`,
+      notas ? `<span class="esc-metrica info"><b>${notas}</b> observação(ões)</span>` : ''
+    ].join('');
+  }
+
+  if(!S.salvo){
+    titulo.textContent = 'Revise as alterações antes de salvar';
+    desc.textContent = regras
+      ? `${regras} pendência(s) ainda exigem atenção na grade.`
+      : 'A escala foi atualizada. Salve a revisão quando estiver pronta para distribuir.';
+    status.textContent = 'Alterações pendentes';
+    return;
+  }
+  if(regras){
+    titulo.textContent = 'A escala está salva, com pendências para revisar';
+    desc.textContent = `${regras} regra(s) ferida(s)${notas ? ` e ${notas} observação(ões)` : ''}. Veja os dias marcados antes de distribuir.`;
+    status.textContent = `${regras} pendência(s)`;
+    return;
+  }
+  titulo.textContent = 'Escala pronta para distribuir';
+  desc.textContent = notas
+    ? `As regras fecharam; há ${notas} observação(ões) explicando escolhas do gerador.`
+    : 'As regras e a cobertura mínima foram conferidas. Salve, imprima ou exporte a escala.';
+  status.textContent = 'Pronta para distribuir';
+}
+
 function marcarSalvo(){
   const el = $('#status-salvo');
-  if(!S.res){ el.textContent=''; return; }
-  el.textContent = S.salvo ? 'Salvo' : 'Não salvo';
+  const faixa = $('#esc-status');
+  const salvar = $('#btn-salvar');
+  const publicar = $('#btn-publicar');
+  atualizarFaixaRota();
+  if(!S.res){
+    el.textContent='';
+    if(faixa) faixa.hidden = true;
+    if(salvar) salvar.disabled = true;
+    if(publicar) publicar.disabled = true;
+    return;
+  }
+  if(faixa) faixa.hidden = false;
+  el.textContent = S.salvo ? 'Alterações salvas' : 'Alterações pendentes';
   el.className = 'chip ' + (S.salvo?'ok':'mal');
+  if(salvar) salvar.disabled = S.salvo;
+  if(publicar) publicar.disabled = !S.salvo;
+}
+function gerarId(){
+  if(typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+    const r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
+    return v.toString(16);
+  });
 }
 function esc(s){ return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 
@@ -2534,7 +3905,19 @@ function horaAjustada(id, i){
 }
 function horaDoDia(c, i){
   const a = horaAjustada(c.id, i);
-  return a != null ? a : horaEntrada(c);
+  return a != null ? a : (c.jornada && c.jornada.entrada ? c.jornada.entrada : horaEntrada(c));
+}
+function interjornadasDaEscala(){
+  const saida={};
+  if(!S.val || !S.val.porColab) return saida;
+  (S.res && S.res.ativos || []).forEach(c=>{
+    const av=S.val.porColab[c.id] && S.val.porColab[c.id].av || [];
+    av.filter(a=>a.tipo==='interjornada' && Number.isInteger(a.dia)).forEach(a=>{
+      if(!saida[c.id]) saida[c.id]={};
+      saida[c.id][a.dia]=a;
+    });
+  });
+  return saida;
 }
 function definirHora(id, i, valor){
   const m = mapaHoras();
@@ -2561,16 +3944,53 @@ function abrirPopupCelula(td){
   const id = td.dataset.id, i = +td.dataset.i;
   const c = S.res.ativos.find(x=>x.id===id);
   if(!c) return;
+  const colabEquipe = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)
+    && loja().colabs.find(x=>x.id===id)) || c;
+  const jEquipe = jornadaDe(colabEquipe);
+  const modeloEquipe = MODELOS_JORNADA.find(x=>x.id===jEquipe.modelo);
+  const horarioEquipe = (colabEquipe.horario || textoJornada(jEquipe) || '').trim() || 'Não informado';
   const dia = S.res.days[i];
   const cod = S.res.grid[id][i];
-  const padrao = (horaEntrada(c)||'').slice(0,5) || '09:00';
+  const entradaPadrao = horaEntrada(colabEquipe);
+  const padrao = entradaPadrao !== '--:--' ? entradaPadrao.slice(0,5) : '09:00';
   const atual = (horaDoDia(c, i)||'').slice(0,5) || padrao;
+  const intervalo = intervaloDe(colabEquipe, true);
   const ajustada = horaAjustada(id, i);
 
-  // horários já praticados na loja, para escolher com um clique
-  const atalhos = [...new Set(loja().colabs.map(x=>(horaEntrada(x)||'').slice(0,5)).filter(Boolean))]
-                  .sort().slice(0, 6);
+  const opcoesHorarios = [
+    {chave:'equipe', rotulo:`Da equipe · ${horarioEquipe}`, entrada:padrao, intervalo}
+  ];
+  const jaListados = new Set([`modelo:${jEquipe.modelo||''}`]);
+  MODELOS_JORNADA.forEach(m=>{
+    if(jaListados.has(`modelo:${m.id}`)) return;
+    opcoesHorarios.push({
+      chave:`modelo:${m.id}`,
+      rotulo:m.nome,
+      entrada:m.entrada,
+      intervalo:intervaloDaJornada(m, true)
+    });
+  });
+  const colabsLoja = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)) ? loja().colabs : [];
+  const horariosExtras = new Set([horarioEquipe.toUpperCase()]);
+  MODELOS_JORNADA.forEach(m=>horariosExtras.add(textoJornada(m).toUpperCase()));
+  colabsLoja.forEach(x=>{
+    const jx = jornadaDe(x);
+    const hx = (x.horario || textoJornada(jx) || '').trim();
+    const ent = horaEntrada(x);
+    if(!hx || ent==='--:--' || horariosExtras.has(hx.toUpperCase())) return;
+    horariosExtras.add(hx.toUpperCase());
+    opcoesHorarios.push({
+      chave:`extra:${hx}`,
+      rotulo:`Equipe · ${hx}`,
+      entrada:ent.slice(0,5),
+      intervalo:intervaloDe(x, true)
+    });
+  });
+  const opcaoInicial = (atual === padrao
+    ? opcoesHorarios[0]
+    : opcoesHorarios.find(o=>o.entrada===atual)) || null;
 
+  const DIAS_SEMANA_POPUP = [1,2,3,4,5,6,0].map(diaSemana=>({dia:diaSemana, rot:DIA_ABREV[diaSemana]}));
   const DIA_NOMES = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
   const CODIGOS = [
     ['X',  'X folga',        '#D8EDE2', '#14663F'],
@@ -2588,18 +4008,29 @@ function abrirPopupCelula(td){
       <div class="pc-data">${DIA_NOMES[dia.getDay()]}, ${ddmm(dia)}</div>
     </div>
     <div class="pc-corpo">
+      <div class="pc-equipe">
+        <div class="pc-rot" style="margin-bottom:2px">Horário estabelecido na equipe</div>
+        <div class="pc-equipe-hora">${esc(horarioEquipe)}</div>
+        <div class="pc-equipe-meta">${esc(modeloEquipe ? modeloEquipe.nome : 'Horário configurado na aba Equipe')} · Intervalo: <span id="pc-intervalo">${esc(intervalo)}</span></div>
+      </div>
+      <div class="pc-rot">Horários disponíveis</div>
+      <select class="pc-select" id="pc-horario-disp" aria-label="Horários disponíveis">
+        ${opcoesHorarios.map(o=>`<option value="${esc(o.chave)}" data-entrada="${esc(o.entrada)}" data-intervalo="${esc(o.intervalo)}"${opcaoInicial && opcaoInicial.chave===o.chave?' selected':''}>${esc(o.rotulo)}</option>`).join('')}
+        <option value="__outro__"${!opcaoInicial?' selected':''}>Outro horário (digitar abaixo)</option>
+      </select>
       <div class="pc-rot">Trabalha — horário de entrada</div>
       <div class="pc-linha">
         <input type="time" id="pc-hora" value="${atual}">
         <button class="pc-aplicar" id="pc-ok">Aplicar</button>
       </div>
-      ${atalhos.length ? `<div class="pc-atalhos">${atalhos.map(a=>
-        `<button class="pc-atalho" data-h="${a}">${a}</button>`).join('')}</div>` : ''}
-      <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
-        repetir deste dia até o fim do período</label>
+      <div class="pc-dias">${DIAS_SEMANA_POPUP.map(d=>
+        `<button type="button" class="pc-dia" data-dia="${d.dia}" aria-pressed="false">${d.rot}</button>`).join('')}</div>
+      <div class="pc-aviso-descanso" id="pc-aviso-descanso" role="status" aria-live="polite"></div>
     </div>
     <div class="pc-corpo" style="padding-top:0">
       <div class="pc-rot">Não trabalha</div>
+      <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
+        repetir deste dia até o fim do período</label>
       <div class="pc-codigos">
         ${CODIGOS.map(([k,rot,bg,fg],n)=>
           `<button class="pc-cod" data-cod="${k}"${n===4?' style="grid-column:span 2"':''}>
@@ -2629,18 +4060,70 @@ function abrirPopupCelula(td){
   pop.style.top  = Math.max(window.scrollY + 8, topo) + 'px';
 
   const aplicar = ()=>{
-    S.val = validar(S.res, loja().colabs);
+    validarEscalaAtual();
     S.salvo = false;
     fecharPopupCelula();
     pintarGrade();
   };
 
+  const diasSelecionados = new Set();
+  pop.querySelectorAll('.pc-dia').forEach(b=>{
+    b.onclick = ()=>{
+      const diaSemana = +b.dataset.dia;
+      if(diasSelecionados.has(diaSemana)) diasSelecionados.delete(diaSemana);
+      else diasSelecionados.add(diaSemana);
+      const ativo = diasSelecionados.has(diaSemana);
+      b.classList.toggle('ativo', ativo);
+      b.setAttribute('aria-pressed', String(ativo));
+    };
+  });
+
+  const avisarDescanso = valor=>{
+    const aviso=document.getElementById('pc-aviso-descanso');
+    if(!aviso || minutosDaHora(valor)==null) return true;
+    const saidaAnterior = i>0 && S.res.grid[id][i-1]==='' ? saidaDoDia(c,i-1,S.res) : null;
+    const entradaSeguinte = i<S.res.days.length-1 && S.res.grid[id][i+1]==='' ? horaDoDia(c,i+1) : null;
+    const horasTemporarias=Object.assign({}, S.res.horas||{}, {[id]:Object.assign({}, (S.res.horas||{})[id], {[i]:valor})});
+    const resTemporario=Object.assign({}, S.res, {horas:horasTemporarias});
+    const alertas=[];
+    if(saidaAnterior){ const descanso=intervaloEntreJornadas(c,i-1,resTemporario); if(descanso!=null&&descanso<660) alertas.push(`Entrada ${valor}: descanso de ${textoDuracao(descanso)} desde a saída ${saidaAnterior} do dia anterior.`); }
+    if(entradaSeguinte){ const saidaNova=saidaDoDia(c,i,resTemporario), descanso=intervaloEntreJornadas(c,i,resTemporario); if(saidaNova&&descanso!=null&&descanso<660) alertas.push(`A próxima entrada ${entradaSeguinte} terá ${textoDuracao(descanso)} após a saída estimada ${saidaNova}.`); }
+    aviso.dataset.visivel=String(alertas.length>0); aviso.textContent=alertas.length ? `Atenção: ${alertas.join(' ')}` : '';
+    return alertas.length===0;
+  };
+  const selHorario = document.getElementById('pc-horario-disp');
+  const inpHora = document.getElementById('pc-hora');
+  const elIntervalo = document.getElementById('pc-intervalo');
+  if(selHorario){
+    selHorario.addEventListener('change', ()=>{
+      const opt = selHorario.options[selHorario.selectedIndex];
+      const ent = opt && opt.dataset ? opt.dataset.entrada : '';
+      const iv  = opt && opt.dataset ? opt.dataset.intervalo : '';
+      if(ent){
+        inpHora.value = ent;
+        if(elIntervalo && iv) elIntervalo.textContent = iv;
+        avisarDescanso(ent);
+      } else {
+        inpHora.focus();
+      }
+    });
+  }
+  inpHora.addEventListener('input', e=>{
+    const v = e.target.value;
+    if(selHorario){
+      const match = (v === padrao ? opcoesHorarios[0] : opcoesHorarios.find(o=>o.entrada===v)) || null;
+      selHorario.value = match ? match.chave : '__outro__';
+      if(elIntervalo) elIntervalo.textContent = match && match.intervalo ? match.intervalo : intervalo;
+    }
+    avisarDescanso(v);
+  });
+  avisarDescanso(atual);
   const porHora = (valor)=>{
-    const repetir = document.getElementById('pc-repetir').checked;
-    const ate = repetir ? S.res.days.length - 1 : i;
-    for(let k=i; k<=ate; k++){
+    for(let k=i; k<S.res.days.length; k++){
       // só mexe em dia de trabalho: folga, férias e atestado ficam como estão
       if(S.res.grid[id][k] !== '') continue;
+      // a célula clicada sempre muda; os demais dias seguem a seleção semanal
+      if(k !== i && !diasSelecionados.has(S.res.days[k].getDay())) continue;
       definirHora(id, k, valor === padrao ? null : valor);
     }
     aplicar();
@@ -2652,13 +4135,6 @@ function abrirPopupCelula(td){
     if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';   // voltou a trabalhar
     porHora(v);
   };
-  pop.querySelectorAll('.pc-atalho').forEach(b=>{
-    b.onclick = ()=>{
-      document.getElementById('pc-hora').value = b.dataset.h;
-      if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';
-      porHora(b.dataset.h);
-    };
-  });
   pop.querySelectorAll('.pc-cod').forEach(b=>{
     b.onclick = ()=>{
       const repetir = document.getElementById('pc-repetir').checked;
@@ -2738,71 +4214,120 @@ function avisoCiclo(){
   }
 }
 
+/* ============================================================
+   ORDEM DE EXIBIÇÃO POR CARGO
+   Só afeta como a grade é mostrada e exportada. O motor continua
+   com a ordem dele, que influencia a distribuição dos domingos —
+   mexer ali mudaria a escala gerada, não só a aparência.
+   ============================================================ */
+const FAIXAS_CARGO = [
+  /* Atenção à ordem e ao "SUB": a palavra SUBGERENTE contém GERENTE, então o
+     teste da gerência precisa recusar quem é subgerente antes de aceitar.
+     E vale tanto a caixa "gerente" marcada quanto o cargo escrito GERENTE —
+     antes só a caixa contava, e quem tinha o cargo sem marcar a caixa não
+     entrava em nenhum grupo e caía em Apoio. */
+  {chave:'gerencia',  rotulo:'Gerência',      teste: c => {
+      const up = (c.cargo||'').toUpperCase();
+      if(/SUBGER|^SUB\//.test(up)) return false;
+      return !!c.gerente || /GERENTE|GERENCIA|GERÊNCIA/.test(up);
+    }},
+  {chave:'subger',    rotulo:'Subgerência',   teste: c => /SUBGER|^SUB\//.test((c.cargo||'').toUpperCase())},
+  {chave:'farma',     rotulo:'Farmacêuticos', teste: c => /FARMA/.test((c.cargo||'').toUpperCase())},
+  {chave:'balcao',    rotulo:'Balcão',        teste: c => /BALCON/.test((c.cargo||'').toUpperCase())},
+  {chave:'caixa',     rotulo:'Caixas',        teste: c => /CAIXA/.test((c.cargo||'').toUpperCase())},
+  {chave:'apoio',     rotulo:'Apoio',         teste: () => true}
+];
+
+function faixaDe(c){
+  for(let i=0;i<FAIXAS_CARGO.length;i++) if(FAIXAS_CARGO[i].teste(c)) return i;
+  return FAIXAS_CARGO.length - 1;
+}
+
+/* Ordena por cargo mantendo, dentro de cada faixa, a ordem que veio da
+   equipe — quem foi cadastrado antes aparece antes. */
+function ordenarPorCargo(lista){
+  return lista.map((c,i)=>({c, i, f: faixaDe(c)}))
+              .sort((a,b)=> a.f - b.f || a.i - b.i)
+              .map(x=>x.c);
+}
+
 function pintarGrade(){
   marcarSalvo();
   const box = $('#grade');
   if(!S.res){ box.innerHTML = `<div class="vazio" style="padding:48px">Escolha o período e clique em <b>Gerar escala</b>.</div>`;
     $('#lista-alertas').innerHTML=''; $('#cont-alertas').textContent=''; $('#tab-resumo').innerHTML='';
     $('#resumo-cobertura').innerHTML=''; return; }
-  const {days, grid, ativos} = S.res;
+  const {days, grid} = S.res;
+  const ativos = ordenarPorCargo(S.res.ativos);
   const P = S.res.params;
+  const interjornadas = interjornadasDaEscala();
 
-  let h = '<table class="esc"><thead><tr><th class="fixa">Colaborador</th><th class="hr">Entra</th>';
+  let h = '<table class="esc"><thead><tr><th class="fixa">Colaborador</th><th class="hr">Entra</th><th class="intervalo">Intervalo</th>';
   days.forEach(d=>{ h += `<th class="${d.getDay()===0?'domingo':''}">${DIA_ABREV[d.getDay()]}</th>`; });
-  h += '<th>Folgas</th></tr><tr class="datas"><th class="fixa"></th><th class="hr"></th>';
+  h += '<th>Folgas</th></tr><tr class="datas"><th class="fixa"></th><th class="hr"></th><th class="intervalo"></th>';
   days.forEach(d=>{ h += `<th class="${d.getDay()===0?'domingo':''}">${ddmm(d)}</th>`; });
   h += '<th></th></tr></thead><tbody>';
 
-  let grupoAnterior = null;
+  let faixaAnterior = null;
   ativos.forEach(c=>{
-    const g = grupoDe(c);
-    if(grupoAnterior!==null && g!==grupoAnterior)
-      h += `<tr class="sep"><td class="fixa"></td><td class="hr"></td><td colspan="${days.length+1}"></td></tr>`;
-    grupoAnterior = g;
-    h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome">${esc(c.nome)}</div><div class="cargo">${esc(c.cargo)}${c.gerente?' · gerente':''}</div></td>`;
-    h += `<td class="hr">${horaEntrada(c)}</td>`;
+    const g = faixaDe(c);
+    if(g !== faixaAnterior){
+      if(faixaAnterior !== null)
+        h += `<tr class="sep"><td class="fixa"></td><td class="hr"></td><td class="intervalo"></td><td colspan="${days.length+1}"></td></tr>`;
+      h += `<tr class="grupo"><td class="fixa">${esc(FAIXAS_CARGO[g].rotulo)}</td>`
+         + `<td class="hr"></td><td class="intervalo"></td><td colspan="${days.length+1}"></td></tr>`;
+    }
+    faixaAnterior = g;
+    const tagGerente = c.gerente ? '<span class="tag-gerente">Gerente</span>' : '';
+    const avisosInterjornada=(interjornadas&&interjornadas[c.id])||{};
+    h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome"><span>${esc(c.nome)}</span>${tagGerente}</div></td>`;
+    h += `<td class="hr">${horaDoDia(c, 0).slice(0,5)}</td><td class="intervalo" title="${esc(intervaloDe(c, true))}">${esc(intervaloDe(c))}</td>`;
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const mudou = cod==='' && horaAjustada(c.id, i) != null;
+      const alertaInterjornada=avisosInterjornada[i];
       const txt = cod==='' ? horaDoDia(c, i).slice(0,5) : cod;
-      const cls = 'cel' + (d.getDay()===0||d.getDay()===6?' fds':'') + (mudou?' cel-editada':'');
+      const cls = 'cel' + (d.getDay()===0||d.getDay()===6?' fds':'')
+        + (d.getDay()===0?' domingo':'') + (mudou?' cel-editada':'') + (alertaInterjornada?' interjornada':'');
       const conteudo = cod===''
-        ? `<span style="color:${mudou?'var(--texto)':'#8A9995'};${mudou?'font-weight:600':''}">${txt}</span>`
+        ? `<span class="${alertaInterjornada?'hora-interjornada':''}" style="${mudou?'font-weight:600':''}">${txt}</span>${alertaInterjornada?'<i class="marca-interjornada" aria-hidden="true">*</i>':''}`
         : txt;
-      h += `<td class="${cls}" data-cod="${cod}" data-i="${i}" data-id="${c.id}">${conteudo}</td>`;
+      const aviso=alertaInterjornada ? ` title="${esc(alertaInterjornada.txt)}" aria-label="${esc(alertaInterjornada.txt)}"` : '';
+      h += `<td class="${cls}" data-cod="${cod}" data-i="${i}" data-id="${c.id}"${aviso}>${conteudo}</td>`;
     });
     h += `<td class="cel" style="cursor:default;font-weight:600">${grid[c.id].filter(v=>v==='X'||v==='FC').length}</td></tr>`;
   });
   h += '</tbody><tfoot>';
   const cob = S.val.cobertura;
   const linhaFoot = (rot, f, min) => {
-    let s = `<tr><td class="fixa">${rot}</td><td class="hr"></td>`;
-    cob.forEach(c=>{ const v=f(c); s += `<td class="${min!=null&&v<min?'furo':''}">${v}</td>`; });
+    let s = `<tr><td class="fixa">${rot}</td><td class="hr"></td><td class="intervalo"></td>`;
+    cob.forEach(c=>{ const v=f(c); s += `<td class="${min!=null&&v<min?'furo':''}">${min!=null&&v<min?'!':''}${v}</td>`; });
     return s + '<td></td></tr>';
   };
   h += linhaFoot('Caixa', c=>c.cx, P.minCaixa);
   h += linhaFoot('Balcão', c=>c.bl, P.minBalcao);
   h += (function(){
     const alvo = P.minFarma != null ? P.minFarma : 2;
-    let s = `<tr><td class="fixa">Farmacêutico</td><td class="hr"></td>`;
+    let s = `<tr><td class="fixa">Farmacêutico</td><td class="hr"></td><td class="intervalo"></td>`;
     cob.forEach(c=>{
       const cls = c.fa < 1 ? 'furo' : (c.fa < alvo ? 'leve' : '');
-      s += `<td class="${cls}">${c.fa}</td>`;
+      const marca = c.fa < 1 ? '!' : (c.fa < alvo ? '~' : '');
+      s += `<td class="${cls}">${marca}${c.fa}</td>`;
     });
     return s + '<td></td></tr>';
   })();
   h += linhaFoot('Subgerente', c=>c.sg!=null?c.sg:0, P.minSubger!=null?P.minSubger:1);
   h += (function(){
     const alvo = P.minDia || {};
-    let s = `<tr><td class="fixa">Total na loja</td><td class="hr"></td>`;
+    let s = `<tr><td class="fixa">Total na loja</td><td class="hr"></td><td class="intervalo"></td>`;
     cob.forEach((c,i)=>{
       const a = Number(alvo[days[i].getDay()] || 0);
-      s += `<td class="${a && c.total < a ? 'furo':''}">${c.total}${a?`<span style="color:#9AA7A2">/${a}</span>`:''}</td>`;
+      s += `<td class="${a && c.total < a ? 'furo':''}">${a && c.total < a ? '!' : ''}${c.total}${a?`<span style="color:#9AA7A2">/${a}</span>`:''}</td>`;
     });
     return s + '<td></td></tr>';
   })();
   h += (function(){
-    let s = `<tr><td class="fixa">De folga</td><td class="hr"></td>`;
+    let s = `<tr><td class="fixa">De folga</td><td class="hr"></td><td class="intervalo"></td>`;
     days.forEach((d,i)=>{
       const n = ativos.filter(c=>grid[c.id][i]==='X'||grid[c.id][i]==='FC').length;
       s += `<td style="color:var(--v-fg)">${n}</td>`;
@@ -2840,42 +4365,54 @@ function pintarGrade(){
   // faixa de cobertura
   const furos = cob.filter(c=>c.falta.length).length;
   const minTot = Math.min(...cob.map(c=>c.total)), maxTot = Math.max(...cob.map(c=>c.total));
-  $('#resumo-cobertura').innerHTML = `<div style="font-size:13.5px;color:var(--fraco)">
-    Período de <b class="mono">${ddmm(days[0])}</b> a <b class="mono">${ddmm(days[days.length-1])}</b> ·
-    ${days.length} dias · ${ativos.length} pessoas ·
-    equipe em loja variando de <b>${minTot}</b> a <b>${maxTot}</b> por dia ·
-    ${furos? `<span style="color:var(--alerta)"><b>${furos}</b> dia(s) abaixo do mínimo</span>` : 'todos os dias no mínimo'}</div>`;
+  const cobertura = furos
+    ? `<span class="cobertura-estado cobertura-alerta"><b>${furos}</b> dia(s) abaixo do mínimo</span>`
+    : '<span class="cobertura-estado cobertura-ok">Cobertura mínima atendida</span>';
+  $('#resumo-cobertura').innerHTML = `<div class="resumo-cobertura-linha">
+    <span>Período <b class="mono">${ddmm(days[0])}</b> a <b class="mono">${ddmm(days[days.length-1])}</b></span>
+    <span>${days.length} dias</span><span>${ativos.length} pessoas</span>
+    <span>equipe de <b>${minTot}</b> a <b>${maxTot}</b> por dia</span>${cobertura}</div>`;
 }
 
 /* ---------- exportações ---------- */
 
 // dados da grade num formato só, usado pela planilha e pela impressão
 function dadosDaEscala(){
-  const {days, grid, ativos} = S.res, P = S.res.params, cob = S.val.cobertura;
+  const {days, grid} = S.res, P = S.res.params, cob = S.val.cobertura;
+  const ativos = ordenarPorCargo(S.res.ativos);
+  const interjornadas = interjornadasDaEscala();
   const alvo = P.minDia || {};
   const alvoFa = P.minFarma != null ? P.minFarma : 2;
   const alvoSg = P.minSubger != null ? P.minSubger : 1;
-  return {days, grid, ativos, P, cob, alvo, alvoFa, alvoSg,
+  return {days, grid, ativos, P, cob, alvo, alvoFa, alvoSg, interjornadas,
+          intervaloDe: c=>intervaloDe(c), intervaloDetalhadoDe: c=>intervaloDe(c, true),
           periodo: ddmm(days[0]) + '/' + days[0].getFullYear() + ' a ' + ddmm(days[days.length-1]) + '/' + days[days.length-1].getFullYear()};
 }
 
 function planilhaDaEscala(D, nomeLoja, idLoja){
-  const {days, grid, ativos, P, cob} = D;
+  const {days, grid, ativos, P, cob, interjornadas} = D;
   const estiloCod = {'X':'folga','FC':'compensa','F':'ferias','AT':'atestado','LC':'licenca'};
 
   const linhas = [];
-  linhas.push([{v:'ESCALA — '+nomeLoja, e:'titulo'}, null, null, {v:D.periodo, e:'subtitulo'}]);
-  linhas.push([{v:'X folga · FC folga compensatória · F férias · AT atestado · LC licença', e:'legenda'}]);
-  linhas.push([{v:'COLABORADOR',e:'cabecalho'},{v:'ENTRA',e:'cabecalho'},{v:'CARGO',e:'cabecalho'}]
+  linhas.push([{v:'ESCALA — '+nomeLoja, e:'titulo'}, null, null, null, {v:D.periodo, e:'subtitulo'}]);
+  linhas.push([{v:'X folga · FC folga compensatória · F férias · AT atestado · LC licença · * descanso menor que 11h', e:'legenda'}]);
+  linhas.push([{v:'COLABORADOR',e:'cabecalho'},{v:'ENTRA',e:'cabecalho'},{v:'INTERVALO',e:'cabecalho'},{v:'CARGO',e:'cabecalho'}]
     .concat(days.map(d=>({v:DIA_ABREV[d.getDay()], e:'cabecalho'}))));
-  linhas.push([null,null,null].concat(days.map(d=>({v:ddmm(d), e:(d.getDay()===0||d.getDay()===6)?'dataFds':'data'}))));
+  linhas.push([null,null,null,null].concat(days.map(d=>({v:ddmm(d), e:(d.getDay()===0||d.getDay()===6)?'dataFds':'data'}))));
 
+  let faixaXls = null;
   ativos.forEach(c=>{
-    const l = [{v:c.nome, e:'nome'}, {v:horaEntrada(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
+    const g = faixaDe(c);
+    if(g !== faixaXls){
+      linhas.push([{v:FAIXAS_CARGO[g].rotulo.toUpperCase(), e:'rotulo'}]);
+      faixaXls = g;
+    }
+    const l = [{v:c.nome, e:'nome'}, {v:horaDoDia(c, 0), e:'hora'}, {v:D.intervaloDe(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
+    const avisos=(interjornadas&&interjornadas[c.id])||{};
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const fds = (d.getDay()===0 || d.getDay()===6);
-      if(cod === '') l.push({v: horaDoDia(c, i), e: fds ? 'trabalhaFds' : 'trabalha'});
+      if(cod === '') l.push({v: (avisos[i]?'* ':'') + horaDoDia(c, i), e: avisos[i]?'interjornada':(fds ? 'trabalhaFds' : 'trabalha')});
       else l.push({v: cod, e: estiloCod[cod] || 'trabalha'});
     });
     linhas.push(l);
@@ -2883,7 +4420,7 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
 
   linhas.push([]);
   const conta = (rot, valor, limite, leve)=>{
-    const l = [{v:rot, e:'rotulo'}, null, null];
+    const l = [{v:rot, e:'rotulo'}, null, null, null];
     cob.forEach((c,i)=>{
       const n = valor(c, i);
       const lim = typeof limite === 'function' ? limite(c,i) : limite;
@@ -2903,9 +4440,9 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
 
   return {
     aba: 'Escala ' + idLoja,
-    colunas: [24, 8, 15].concat(days.map(()=>4.4)),
-    congelar: {coluna:3, linha:4},
-    merges: ['A1:C1'],
+    colunas: [24, 8, 13, 15].concat(days.map(()=>4.4)),
+    congelar: {coluna:4, linha:4},
+    merges: ['A1:D1'],
     alturas: {0:22, 2:18},
     linhas
   };
@@ -2924,30 +4461,42 @@ $('#btn-xlsx').onclick = ()=>{
 
 // documento de impressão próprio: paisagem, com as cores preservadas
 function htmlDeImpressao(D, nomeLoja){
-  const {days, grid, ativos, P, cob} = D;
-  const cor = {'X':['#D8EDE2','#14663F'],'FC':['#F6E7C4','#8A5E06'],'F':['#D7E5F0','#1F5580'],
-               'AT':['#F3DBD7','#96332A'],'LC':['#E3DDF2','#50407E']};
+  const {days, grid, ativos, P, cob, interjornadas} = D;
+  const classeStatus = {X:'status-x', FC:'status-fc', F:'status-f', AT:'status-at', LC:'status-lc'};
+  const notasInterjornada = [];
+  ativos.forEach(c=>Object.values((interjornadas&&interjornadas[c.id])||{}).forEach(a=>notasInterjornada.push(`${c.nome}: ${a.txt}`)));
   let corpo = '';
+  let faixaImp = null;
   ativos.forEach(c=>{
-    corpo += `<tr><td class="nm">${esc(c.nome)}<span>${esc(c.cargo)}</span></td><td class="hr">${horaEntrada(c)}</td>`;
+    const g = faixaDe(c);
+    if(g !== faixaImp){
+      corpo += `<tr class="gr"><td class="nm">${esc(FAIXAS_CARGO[g].rotulo)}</td><td></td><td></td>`
+             + `<td colspan="${days.length}"></td></tr>`;
+      faixaImp = g;
+    }
+    const descricao = descricaoCargoImpressao(c, FAIXAS_CARGO[g].chave);
+    corpo += `<tr><td class="nm${descricao?'':' sem-desc'}">${esc(c.nome)}`
+           + `${descricao ? `<span>${esc(descricao)}</span>` : ''}`
+           + `</td><td class="hr">${horaDoDia(c, 0)}</td><td class="iv">${esc(D.intervaloDe(c))}</td>`;
+    const avisos=(interjornadas&&interjornadas[c.id])||{};
     days.forEach((d,i)=>{
-      const v = grid[c.id][i], fds = (d.getDay()===0||d.getDay()===6);
-      if(v==='') corpo += `<td class="${fds?'fds':''}"><i>${horaDoDia(c, i)}</i></td>`;
-      else { const k = cor[v]||['#fff','#000'];
-             corpo += `<td style="background:${k[0]};color:${k[1]};font-weight:700">${v}</td>`; }
+      const v = grid[c.id][i], fds = (d.getDay()===0||d.getDay()===6), dom = d.getDay()===0;
+      const cls = (fds?'fds ':'') + (dom?'domingo ':'') + (avisos[i]?' interjornada ':'');
+      if(v==='') corpo += `<td class="${cls}"><i>${avisos[i]?'* ':''}${horaDoDia(c, i)}</i></td>`;
+      else corpo += `<td class="${cls}${classeStatus[v]||''}">${v}</td>`;
     });
     corpo += '</tr>';
   });
   const rodape = (rot, f, limite, leve)=>{
-    let s = `<tr class="rp"><td class="nm">${rot}</td><td></td>`;
+    let s = `<tr class="rp"><td class="nm">${rot}</td><td></td><td></td>`;
     cob.forEach((c,i)=>{
       const n = f(c,i);
       const lim = typeof limite==='function' ? limite(c,i) : limite;
       const lv  = typeof leve==='function' ? leve(c,i) : leve;
-      let st = '';
-      if(lim!=null && n<lim) st = 'background:#F3DBD7;color:#96332A;font-weight:700';
-      else if(lv!=null && n<lv) st = 'background:#F6E7C4;color:#8A5E06;font-weight:700';
-      s += `<td style="${st}">${n}</td>`;
+      let st = '', marca = '';
+      if(lim!=null && n<lim){ st = 'minimo'; marca = '!'; }
+      else if(lv!=null && n<lv){ st = 'alvo'; marca = '~'; }
+      s += `<td class="${st}">${marca}${n}</td>`;
     });
     return s + '</tr>';
   };
@@ -2964,24 +4513,37 @@ tr{page-break-inside:avoid}
 th,td{border:1px solid #CBD5CE;padding:1px 2px;text-align:center;font-size:8px;height:15px;overflow:hidden}
 th{background:#16232B;color:#fff;font-size:7.5px;text-transform:uppercase}
 th.dt{background:#E7EDE9;color:#16232B;font-weight:700}
-th.dtf{background:#CFDCD5;color:#16232B;font-weight:700}
+th.dtf{background:#DCE2DE;color:#16232B;font-weight:700}
+th.domingo,td.domingo{border-left:3px double #16232B;border-right:2px solid #16232B}
 td.nm{text-align:left;font-weight:700;font-size:8.5px}
-td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-transform:uppercase}
-td.hr{font-size:7.5px;color:#63736F}
-td i{font-style:normal;color:#8A9995}
-td.fds{background:#F4F7F5}
-tr.rp td{background:#F0F3F1;font-weight:600;font-size:8px}
+td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-transform:none}
+td.nm.sem-desc{vertical-align:middle}
+td.hr,td.iv{font-size:7.5px;color:#63736F}
+td.iv{font-size:6.4px}
+td i{font-style:normal;color:#485650}
+td.interjornada{background:#E7E7E7;box-shadow:inset 0 0 0 1px #222;font-weight:700}
+td.fds{background:#F1F1F1}
+td.status-x{font-weight:700;background:repeating-linear-gradient(135deg,#fff 0 3px,#B8B8B8 3px 4px);box-shadow:inset 0 0 0 1px #222}
+td.status-fc{font-weight:700;background:repeating-linear-gradient(45deg,#fff 0 3px,#AAA 3px 4px);box-shadow:inset 0 0 0 1px #444}
+td.status-f{font-weight:700;background:#fff;box-shadow:inset 0 0 0 2px #111}
+td.status-at{font-weight:700;background:#CFCFCF;box-shadow:inset 0 0 0 2px #111;position:relative}
+td.status-at::after{content:'+';position:absolute;right:2px;top:0;font-size:7px}
+td.status-lc{font-weight:700;background:repeating-linear-gradient(0deg,#fff 0 3px,#B4B4B4 3px 4px);box-shadow:inset 0 0 0 1px #222}
+tr.gr td{background:#E3E3E3;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#333;text-align:left;height:12px}
+tr.rp td{background:#ECECEC;font-weight:600;font-size:8px}
 tr.rp td.nm{font-size:7.5px;text-transform:uppercase}
-.lg{margin-top:6px;font-size:8px;color:#5b6b66}
-.lg b{display:inline-block;width:11px;height:8px;border:1px solid #999;margin:0 3px 0 9px}
+tr.rp td.minimo{background:#BDBDBD;color:#111;font-weight:700;box-shadow:inset 0 0 0 2px #111}
+tr.rp td.alvo{background:#E2E2E2;color:#111;font-weight:700;box-shadow:inset 0 0 0 1px #555}
+.lg{margin-top:6px;font-size:8px;color:#333}
+.lg b{display:inline-block;width:11px;height:8px;border:1px solid #444;margin:0 3px 0 9px}
 </style></head><body>
 <h1>Escala — ${esc(nomeLoja)}</h1>
 <p class="sub">${D.periodo} &nbsp;·&nbsp; ${ativos.length} colaboradores &nbsp;·&nbsp; emitida em ${new Date().toLocaleDateString('pt-BR')}</p>
 <table>
-<colgroup><col style="width:15%"><col style="width:5%">${days.map(()=>`<col style="width:${(80/days.length).toFixed(3)}%">`).join('')}</colgroup>
+<colgroup><col style="width:14%"><col style="width:5%"><col style="width:7%">${days.map(()=>`<col style="width:${(74/days.length).toFixed(3)}%">`).join('')}</colgroup>
 <thead>
-<tr><th>Colaborador</th><th>Entra</th>${days.map(d=>`<th>${DIA_ABREV[d.getDay()]}</th>`).join('')}</tr>
-<tr><th></th><th></th>${days.map(d=>`<th class="${(d.getDay()===0||d.getDay()===6)?'dtf':'dt'}">${ddmm(d)}</th>`).join('')}</tr>
+<tr><th>Colaborador</th><th>Entra</th><th>Intervalo</th>${days.map(d=>`<th class="${d.getDay()===0?'domingo':''}">${DIA_ABREV[d.getDay()]}</th>`).join('')}</tr>
+<tr><th></th><th></th><th></th>${days.map(d=>`<th class="${(d.getDay()===0||d.getDay()===6)?'dtf':'dt'} ${d.getDay()===0?'domingo':''}">${ddmm(d)}</th>`).join('')}</tr>
 </thead>
 <tbody>${corpo}
 ${rodape('Caixa', c=>c.cx, P.minCaixa)}
@@ -2991,12 +4553,15 @@ ${rodape('Subgerente', c=>c.sg||0, D.alvoSg)}
 ${rodape('Total na loja', c=>c.total, (c,i)=>Number(D.alvo[days[i].getDay()]||0)||null)}
 ${rodape('De folga', (c,i)=>ativos.filter(x=>grid[x.id][i]==='X'||grid[x.id][i]==='FC').length, null)}
 </tbody></table>
-<div class="lg"><b style="background:#D8EDE2"></b>X folga<b style="background:#F6E7C4"></b>FC compensatória<b style="background:#D7E5F0"></b>F férias<b style="background:#F3DBD7"></b>AT atestado<b style="background:#E3DDF2"></b>LC licença<b style="background:#F3DBD7;border-color:#96332A"></b>rodapé vermelho: abaixo do mínimo<b style="background:#F6E7C4;border-color:#8A5E06"></b>amarelo: abaixo do alvo, tolerado</div>
+<div class="lg"><b class="status-x"></b>X folga<b class="status-fc"></b>FC compensatória<b class="status-f"></b>F férias<b class="status-at"></b>AT atestado<b class="status-lc"></b>LC licença · <b>*</b> descanso menor que 11h · <b>!</b> abaixo do mínimo · <b>~</b> abaixo do alvo · domingo com borda dupla${notasInterjornada.length?`<br><b>Revisar descanso:</b> ${notasInterjornada.map(esc).join(' · ')}`:''}</div>
 </body></html>`;
 }
 
+$('#btn-pdf').onclick = baixarPdf;
+
 $('#btn-print').onclick = ()=>{
   if(!S.res){ alert('Gere a escala antes de imprimir.'); return; }
+  if(!conferirNomesParaDocumento()) return;
   const html = htmlDeImpressao(dadosDaEscala(), loja().nome);
   let imprimiu = false;
   try{
