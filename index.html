@@ -3450,7 +3450,7 @@ function sugerirIntervalos(j){
   return [{ini:'17:30', fim:'18:30'}];
 }
 function jornadaDe(c){
-  if(c && c.jornada && c.jornada.entrada && c.jornada.saida){
+  if(c.jornada && c.jornada.entrada && c.jornada.saida){
     const modelo=MODELOS_JORNADA.find(x=>x.id===c.jornada.modelo);
     const base = Object.assign({}, modelo||{}, c.jornada);
     const salvos = Array.isArray(c.jornada.intervalos)
@@ -3458,17 +3458,21 @@ function jornadaDe(c){
       : [];
     return Object.assign(base, {intervalos:salvos.length ? salvos : sugerirIntervalos(base)});
   }
-  const horas = (String(c&&c.horario||'').match(/\d{1,2}:\d{2}/g)||[]).map(h=>h.padStart(5,'0'));
-  let entrada = '09:00', saida = '18:00', intervalo = 60, modelo = '', turno = '';
-  if(horas.length >= 2){
-    entrada = horas[0]; saida = horas[1];
-  } else if(horas.length === 1){
-    entrada = horas[0];
-    const mEnt = MODELOS_JORNADA.find(x=>x.entrada===entrada && Number(x.intervalo)!==120);
-    if(mEnt){ saida = mEnt.saida; intervalo = mEnt.intervalo; modelo = mEnt.id; turno = mEnt.turno; }
-    else { saida = horaDosMinutos(minutosHorario(entrada) + 564); }
+  const partes = String(c.horario||'').match(/(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/i);
+  let base;
+  if(partes){
+    base = {modelo:'', entrada:partes[1].padStart(5,'0'), saida:partes[2].padStart(5,'0'), intervalo:60, turno:''};
+  } else {
+    const soEntrada = String(c.horario||'').match(/(\d{1,2}:\d{2})/);
+    const ent = soEntrada ? soEntrada[1].padStart(5,'0') : '09:00';
+    const modPorEntrada = MODELOS_JORNADA.find(m=>m.entrada===ent);
+    if(modPorEntrada){
+      base = Object.assign({}, modPorEntrada);
+    } else {
+      const mEnt = minutosHorario(ent);
+      base = {modelo:'', entrada:ent, saida:mEnt!=null ? horaDosMinutos(mEnt + 564) : '18:00', intervalo:60, turno:''};
+    }
   }
-  const base = {modelo, entrada, saida, intervalo, turno};
   base.intervalos = sugerirIntervalos(base);
   return base;
 }
