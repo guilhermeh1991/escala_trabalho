@@ -350,7 +350,7 @@ main{padding:24px;max-width:1900px;margin:0 auto}
 .scroll::-webkit-scrollbar-thumb{background:#ADBCB5;border-radius:6px;border:3px solid #EEF2F0}
 .scroll::-webkit-scrollbar-thumb:hover{background:#879C93}
 
-table.esc{--w-nome:168px;--w-hora:60px;--w-intervalo:84px;
+table.esc{--w-nome:168px;--w-hora:62px;--w-intervalo:84px;
   border-collapse:separate;border-spacing:0;font-size:12px;white-space:nowrap}
 table.esc th,table.esc td{border-right:1px solid var(--linha-suave);border-bottom:1px solid var(--linha-suave);padding:0}
 table.esc thead th{position:sticky;top:0;z-index:3;background:#EFF4F1;font-weight:700;color:#576A64;
@@ -390,8 +390,15 @@ table.esc thead tr.datas th.intervalo{background:#F6F8F7}
 table.esc th.intervalo::after,table.esc td.intervalo::after{content:'';position:absolute;top:0;right:0;bottom:0;
   width:6px;transform:translateX(100%);pointer-events:none;
   background:linear-gradient(to right,rgba(22,35,43,.10),transparent)}
-td.cel{text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;width:40px;min-width:40px;height:33px;cursor:pointer;user-select:none;
-  transition:background-color .12s ease,box-shadow .12s ease;position:relative}
+td.cel{text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;width:48px;min-width:48px;height:36px;padding:2px 3px;cursor:pointer;user-select:none;
+  transition:background-color .12s ease,box-shadow .12s ease;position:relative;vertical-align:middle}
+.cel-horario{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.12;gap:1px}
+.cel-horario .hora-ent{font-size:10.5px;font-weight:600;color:var(--texto)}
+.cel-horario .hora-sai{font-size:9px;color:var(--fraco)}
+td.hr .cel-horario .hora-ent{color:var(--fraco);font-weight:600;font-size:10px}
+td.hr .cel-horario .hora-sai{font-size:9px;color:var(--fraco);opacity:.85}
+td.cel.interjornada .cel-horario .hora-ent,
+td.cel.interjornada .cel-horario .hora-sai{color:var(--r-fg);font-weight:700}
 td.cel:hover{outline:0;box-shadow:inset 0 0 0 2px var(--teal);background-color:var(--teal-suave)}
 td.cel.fds{background:#F1F4F2}
 td.cel.domingo,th.domingo{box-shadow:inset 3px 0 0 #C49418}
@@ -905,20 +912,32 @@ function horaDosMinutos(minutos){
 function textoDuracao(minutos){ return Math.floor(minutos/60)+'h'+String(minutos%60).padStart(2,'0'); }
 /* Jornada estruturada tem precedência; o texto legado só é usado quando traz
    entrada e saída completas. Nunca se inventa uma saída onde ela não existe. */
+function horasDaString(txt){
+  return (String(txt||'').match(/\d{1,2}:\d{2}/g)||[])
+    .map(h=>h.padStart(5,'0'))
+    .filter(h=>minutosDaHora(h)!=null);
+}
 function jornadaPadrao(c){
   if(c && c.jornada && minutosDaHora(c.jornada.entrada)!=null && minutosDaHora(c.jornada.saida)!=null)
     return {entrada:String(c.jornada.entrada).padStart(5,'0'), saida:String(c.jornada.saida).padStart(5,'0')};
-  const horas=String(c&&c.horario||'').match(/\d{1,2}:\d{2}/g)||[];
+  const horas=horasDaString(c&&c.horario);
   if(horas.length<2) return null;
-  return {entrada:horas[0].padStart(5,'0'), saida:horas[1].padStart(5,'0')};
+  return {entrada:horas[0], saida:horas[1]};
 }
 function entradaDoDia(c, i, res){
   const ajustada=res && res.horas && res.horas[c.id] && res.horas[c.id][i];
-  if(minutosDaHora(ajustada)!=null) return String(ajustada).padStart(5,'0');
+  const hs=horasDaString(ajustada);
+  if(hs.length>=1) return hs[0];
   const jornada=jornadaPadrao(c);
   return jornada ? jornada.entrada : null;
 }
 function fimDoDiaMinutos(c, i, res){
+  const ajustada=res && res.horas && res.horas[c.id] && res.horas[c.id][i];
+  const hs=horasDaString(ajustada);
+  if(hs.length>=2){
+    const ini=minutosDaHora(hs[0]), fim=minutosDaHora(hs[1]);
+    if(ini!=null && fim!=null) return fim >= ini ? fim : fim + 1440;
+  }
   const jornada=jornadaPadrao(c);
   if(!jornada) return null;
   const entrada=entradaDoDia(c,i,res), inicioPadrao=minutosDaHora(jornada.entrada), fimPadrao=minutosDaHora(jornada.saida), inicio=minutosDaHora(entrada);
@@ -1737,8 +1756,10 @@ function validar(res, colabs){
       if(arr[i]!=='' || arr[i+1]!=='') continue;
       const descanso=intervaloEntreJornadas(c,i,res);
       if(descanso==null || descanso>=minimoInterjornada) continue;
+      const fimMin=fimDoDiaMinutos(c,i,res);
+      const liberado=fimMin!=null ? horaDosMinutos(fimMin+minimoInterjornada) : null;
       av.push({tipo:'interjornada', nivel:'regra', dia:i+1,
-        txt:`Sai ${saidaDoDia(c,i,res)} em ${ddmm(days[i])} e entra ${entradaDoDia(c,i+1,res)} em ${ddmm(days[i+1])}: ${textoDuracao(descanso)} de descanso, mínimo 11h`});
+        txt:`Sai ${saidaDoDia(c,i,res)} em ${ddmm(days[i])} e entra ${entradaDoDia(c,i+1,res)} em ${ddmm(days[i+1])}: ${textoDuracao(descanso)} de descanso, mínimo 11h${liberado?` (só pode entrar a partir das ${liberado})`:''}`});
     }
 
     porColab[c.id] = {av, domTrab:domTrab.length, domFolga:domFol.length, pior,
@@ -3268,7 +3289,10 @@ async function escalaAnteriorLocal(inicio){
 }
 
 async function equipeComHistoricoAnterior(inicio){
-  const equipe = loja().colabs.map(c => Object.assign({}, c));
+  const equipe = loja().colabs.map(c => {
+    const j = jornadaDe(c);
+    return Object.assign({}, c, {jornada: j, horario: c.horario || textoJornada(j)});
+  });
   let anterior = null;
   try{
     anterior = typeof store.escalaAnterior === 'function'
@@ -3287,6 +3311,14 @@ async function equipeComHistoricoAnterior(inicio){
 }
 
 function validarEscalaAtual(){
+  if(S.res && Array.isArray(S.res.ativos)){
+    const colabsAtuais = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)) ? loja().colabs : [];
+    S.res.ativos.forEach(c=>{
+      const ref = colabsAtuais.find(x=>x.id===c.id) || c;
+      c.jornada = jornadaDe(ref);
+      c.horario = ref.horario || c.horario || textoJornada(c.jornada);
+    });
+  }
   S.val = validar(S.res, S.equipeEscala || loja().colabs);
 }
 
@@ -3418,7 +3450,7 @@ function sugerirIntervalos(j){
   return [{ini:'17:30', fim:'18:30'}];
 }
 function jornadaDe(c){
-  if(c.jornada && c.jornada.entrada && c.jornada.saida){
+  if(c && c.jornada && c.jornada.entrada && c.jornada.saida){
     const modelo=MODELOS_JORNADA.find(x=>x.id===c.jornada.modelo);
     const base = Object.assign({}, modelo||{}, c.jornada);
     const salvos = Array.isArray(c.jornada.intervalos)
@@ -3426,10 +3458,17 @@ function jornadaDe(c){
       : [];
     return Object.assign(base, {intervalos:salvos.length ? salvos : sugerirIntervalos(base)});
   }
-  const partes = String(c.horario||'').match(/(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/i);
-  const base = partes
-    ? {modelo:'', entrada:partes[1].padStart(5,'0'), saida:partes[2].padStart(5,'0'), intervalo:60, turno:''}
-    : {modelo:'', entrada:'09:00', saida:'18:00', intervalo:60, turno:''};
+  const horas = (String(c&&c.horario||'').match(/\d{1,2}:\d{2}/g)||[]).map(h=>h.padStart(5,'0'));
+  let entrada = '09:00', saida = '18:00', intervalo = 60, modelo = '', turno = '';
+  if(horas.length >= 2){
+    entrada = horas[0]; saida = horas[1];
+  } else if(horas.length === 1){
+    entrada = horas[0];
+    const mEnt = MODELOS_JORNADA.find(x=>x.entrada===entrada && Number(x.intervalo)!==120);
+    if(mEnt){ saida = mEnt.saida; intervalo = mEnt.intervalo; modelo = mEnt.id; turno = mEnt.turno; }
+    else { saida = horaDosMinutos(minutosHorario(entrada) + 564); }
+  }
+  const base = {modelo, entrada, saida, intervalo, turno};
   base.intervalos = sugerirIntervalos(base);
   return base;
 }
@@ -3944,9 +3983,22 @@ function horaAjustada(id, i){
   const m = mapaHoras()[id];
   return (m && m[i] != null) ? m[i] : null;
 }
-function horaDoDia(c, i){
-  const a = horaAjustada(c.id, i);
-  return a != null ? a : (c.jornada && c.jornada.entrada ? c.jornada.entrada : horaEntrada(c));
+function horaDoDia(c, i, res = S.res){
+  const a = res && res.horas && res.horas[c.id] && res.horas[c.id][i];
+  if(a != null){
+    const hs = String(a).match(/\b\d{1,2}:\d{2}\b/g);
+    if(hs && hs[0]) return hs[0].padStart(5, '0');
+  }
+  const j = jornadaDe(c);
+  return (j && j.entrada) ? j.entrada.slice(0,5) : horaEntrada(c);
+}
+function horaSaidaDoDia(c, i, res = S.res){
+  const s = saidaDoDia(c, i, res);
+  if(s) return s.slice(0,5);
+  const j = jornadaDe(c);
+  if(j && j.saida) return j.saida.slice(0,5);
+  const ent = minutosDaHora(horaDoDia(c, i, res));
+  return ent != null ? horaDosMinutos(ent + 564) : '--:--';
 }
 function interjornadasDaEscala(){
   const saida={};
@@ -3993,13 +4045,16 @@ function abrirPopupCelula(td){
   const dia = S.res.days[i];
   const cod = S.res.grid[id][i];
   const entradaPadrao = horaEntrada(colabEquipe);
-  const padrao = entradaPadrao !== '--:--' ? entradaPadrao.slice(0,5) : '09:00';
+  const padrao = entradaPadrao !== '--:--' ? entradaPadrao.slice(0,5) : (jEquipe.entrada || '09:00').slice(0,5);
+  const saidaPadrao = (jEquipe.saida || horaDosMinutos((minutosDaHora(padrao)||540) + 564)).slice(0,5);
+  const duracaoPadrao = Math.max(60, ((minutosDaHora(saidaPadrao)||1080) - (minutosDaHora(padrao)||540) + 1440) % 1440 || 564);
   const atual = (horaDoDia(c, i)||'').slice(0,5) || padrao;
+  const saidaAtual = (horaSaidaDoDia(c, i)||'').slice(0,5) || saidaPadrao;
   const intervalo = intervaloDe(colabEquipe, true);
   const ajustada = horaAjustada(id, i);
 
   const opcoesHorarios = [
-    {chave:'equipe', rotulo:`Da equipe · ${horarioEquipe}`, entrada:padrao, intervalo}
+    {chave:'equipe', rotulo:`Da equipe · ${horarioEquipe}`, entrada:padrao, saida:saidaPadrao, intervalo}
   ];
   const jaListados = new Set([`modelo:${jEquipe.modelo||''}`]);
   MODELOS_JORNADA.forEach(m=>{
@@ -4008,6 +4063,7 @@ function abrirPopupCelula(td){
       chave:`modelo:${m.id}`,
       rotulo:m.nome,
       entrada:m.entrada,
+      saida:m.saida,
       intervalo:intervaloDaJornada(m, true)
     });
   });
@@ -4024,12 +4080,13 @@ function abrirPopupCelula(td){
       chave:`extra:${hx}`,
       rotulo:`Equipe · ${hx}`,
       entrada:ent.slice(0,5),
+      saida:(jx.saida || horaDosMinutos((minutosDaHora(ent)||540) + 564)).slice(0,5),
       intervalo:intervaloDe(x, true)
     });
   });
-  const opcaoInicial = (atual === padrao
+  const opcaoInicial = (atual === padrao && saidaAtual === saidaPadrao
     ? opcoesHorarios[0]
-    : opcoesHorarios.find(o=>o.entrada===atual)) || null;
+    : opcoesHorarios.find(o=>o.entrada===atual && o.saida===saidaAtual)) || null;
 
   const DIAS_SEMANA_POPUP = [1,2,3,4,5,6,0].map(diaSemana=>({dia:diaSemana, rot:DIA_ABREV[diaSemana]}));
   const DIA_NOMES = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
@@ -4056,13 +4113,22 @@ function abrirPopupCelula(td){
       </div>
       <div class="pc-rot">Horários disponíveis</div>
       <select class="pc-select" id="pc-horario-disp" aria-label="Horários disponíveis">
-        ${opcoesHorarios.map(o=>`<option value="${esc(o.chave)}" data-entrada="${esc(o.entrada)}" data-intervalo="${esc(o.intervalo)}"${opcaoInicial && opcaoInicial.chave===o.chave?' selected':''}>${esc(o.rotulo)}</option>`).join('')}
+        ${opcoesHorarios.map(o=>`<option value="${esc(o.chave)}" data-entrada="${esc(o.entrada)}" data-saida="${esc(o.saida)}" data-intervalo="${esc(o.intervalo)}"${opcaoInicial && opcaoInicial.chave===o.chave?' selected':''}>${esc(o.rotulo)}</option>`).join('')}
         <option value="__outro__"${!opcaoInicial?' selected':''}>Outro horário (digitar abaixo)</option>
       </select>
-      <div class="pc-rot">Trabalha — horário de entrada</div>
-      <div class="pc-linha">
-        <input type="time" id="pc-hora" value="${atual}">
-        <button class="pc-aplicar" id="pc-ok">Aplicar</button>
+      <div class="pc-rot">Trabalha — horário de entrada e saída</div>
+      <div class="pi-campos" style="margin-bottom:6px">
+        <div class="pi-campo">
+          <label for="pc-hora">Entrada</label>
+          <input type="time" id="pc-hora" value="${atual}">
+        </div>
+        <div class="pi-campo">
+          <label for="pc-saida">Saída</label>
+          <input type="time" id="pc-saida" value="${saidaAtual}">
+        </div>
+      </div>
+      <div class="pc-linha" style="margin-bottom:8px">
+        <button class="pc-aplicar" id="pc-ok" style="width:100%">Aplicar horário</button>
       </div>
       <div class="pc-dias">${DIAS_SEMANA_POPUP.map(d=>
         `<button type="button" class="pc-dia" data-dia="${d.dia}" aria-pressed="false">${d.rot}</button>`).join('')}</div>
@@ -4080,7 +4146,7 @@ function abrirPopupCelula(td){
     </div>
     <div class="pc-rodape">
       ${(cod!=='' || ajustada!=null)
-        ? `<button class="pc-link pc-voltar" id="pc-limpar">Voltar ao padrão (${padrao})</button>`
+        ? `<button class="pc-link pc-voltar" id="pc-limpar">Voltar ao padrão (${padrao}–${saidaPadrao})</button>`
         : '<span></span>'}
       <button class="pc-link" id="pc-fechar">Fechar</button>
     </div>`;
@@ -4108,6 +4174,65 @@ function abrirPopupCelula(td){
   };
 
   const diasSelecionados = new Set();
+  const selHorario = document.getElementById('pc-horario-disp');
+  const inpHora = document.getElementById('pc-hora');
+  const inpSaida = document.getElementById('pc-saida');
+  const elIntervalo = document.getElementById('pc-intervalo');
+
+  const valorArmazenado = (ent, sai)=>
+    (ent === padrao && sai === saidaPadrao) ? null : `${ent} AS ${sai}`;
+
+  const calcularAlertasDescanso = (ent, sai)=>{
+    if(minutosDaHora(ent)==null || minutosDaHora(sai)==null) return [];
+    const valTemp = `${ent} AS ${sai}`;
+    const mapaColab = Object.assign({}, (S.res.horas||{})[id]);
+    const gridColab = S.res.grid[id].slice();
+    gridColab[i] = '';
+    for(let k=i; k<S.res.days.length; k++){
+      if(k !== i && gridColab[k] !== '') continue;
+      if(k !== i && !diasSelecionados.has(S.res.days[k].getDay())) continue;
+      mapaColab[k] = valTemp;
+    }
+    const horasTemporarias = Object.assign({}, S.res.horas||{}, {[id]:mapaColab});
+    const gridTemporario = Object.assign({}, S.res.grid, {[id]:gridColab});
+    const resTemporario = Object.assign({}, S.res, {horas:horasTemporarias, grid:gridTemporario});
+
+    const alertas = [];
+    const checarPar = (diaIdx)=>{
+      if(diaIdx < 0 || diaIdx >= S.res.days.length - 1) return;
+      if(gridColab[diaIdx] !== '' || gridColab[diaIdx+1] !== '') return;
+      const descanso = intervaloEntreJornadas(c, diaIdx, resTemporario);
+      if(descanso != null && descanso < 660){
+        const saiAnt = horaSaidaDoDia(c, diaIdx, resTemporario);
+        const entSeg = horaDoDia(c, diaIdx+1, resTemporario);
+        const fimAnt = fimDoDiaMinutos(c, diaIdx, resTemporario);
+        const liberado = fimAnt != null ? horaDosMinutos(fimAnt + 660) : '--:--';
+        alertas.push(
+          `${c.nome} não pode entrar às ${entSeg} em ${ddmm(S.res.days[diaIdx+1])}: saiu às ${saiAnt} em ${ddmm(S.res.days[diaIdx])} e terá apenas ${textoDuracao(descanso)} de descanso (mínimo de 11h — só pode entrar a partir das ${liberado}).`
+        );
+      }
+    };
+    checarPar(i - 1);
+    checarPar(i);
+    if(diasSelecionados.size){
+      for(let k=i+1; k<S.res.days.length; k++){
+        if(!diasSelecionados.has(S.res.days[k].getDay())) continue;
+        checarPar(k - 1);
+        checarPar(k);
+      }
+    }
+    return Array.from(new Set(alertas));
+  };
+
+  const avisarDescanso = (ent, sai)=>{
+    const aviso = document.getElementById('pc-aviso-descanso');
+    if(!aviso) return [];
+    const alertas = calcularAlertasDescanso(ent, sai);
+    aviso.dataset.visivel = String(alertas.length > 0);
+    aviso.textContent = alertas.length ? `⚠️ Atenção (descanso de 11h): ${alertas.join(' ')}` : '';
+    return alertas;
+  };
+
   pop.querySelectorAll('.pc-dia').forEach(b=>{
     b.onclick = ()=>{
       const diaSemana = +b.dataset.dia;
@@ -4116,34 +4241,31 @@ function abrirPopupCelula(td){
       const ativo = diasSelecionados.has(diaSemana);
       b.classList.toggle('ativo', ativo);
       b.setAttribute('aria-pressed', String(ativo));
+      avisarDescanso(inpHora.value, inpSaida.value);
     };
   });
 
-  const avisarDescanso = valor=>{
-    const aviso=document.getElementById('pc-aviso-descanso');
-    if(!aviso || minutosDaHora(valor)==null) return true;
-    const saidaAnterior = i>0 && S.res.grid[id][i-1]==='' ? saidaDoDia(c,i-1,S.res) : null;
-    const entradaSeguinte = i<S.res.days.length-1 && S.res.grid[id][i+1]==='' ? horaDoDia(c,i+1) : null;
-    const horasTemporarias=Object.assign({}, S.res.horas||{}, {[id]:Object.assign({}, (S.res.horas||{})[id], {[i]:valor})});
-    const resTemporario=Object.assign({}, S.res, {horas:horasTemporarias});
-    const alertas=[];
-    if(saidaAnterior){ const descanso=intervaloEntreJornadas(c,i-1,resTemporario); if(descanso!=null&&descanso<660) alertas.push(`Entrada ${valor}: descanso de ${textoDuracao(descanso)} desde a saída ${saidaAnterior} do dia anterior.`); }
-    if(entradaSeguinte){ const saidaNova=saidaDoDia(c,i,resTemporario), descanso=intervaloEntreJornadas(c,i,resTemporario); if(saidaNova&&descanso!=null&&descanso<660) alertas.push(`A próxima entrada ${entradaSeguinte} terá ${textoDuracao(descanso)} após a saída estimada ${saidaNova}.`); }
-    aviso.dataset.visivel=String(alertas.length>0); aviso.textContent=alertas.length ? `Atenção: ${alertas.join(' ')}` : '';
-    return alertas.length===0;
+  const sincronizarSelect = ()=>{
+    if(!selHorario) return;
+    const ent = inpHora.value, sai = inpSaida.value;
+    const match = (ent === padrao && sai === saidaPadrao
+      ? opcoesHorarios[0]
+      : opcoesHorarios.find(o=>o.entrada===ent && o.saida===sai)) || null;
+    selHorario.value = match ? match.chave : '__outro__';
+    if(elIntervalo) elIntervalo.textContent = match && match.intervalo ? match.intervalo : intervalo;
   };
-  const selHorario = document.getElementById('pc-horario-disp');
-  const inpHora = document.getElementById('pc-hora');
-  const elIntervalo = document.getElementById('pc-intervalo');
+
   if(selHorario){
     selHorario.addEventListener('change', ()=>{
       const opt = selHorario.options[selHorario.selectedIndex];
       const ent = opt && opt.dataset ? opt.dataset.entrada : '';
+      const sai = opt && opt.dataset ? opt.dataset.saida : '';
       const iv  = opt && opt.dataset ? opt.dataset.intervalo : '';
       if(ent){
         inpHora.value = ent;
+        if(sai) inpSaida.value = sai;
         if(elIntervalo && iv) elIntervalo.textContent = iv;
-        avisarDescanso(ent);
+        avisarDescanso(inpHora.value, inpSaida.value);
       } else {
         inpHora.focus();
       }
@@ -4151,30 +4273,45 @@ function abrirPopupCelula(td){
   }
   inpHora.addEventListener('input', e=>{
     const v = e.target.value;
-    if(selHorario){
-      const match = (v === padrao ? opcoesHorarios[0] : opcoesHorarios.find(o=>o.entrada===v)) || null;
-      selHorario.value = match ? match.chave : '__outro__';
-      if(elIntervalo) elIntervalo.textContent = match && match.intervalo ? match.intervalo : intervalo;
+    const match = opcoesHorarios.find(o=>o.entrada===v);
+    if(match && match.saida){
+      inpSaida.value = match.saida;
+    } else if(minutosDaHora(v) != null){
+      inpSaida.value = horaDosMinutos(minutosDaHora(v) + duracaoPadrao);
     }
-    avisarDescanso(v);
+    sincronizarSelect();
+    avisarDescanso(inpHora.value, inpSaida.value);
   });
-  avisarDescanso(atual);
-  const porHora = (valor)=>{
+  inpSaida.addEventListener('input', ()=>{
+    sincronizarSelect();
+    avisarDescanso(inpHora.value, inpSaida.value);
+  });
+  avisarDescanso(atual, saidaAtual);
+
+  const porHora = (ent, sai)=>{
+    const valor = valorArmazenado(ent, sai);
     for(let k=i; k<S.res.days.length; k++){
       // só mexe em dia de trabalho: folga, férias e atestado ficam como estão
       if(S.res.grid[id][k] !== '') continue;
       // a célula clicada sempre muda; os demais dias seguem a seleção semanal
       if(k !== i && !diasSelecionados.has(S.res.days[k].getDay())) continue;
-      definirHora(id, k, valor === padrao ? null : valor);
+      definirHora(id, k, valor);
     }
     aplicar();
   };
 
   document.getElementById('pc-ok').onclick = ()=>{
-    const v = document.getElementById('pc-hora').value;
-    if(!v) return;
+    const ent = inpHora.value, sai = inpSaida.value;
+    if(!ent || !sai) return;
+    const alertas = avisarDescanso(ent, sai);
+    if(alertas.length > 0){
+      const confirmar = window.confirm(
+        `⚠️ DESCUMPRIMENTO DO DESCANSO DE 11 HORAS:\n\n${alertas.join('\n\n')}\n\nDeseja aplicar este horário mesmo assim?`
+      );
+      if(!confirmar) return;
+    }
     if(S.res.grid[id][i] !== '') S.res.grid[id][i] = '';   // voltou a trabalhar
-    porHora(v);
+    porHora(ent, sai);
   };
   pop.querySelectorAll('.pc-cod').forEach(b=>{
     b.onclick = ()=>{
@@ -4481,7 +4618,7 @@ function pintarGrade(){
   const P = S.res.params;
   const interjornadas = interjornadasDaEscala();
 
-  let h = '<table class="esc"><thead><tr><th class="fixa">Colaborador</th><th class="hr">Entra</th><th class="intervalo">Intervalo</th>';
+  let h = '<table class="esc"><thead><tr><th class="fixa">Colaborador</th><th class="hr">Horário</th><th class="intervalo">Intervalo</th>';
   days.forEach(d=>{ h += `<th class="${d.getDay()===0?'domingo':''}">${DIA_ABREV[d.getDay()]}</th>`; });
   h += '<th>Folgas</th></tr><tr class="datas"><th class="fixa"></th><th class="hr"></th><th class="intervalo"></th>';
   days.forEach(d=>{ h += `<th class="${d.getDay()===0?'domingo':''}">${ddmm(d)}</th>`; });
@@ -4500,19 +4637,25 @@ function pintarGrade(){
     const tagGerente = c.gerente ? '<span class="tag-gerente">Gerente</span>' : '';
     const avisosInterjornada=(interjornadas&&interjornadas[c.id])||{};
     const ivPersonalizado = intervaloPersonalizado(c);
+    const jPadrao = jornadaDe(c);
+    const entPadrao = (jPadrao.entrada || horaDoDia(c, 0)).slice(0,5);
+    const saiPadrao = (jPadrao.saida || horaSaidaDoDia(c, 0)).slice(0,5);
     h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome"><span>${esc(c.nome)}</span>${tagGerente}</div></td>`;
-    h += `<td class="hr">${horaDoDia(c, 0).slice(0,5)}</td><td class="intervalo${ivPersonalizado?' cel-editada':''}" data-id="${c.id}" title="${esc(intervaloDe(c, true))} — clique para ajustar o intervalo">${esc(intervaloDe(c))}</td>`;
+    h += `<td class="hr" title="Entrada ${esc(entPadrao)} · Saída ${esc(saiPadrao)}"><span class="cel-horario"><span class="hora-ent">${entPadrao}</span><span class="hora-sai">${saiPadrao}</span></span></td><td class="intervalo${ivPersonalizado?' cel-editada':''}" data-id="${c.id}" title="${esc(intervaloDe(c, true))} — clique para ajustar o intervalo">${esc(intervaloDe(c))}</td>`;
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const mudou = cod==='' && horaAjustada(c.id, i) != null;
       const alertaInterjornada=avisosInterjornada[i];
-      const txt = cod==='' ? horaDoDia(c, i).slice(0,5) : cod;
+      const entDia = cod==='' ? horaDoDia(c, i).slice(0,5) : '';
+      const saiDia = cod==='' ? horaSaidaDoDia(c, i).slice(0,5) : '';
       const cls = 'cel' + (d.getDay()===0||d.getDay()===6?' fds':'')
         + (d.getDay()===0?' domingo':'') + (mudou?' cel-editada':'') + (alertaInterjornada?' interjornada':'');
       const conteudo = cod===''
-        ? `<span class="${alertaInterjornada?'hora-interjornada':''}" style="${mudou?'font-weight:600':''}">${txt}</span>${alertaInterjornada?'<i class="marca-interjornada" aria-hidden="true">*</i>':''}`
-        : txt;
-      const aviso=alertaInterjornada ? ` title="${esc(alertaInterjornada.txt)}" aria-label="${esc(alertaInterjornada.txt)}"` : '';
+        ? `<span class="cel-horario${alertaInterjornada?' hora-interjornada':''}" style="${mudou?'font-weight:700':''}"><span class="hora-ent">${entDia}</span><span class="hora-sai">${saiDia}</span></span>${alertaInterjornada?'<i class="marca-interjornada" aria-hidden="true">*</i>':''}`
+        : cod;
+      const aviso = alertaInterjornada
+        ? ` title="${esc(alertaInterjornada.txt)}" aria-label="${esc(alertaInterjornada.txt)}"`
+        : (cod==='' ? ` title="Entrada ${esc(entDia)} · Saída ${esc(saiDia)}"` : '');
       h += `<td class="${cls}" data-cod="${cod}" data-i="${i}" data-id="${c.id}"${aviso}>${conteudo}</td>`;
     });
     h += `<td class="cel" style="cursor:default;font-weight:600">${grid[c.id].filter(v=>v==='X'||v==='FC').length}</td></tr>`;

@@ -22,8 +22,13 @@ function jornada(c){
   const horas=String(c.horario||'').match(/\d{1,2}:\d{2}/g)||[];
   return horas.length>=2 ? {entrada:horas[0],saida:horas[1]} : null;
 }
-function entradaDia(c,i,res){ const a=res.horas&&res.horas[c.id]&&res.horas[c.id][i]; return minutos(a)!=null ? a : (jornada(c)||{}).entrada; }
-function fimDiaMinutos(c,i,res){ const j=jornada(c), entrada=entradaDia(c,i,res); if(!j||minutos(entrada)==null) return null; let bruto=minutos(j.saida)-minutos(j.entrada); if(bruto<0)bruto+=1440; return minutos(entrada)+bruto; }
+function horasTexto(txt){ return (String(txt||'').match(/\d{1,2}:\d{2}/g)||[]).map(h=>h.padStart(5,'0')).filter(h=>minutos(h)!=null); }
+function entradaDia(c,i,res){ const hs=horasTexto(res.horas&&res.horas[c.id]&&res.horas[c.id][i]); return hs.length ? hs[0] : (jornada(c)||{}).entrada; }
+function fimDiaMinutos(c,i,res){
+  const hs=horasTexto(res.horas&&res.horas[c.id]&&res.horas[c.id][i]);
+  if(hs.length>=2){ let b=minutos(hs[1])-minutos(hs[0]); if(b<0)b+=1440; return minutos(hs[0])+b; }
+  const j=jornada(c), entrada=entradaDia(c,i,res); if(!j||minutos(entrada)==null) return null; let bruto=minutos(j.saida)-minutos(j.entrada); if(bruto<0)bruto+=1440; return minutos(entrada)+bruto;
+}
 
 /**
  * @param res    saída de gerarEscala

@@ -55,20 +55,32 @@ function horaDosMinutos(minutos){
 function textoDuracao(minutos){ return Math.floor(minutos/60)+'h'+String(minutos%60).padStart(2,'0'); }
 /* Jornada estruturada tem precedência; o texto legado só é usado quando traz
    entrada e saída completas. Nunca se inventa uma saída onde ela não existe. */
+function horasDaString(txt){
+  return (String(txt||'').match(/\d{1,2}:\d{2}/g)||[])
+    .map(h=>h.padStart(5,'0'))
+    .filter(h=>minutosDaHora(h)!=null);
+}
 function jornadaPadrao(c){
   if(c && c.jornada && minutosDaHora(c.jornada.entrada)!=null && minutosDaHora(c.jornada.saida)!=null)
     return {entrada:String(c.jornada.entrada).padStart(5,'0'), saida:String(c.jornada.saida).padStart(5,'0')};
-  const horas=String(c&&c.horario||'').match(/\d{1,2}:\d{2}/g)||[];
+  const horas=horasDaString(c&&c.horario);
   if(horas.length<2) return null;
-  return {entrada:horas[0].padStart(5,'0'), saida:horas[1].padStart(5,'0')};
+  return {entrada:horas[0], saida:horas[1]};
 }
 function entradaDoDia(c, i, res){
   const ajustada=res && res.horas && res.horas[c.id] && res.horas[c.id][i];
-  if(minutosDaHora(ajustada)!=null) return String(ajustada).padStart(5,'0');
+  const hs=horasDaString(ajustada);
+  if(hs.length>=1) return hs[0];
   const jornada=jornadaPadrao(c);
   return jornada ? jornada.entrada : null;
 }
 function fimDoDiaMinutos(c, i, res){
+  const ajustada=res && res.horas && res.horas[c.id] && res.horas[c.id][i];
+  const hs=horasDaString(ajustada);
+  if(hs.length>=2){
+    const ini=minutosDaHora(hs[0]), fim=minutosDaHora(hs[1]);
+    if(ini!=null && fim!=null) return fim >= ini ? fim : fim + 1440;
+  }
   const jornada=jornadaPadrao(c);
   if(!jornada) return null;
   const entrada=entradaDoDia(c,i,res), inicioPadrao=minutosDaHora(jornada.entrada), fimPadrao=minutosDaHora(jornada.saida), inicio=minutosDaHora(entrada);
@@ -887,8 +899,10 @@ function validar(res, colabs){
       if(arr[i]!=='' || arr[i+1]!=='') continue;
       const descanso=intervaloEntreJornadas(c,i,res);
       if(descanso==null || descanso>=minimoInterjornada) continue;
+      const fimMin=fimDoDiaMinutos(c,i,res);
+      const liberado=fimMin!=null ? horaDosMinutos(fimMin+minimoInterjornada) : null;
       av.push({tipo:'interjornada', nivel:'regra', dia:i+1,
-        txt:`Sai ${saidaDoDia(c,i,res)} em ${ddmm(days[i])} e entra ${entradaDoDia(c,i+1,res)} em ${ddmm(days[i+1])}: ${textoDuracao(descanso)} de descanso, mínimo 11h`});
+        txt:`Sai ${saidaDoDia(c,i,res)} em ${ddmm(days[i])} e entra ${entradaDoDia(c,i+1,res)} em ${ddmm(days[i+1])}: ${textoDuracao(descanso)} de descanso, mínimo 11h${liberado?` (só pode entrar a partir das ${liberado})`:''}`});
     }
 
     porColab[c.id] = {av, domTrab:domTrab.length, domFolga:domFol.length, pior,
