@@ -45,6 +45,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 #pop-cel .pc-data{font-size:12px;color:var(--fraco)}
 #pop-cel .pc-corpo{padding:12px 14px}
 #pop-cel .pc-rot{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#62736E;margin-bottom:8px}
+#pop-cel .pc-equipe{padding:8px 10px;margin-bottom:10px;border:1px solid var(--linha-suave);border-radius:6px;background:var(--superficie)}
+#pop-cel .pc-equipe-hora{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--texto)}
+#pop-cel .pc-equipe-meta{margin-top:2px;font-size:11.5px;color:var(--fraco);line-height:1.35}
+#pop-cel .pc-select{width:100%;padding:7px 8px;margin-bottom:10px;border:1px solid var(--linha);border-radius:6px;
+  background:#fff;color:var(--texto);font-size:12.5px}
 #pop-cel .pc-linha{display:flex;gap:6px;align-items:center;margin-bottom:8px}
 #pop-cel input[type=time]{flex:1;padding:7px 8px;border:1px solid var(--linha);border-radius:6px;
   font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
@@ -1590,13 +1595,51 @@ function abrirPopupCelula(td){
   const id = td.dataset.id, i = +td.dataset.i;
   const c = S.res.ativos.find(x=>x.id===id);
   if(!c) return;
+  const colabEquipe = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)
+    && loja().colabs.find(x=>x.id===id)) || c;
+  const jEquipe = jornadaDe(colabEquipe);
+  const modeloEquipe = MODELOS_JORNADA.find(x=>x.id===jEquipe.modelo);
+  const horarioEquipe = (colabEquipe.horario || textoJornada(jEquipe) || '').trim() || 'Não informado';
   const dia = S.res.days[i];
   const cod = S.res.grid[id][i];
-  const entradaPadrao = horaEntrada(c);
+  const entradaPadrao = horaEntrada(colabEquipe);
   const padrao = entradaPadrao !== '--:--' ? entradaPadrao.slice(0,5) : '09:00';
   const atual = (horaDoDia(c, i)||'').slice(0,5) || padrao;
-  const intervalo = intervaloDe(c, true);
+  const intervalo = intervaloDe(colabEquipe, true);
   const ajustada = horaAjustada(id, i);
+
+  const opcoesHorarios = [
+    {chave:'equipe', rotulo:`Da equipe · ${horarioEquipe}`, entrada:padrao, intervalo}
+  ];
+  const jaListados = new Set([`modelo:${jEquipe.modelo||''}`]);
+  MODELOS_JORNADA.forEach(m=>{
+    if(jaListados.has(`modelo:${m.id}`)) return;
+    opcoesHorarios.push({
+      chave:`modelo:${m.id}`,
+      rotulo:m.nome,
+      entrada:m.entrada,
+      intervalo:intervaloDaJornada(m, true)
+    });
+  });
+  const colabsLoja = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)) ? loja().colabs : [];
+  const horariosExtras = new Set([horarioEquipe.toUpperCase()]);
+  MODELOS_JORNADA.forEach(m=>horariosExtras.add(textoJornada(m).toUpperCase()));
+  colabsLoja.forEach(x=>{
+    const jx = jornadaDe(x);
+    const hx = (x.horario || textoJornada(jx) || '').trim();
+    const ent = horaEntrada(x);
+    if(!hx || ent==='--:--' || horariosExtras.has(hx.toUpperCase())) return;
+    horariosExtras.add(hx.toUpperCase());
+    opcoesHorarios.push({
+      chave:`extra:${hx}`,
+      rotulo:`Equipe · ${hx}`,
+      entrada:ent.slice(0,5),
+      intervalo:intervaloDe(x, true)
+    });
+  });
+  const opcaoInicial = (atual === padrao
+    ? opcoesHorarios[0]
+    : opcoesHorarios.find(o=>o.entrada===atual)) || null;
 
   const DIAS_SEMANA_POPUP = [1,2,3,4,5,6,0].map(diaSemana=>({dia:diaSemana, rot:DIA_ABREV[diaSemana]}));
   const DIA_NOMES = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
@@ -1616,13 +1659,21 @@ function abrirPopupCelula(td){
       <div class="pc-data">${DIA_NOMES[dia.getDay()]}, ${ddmm(dia)}</div>
     </div>
     <div class="pc-corpo">
+      <div class="pc-equipe">
+        <div class="pc-rot" style="margin-bottom:2px">Horário estabelecido na equipe</div>
+        <div class="pc-equipe-hora">${esc(horarioEquipe)}</div>
+        <div class="pc-equipe-meta">${esc(modeloEquipe ? modeloEquipe.nome : 'Horário configurado na aba Equipe')} · Intervalo: <span id="pc-intervalo">${esc(intervalo)}</span></div>
+      </div>
+      <div class="pc-rot">Horários disponíveis</div>
+      <select class="pc-select" id="pc-horario-disp" aria-label="Horários disponíveis">
+        ${opcoesHorarios.map(o=>`<option value="${esc(o.chave)}" data-entrada="${esc(o.entrada)}" data-intervalo="${esc(o.intervalo)}"${opcaoInicial && opcaoInicial.chave===o.chave?' selected':''}>${esc(o.rotulo)}</option>`).join('')}
+        <option value="__outro__"${!opcaoInicial?' selected':''}>Outro horário (digitar abaixo)</option>
+      </select>
       <div class="pc-rot">Trabalha — horário de entrada</div>
       <div class="pc-linha">
         <input type="time" id="pc-hora" value="${atual}">
         <button class="pc-aplicar" id="pc-ok">Aplicar</button>
       </div>
-      <div class="pc-rot" style="margin-top:10px">Intervalo previsto</div>
-      <div class="pc-linha" style="color:var(--fraco);font-family:'JetBrains Mono',monospace">${esc(intervalo)}</div>
       <div class="pc-dias">${DIAS_SEMANA_POPUP.map(d=>
         `<button type="button" class="pc-dia" data-dia="${d.dia}" aria-pressed="false">${d.rot}</button>`).join('')}</div>
       <div class="pc-aviso-descanso" id="pc-aviso-descanso" role="status" aria-live="polite"></div>
@@ -1691,7 +1742,32 @@ function abrirPopupCelula(td){
     aviso.dataset.visivel=String(alertas.length>0); aviso.textContent=alertas.length ? `Atenção: ${alertas.join(' ')}` : '';
     return alertas.length===0;
   };
-  document.getElementById('pc-hora').addEventListener('input',e=>avisarDescanso(e.target.value));
+  const selHorario = document.getElementById('pc-horario-disp');
+  const inpHora = document.getElementById('pc-hora');
+  const elIntervalo = document.getElementById('pc-intervalo');
+  if(selHorario){
+    selHorario.addEventListener('change', ()=>{
+      const opt = selHorario.options[selHorario.selectedIndex];
+      const ent = opt && opt.dataset ? opt.dataset.entrada : '';
+      const iv  = opt && opt.dataset ? opt.dataset.intervalo : '';
+      if(ent){
+        inpHora.value = ent;
+        if(elIntervalo && iv) elIntervalo.textContent = iv;
+        avisarDescanso(ent);
+      } else {
+        inpHora.focus();
+      }
+    });
+  }
+  inpHora.addEventListener('input', e=>{
+    const v = e.target.value;
+    if(selHorario){
+      const match = (v === padrao ? opcoesHorarios[0] : opcoesHorarios.find(o=>o.entrada===v)) || null;
+      selHorario.value = match ? match.chave : '__outro__';
+      if(elIntervalo) elIntervalo.textContent = match && match.intervalo ? match.intervalo : intervalo;
+    }
+    avisarDescanso(v);
+  });
   avisarDescanso(atual);
   const porHora = (valor)=>{
     for(let k=i; k<S.res.days.length; k++){
