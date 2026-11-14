@@ -15,6 +15,15 @@ function ehSubger(c){ const x=(c.cargo||'').toUpperCase(); return x.includes('SU
 function ehBalcao(c){ return !c.gerente && !ehCaixa(c); }
 
 function dd(d){ return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); }
+function minutos(hora){ const m=/^(\d{1,2}):(\d{2})$/.exec(String(hora||'')); return m ? +m[1]*60 + +m[2] : null; }
+function jornada(c){
+  if(c.jornada && minutos(c.jornada.entrada)!=null && minutos(c.jornada.saida)!=null)
+    return {entrada:c.jornada.entrada,saida:c.jornada.saida};
+  const horas=String(c.horario||'').match(/\d{1,2}:\d{2}/g)||[];
+  return horas.length>=2 ? {entrada:horas[0],saida:horas[1]} : null;
+}
+function entradaDia(c,i,res){ const a=res.horas&&res.horas[c.id]&&res.horas[c.id][i]; return minutos(a)!=null ? a : (jornada(c)||{}).entrada; }
+function fimDiaMinutos(c,i,res){ const j=jornada(c), entrada=entradaDia(c,i,res); if(!j||minutos(entrada)==null) return null; let bruto=minutos(j.saida)-minutos(j.entrada); if(bruto<0)bruto+=1440; return minutos(entrada)+bruto; }
 
 /**
  * @param res    saída de gerarEscala
@@ -62,6 +71,18 @@ function verificar(res, colabs, P, estadoInicial){
         }
       });
     });
+
+    // R11 — repouso mínimo entre a saída de um dia e a entrada do seguinte.
+    // Vale também para gerente, antes do retorno das demais regras de folga.
+    const minimoInterjornada = P.minInterjornada != null ? Number(P.minInterjornada) : 660;
+    for(let i=0;i<N-1;i++){
+      if(!trabalha(i) || !trabalha(i+1)) continue;
+      const fim=fimDiaMinutos(c,i,res), entrada=entradaDia(c,i+1,res);
+      if(fim==null || minutos(entrada)==null) continue;
+      const descanso=minutos(entrada)+1440-fim;
+      if(descanso < minimoInterjornada)
+        add('R11-interjornada', c.nome, `${dd(days[i])}→${dd(days[i+1])}: ${Math.floor(descanso/60)}h${String(descanso%60).padStart(2,'0')} de descanso`);
+    }
 
     // R6 — gerente folga todo sábado e domingo
     if(c.gerente){
@@ -141,6 +162,7 @@ function verificar(res, colabs, P, estadoInicial){
       if(i<N && FOLGA_X.includes(arr[i])) bloco++;
       else { if(bloco>=4) add('R9-bloco', c.nome, `${bloco} dias de folga seguidos terminando em ${dd(days[i-1])}`); bloco=0; }
     }
+
   });
 
   // R7 — cobertura por dia

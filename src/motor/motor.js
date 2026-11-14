@@ -37,8 +37,53 @@ function turnoDe(c){
   return 'fechamento';
 }
 function horaEntrada(c){
+  if(c && c.jornada && /^\d{1,2}:\d{2}$/.test(c.jornada.entrada||''))
+    return String(c.jornada.entrada).padStart(5,'0');
   const m = /(\d{1,2}):(\d{2})/.exec(c.horario||'');
   return m ? (m[1].padStart(2,'0')+':'+m[2]) : '--:--';
+}
+function minutosDaHora(hora){
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hora||''));
+  if(!m) return null;
+  const h=+m[1], min=+m[2];
+  return h>=0 && h<24 && min>=0 && min<60 ? h*60+min : null;
+}
+function horaDosMinutos(minutos){
+  const n=((Number(minutos)%1440)+1440)%1440;
+  return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+}
+function textoDuracao(minutos){ return Math.floor(minutos/60)+'h'+String(minutos%60).padStart(2,'0'); }
+/* Jornada estruturada tem precedência; o texto legado só é usado quando traz
+   entrada e saída completas. Nunca se inventa uma saída onde ela não existe. */
+function jornadaPadrao(c){
+  if(c && c.jornada && minutosDaHora(c.jornada.entrada)!=null && minutosDaHora(c.jornada.saida)!=null)
+    return {entrada:String(c.jornada.entrada).padStart(5,'0'), saida:String(c.jornada.saida).padStart(5,'0')};
+  const horas=String(c&&c.horario||'').match(/\d{1,2}:\d{2}/g)||[];
+  if(horas.length<2) return null;
+  return {entrada:horas[0].padStart(5,'0'), saida:horas[1].padStart(5,'0')};
+}
+function entradaDoDia(c, i, res){
+  const ajustada=res && res.horas && res.horas[c.id] && res.horas[c.id][i];
+  if(minutosDaHora(ajustada)!=null) return String(ajustada).padStart(5,'0');
+  const jornada=jornadaPadrao(c);
+  return jornada ? jornada.entrada : null;
+}
+function fimDoDiaMinutos(c, i, res){
+  const jornada=jornadaPadrao(c);
+  if(!jornada) return null;
+  const entrada=entradaDoDia(c,i,res), inicioPadrao=minutosDaHora(jornada.entrada), fimPadrao=minutosDaHora(jornada.saida), inicio=minutosDaHora(entrada);
+  if(inicioPadrao==null || fimPadrao==null || inicio==null) return null;
+  let bruto=fimPadrao-inicioPadrao; if(bruto<0) bruto+=1440;
+  return inicio+bruto;
+}
+function saidaDoDia(c, i, res){
+  const fim=fimDoDiaMinutos(c,i,res);
+  return fim==null ? null : horaDosMinutos(fim);
+}
+function intervaloEntreJornadas(c, i, res){
+  const fim=fimDoDiaMinutos(c,i,res), inicio=minutosDaHora(entradaDoDia(c,i+1,res));
+  if(fim==null || inicio==null) return null;
+  return inicio + 1440 - fim;
 }
 
 /* ---------- ausências fixas (férias, atestado, licença) ---------- */
@@ -834,6 +879,18 @@ function validar(res, colabs){
       }
     }
 
+    // 5) intervalo entre o fim de um turno e o início do dia seguinte.
+    // Só há como cobrar quando os dois dias são trabalhados e a jornada informa
+    // entrada e saída; cadastros legados de uma única hora ficam fora da conta.
+    const minimoInterjornada = P.minInterjornada != null ? Number(P.minInterjornada) : 660;
+    for(let i=0;i<N-1;i++){
+      if(arr[i]!=='' || arr[i+1]!=='') continue;
+      const descanso=intervaloEntreJornadas(c,i,res);
+      if(descanso==null || descanso>=minimoInterjornada) continue;
+      av.push({tipo:'interjornada', nivel:'regra', dia:i+1,
+        txt:`Sai ${saidaDoDia(c,i,res)} em ${ddmm(days[i])} e entra ${entradaDoDia(c,i+1,res)} em ${ddmm(days[i+1])}: ${textoDuracao(descanso)} de descanso, mínimo 11h`});
+    }
+
     porColab[c.id] = {av, domTrab:domTrab.length, domFolga:domFol.length, pior,
                       totalFolgas: arr.filter(v=>v==='X'||v==='FC').length};
     av.forEach(a=>alertas.push({colab:c.nome, ...a}));
@@ -868,4 +925,4 @@ function validar(res, colabs){
   return {alertas, porColab, cobertura};
 }
 
-if(typeof module !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, DIA_NOME, DIA_ABREV};
+if(typeof module !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, entradaDoDia, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};

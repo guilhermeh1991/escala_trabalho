@@ -128,6 +128,7 @@ const ESTILOS = [
   { nome: 'contaFuro', centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'F3DBD7', corTexto: '96332A' },
   { nome: 'contaLeve', centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'F6E7C4', corTexto: '8A5E06' },
   { nome: 'legenda',   cor: '556660', tamanho: 9 },
+  { nome: 'interjornada', centro: true, borda: true, tamanho: 9, negrito: true, fundo: 'F3DBD7', corTexto: '96332A' },
 ];
 const idEstilo = {};
 ESTILOS.forEach((e, i) => idEstilo[e.nome] = i);

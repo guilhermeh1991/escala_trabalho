@@ -47,6 +47,13 @@ Duas categorias, e a diferença importa:
 
 Observação não é erro. É o sistema mostrando o raciocínio.
 
+### Descanso entre jornadas
+
+Quando alguém tiver menos de **11 horas** entre a saída de um dia e a entrada
+do próximo, a pendência aparece como regra ferida. A célula do dia de entrada
+recebe um `*`; clique nela para ajustar o horário. A explicação informa as duas
+datas, os horários e o descanso calculado.
+
 ## Cadastro da equipe
 
 |Campo|Para quê|

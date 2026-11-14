@@ -177,11 +177,26 @@ pessoas no mesmo dia é o que mais pesa.
 Férias, atestado e licença são intocáveis: o motor monta a escala em volta
 deles.
 
-## 10. Jornada padrão do colaborador
+## 10. Descanso entre jornadas
+
+> Entre a saída de um dia e a entrada do próximo, o colaborador precisa ter ao
+> menos 11 horas de descanso.
+
+O sistema confere pares de dias trabalhados, incluindo ajustes manuais de
+entrada feitos na grade. Descanso menor que 11 horas é uma **regra ferida** e
+fica marcado no dia de entrada, em Pendências e nas saídas impressas.
+
+A regra é uma validação da escala pronta: o gerador decide folgas, não turnos.
+Quando houver rodízio automático de horários, a restrição deverá entrar também
+na geração.
+
+## 11. Jornada padrão do colaborador
 
 O campo de horário da equipe pode apontar para um **modelo oficial de jornada**
 ou guardar um ajuste estruturado de entrada, saída e intervalo. O resumo em
 texto continua sendo salvo para manter a leitura da grade e dos documentos.
+O modelo também informa o intervalo de almoço ou janta; ele aparece uma vez na
+coluna fixa da escala e detalhadamente ao clicar em um dia.
 
 A troca de jornada não altera **folga fixa**, **1º domingo de folga** nem o
 histórico de domingos: esses dados permanecem independentes na ficha do

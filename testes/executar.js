@@ -334,6 +334,21 @@ resEditado.grid.c1[0] = '';
 conferir('validação acusa terceiro domingo após edição manual',
   E.validar(resEditado, eqComDoisDomingos).alertas.some(a => a.tipo === 'domingo') ? 1 : 0, 1);
 
+/* Uma entrada alterada no dia seguinte não pode reduzir o repouso de 11 horas.
+   A regra lê o mapa de horários diário, sem mudar a grade nem a cobertura. */
+const eqInterjornada = [{id:'ij1', nome:'TURNO FECHAMENTO', cargo:'CAIXA', horario:'13:45 AS 23:00',
+  jornada:{modelo:'1345-2300', entrada:'13:45', saida:'23:00', intervalo:60}, ativo:true, ausencias:[]}];
+const pInterjornada = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0,
+  inicio:'2026-11-02', fim:'2026-11-04', minCaixa:0, minBalcao:0, minFarma:0, minSubger:0,
+  minDia:{0:0,1:0,2:0,3:0,4:0,5:0,6:0}};
+const resInterjornada = E.gerarEscala(eqInterjornada, pInterjornada);
+resInterjornada.grid.ij1 = ['','',''];
+resInterjornada.horas = {ij1:{1:'07:00'}};
+conferir('validação acusa descanso menor que 11h',
+  E.validar(resInterjornada, eqInterjornada).alertas.some(a=>a.tipo==='interjornada') ? 1 : 0, 1);
+conferir('verificador independente acusa descanso menor que 11h',
+  verificar(resInterjornada, eqInterjornada, pInterjornada, {}).some(v=>v.regra==='R11-interjornada') ? 1 : 0, 1);
+
 /* ------------------------------------------------------------------ */
 console.log('\n=== 4. Documento impresso ===\n');
 
@@ -369,13 +384,18 @@ const pdfMinimo = Documento.gerarPdfEscala({
   ativos:[{id:'c1', nome:'JOSÉ', cargo:'CAIXA'}],
   P:{minCaixa:1, minBalcao:0, minFarma:0, minSubger:0},
   cob:[{cx:1, bl:0, fa:0, sg:0, total:1}],
+  interjornadas:{c1:{0:{txt:'Sai 23:00 em 10/08 e entra 07:00 em 11/08: 8h00 de descanso, mínimo 11h'}}},
+  intervaloDe:()=> '12:00–13:00',
   periodo:'11/08/2026 a 11/08/2026',
   horaDe:()=> '07:00',
   faixaDe:()=> 4,
   rotuloFaixa:()=> 'Caixas',
   descricaoCargo:(c)=> Documento.descricaoCargoImpressao(c, 'caixa')
 }, 'Loja teste');
-conferir('PDF gerado começa corretamente', Buffer.from(pdfMinimo.slice(0,8)).toString('latin1') === '%PDF-1.4' ? 1 : 0, 1);
+const pdfTexto = Buffer.from(pdfMinimo).toString('latin1');
+conferir('PDF gerado começa corretamente', pdfTexto.slice(0,8) === '%PDF-1.4' ? 1 : 0, 1);
+conferir('PDF inclui coluna de intervalo e nota de descanso',
+  pdfTexto.includes('INTERVALO') && pdfTexto.includes('Revisar descanso:') ? 1 : 0, 1);
 
 const marcasMonocromaticas = typeof Documento.marcaMonocromaticaDocumento === 'function'
   ? ['X', 'FC', 'F', 'AT', 'LC'].map(Documento.marcaMonocromaticaDocumento) : [];
