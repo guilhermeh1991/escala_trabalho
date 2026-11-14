@@ -991,18 +991,11 @@ function jornadaLiquida(j){ let n=minutosHorario(j.saida)-minutosHorario(j.entra
 function textoDuracao(n){ return Math.floor(n/60)+'h'+String(n%60).padStart(2,'0'); }
 function resumoModelo(c){ const j=jornadaDe(c); const m=MODELOS_JORNADA.find(x=>x.id===j.modelo); return m ? m.nome : 'Sem modelo oficial — clique para configurar'; }
 function salvarEquipe(){ return store.set('escala:lojas', S.lojas); }
-// O atributo onchange do seletor chama esta ponte direta. Além do listener
-// registrado ao montar a linha, ela garante a atualização em navegadores que
-// encerram o menu nativo sem disparar o handler associado ao elemento.
-function aplicarModeloSelecionado(select){
-  const box = select && select.closest ? select.closest('.jornada-box') : null;
-  if(box && typeof box._aplicarModelo === 'function') box._aplicarModelo();
-}
 function detalhesJornada(c){
   const j=jornadaDe(c), m=MODELOS_JORNADA.find(x=>x.id===j.modelo);
   return `<tr class="jornada-detalhe"><td colspan="8"><section class="jornada-box" data-jornada="${c.id}">
     <div class="jornada-topo"><div><strong>Definir a jornada padrão de ${esc(c.nome)}</strong><p>O domingo de folga, a folga fixa e os demais dados da pessoa continuam preservados.</p></div><span class="chip ${j.modelo?'ok':'mal'} jornada-status">${j.modelo?'Modelo oficial':'Modelo pendente'}</span></div>
-    <div class="jornada-grade"><div class="jornada-area"><label class="jornada-rot">Modelo oficial</label><select data-j="modelo" onchange="aplicarModeloSelecionado(this)"><option value="">Manter o horário atual sem modelo</option>${MODELOS_JORNADA.map(x=>`<option value="${x.id}"${x.id===j.modelo?' selected':''}>${x.nome}</option>`).join('')}</select><p class="jornada-desc">${m?`<b>${esc(m.nome)}.</b> Os horários abaixo podem ser conferidos antes de aplicar.`:`<b>Horário atual preservado:</b> ${esc(c.horario||textoJornada(j)||'não informado')}.`}</p></div>
+    <div class="jornada-grade"><div class="jornada-area"><label class="jornada-rot">Modelo oficial</label><select data-j="modelo"><option value="">Manter o horário atual sem modelo</option>${MODELOS_JORNADA.map(x=>`<option value="${x.id}"${x.id===j.modelo?' selected':''}>${x.nome}</option>`).join('')}</select><p class="jornada-desc">${m?`<b>${esc(m.nome)}.</b> Os horários abaixo podem ser conferidos antes de aplicar.`:`<b>Horário atual preservado:</b> ${esc(c.horario||textoJornada(j)||'não informado')}.`}</p></div>
     <div class="jornada-area"><label class="jornada-rot">Conferir ou ajustar dados</label><div class="jornada-campos"><div class="jornada-campo"><label>Entrada</label><input type="time" data-j="entrada" value="${j.entrada}"></div><div class="jornada-campo"><label>Saída</label><input type="time" data-j="saida" value="${j.saida}"></div><div class="jornada-campo"><label>Intervalo</label><select data-j="intervalo"><option value="60"${Number(j.intervalo)===60?' selected':''}>1h00</option><option value="120"${Number(j.intervalo)===120?' selected':''}>2h00</option></select></div><div class="jornada-campo"><label>Jornada líquida</label><input readonly data-j="liquida" value="${textoDuracao(jornadaLiquida(j))}"></div></div><div class="jornada-rodape"><p class="jornada-resultado"></p><div class="jornada-acoes"><button class="btn ghost small" type="button" data-j="cancelar">Cancelar</button><button class="btn primary small" type="button" data-j="aplicar">Aplicar jornada</button></div></div></div>
     </div></section></td></tr>`;
 }
@@ -1020,17 +1013,11 @@ function configurarJornadaDetalhe(box,c){
     return {j,valida};
   };
   const aplicarModelo = ()=>{ const m=MODELOS_JORNADA.find(x=>x.id===campos('modelo').value); if(m){campos('entrada').value=m.entrada;campos('saida').value=m.saida;campos('intervalo').value=String(m.intervalo);} atualizar(); };
-  box._aplicarModelo=aplicarModelo;
-  // change cobre o seletor nativo; input dá retorno imediato em navegadores e teclados
-  // que atualizam a escolha antes de fechar a lista.
-  campos('modelo').onchange=aplicarModelo;
-  campos('modelo').oninput=aplicarModelo;
-  campos('modelo').onblur=aplicarModelo;
-  // Delegação também cobre seletores que o navegador reconstrói ao fechar a lista.
-  box.addEventListener('change', e=>{ if(e.target === campos('modelo')) aplicarModelo(); });
-  ['entrada','saida','intervalo'].forEach(k=>{campos(k).onchange=atualizar;campos(k).oninput=atualizar;});
-  campos('cancelar').onclick=()=>{ jornadaAberta=null; pintarEquipe(); };
-  campos('aplicar').onclick=async()=>{ const {j,valida}=atualizar(); if(!valida) return; c.jornada=j; c.horario=textoJornada(j); await salvarEquipe(); jornadaAberta=null; pintarEquipe(); };
+  campos('modelo').addEventListener('change', aplicarModelo);
+  campos('modelo').addEventListener('input', aplicarModelo);
+  ['entrada','saida','intervalo'].forEach(k=>{campos(k).addEventListener('change',atualizar);campos(k).addEventListener('input',atualizar);});
+  campos('cancelar').addEventListener('click',()=>{ jornadaAberta=null; pintarEquipe(); });
+  campos('aplicar').addEventListener('click',async()=>{ const {j,valida}=atualizar(); if(!valida) return; c.jornada=j; c.horario=textoJornada(j); await salvarEquipe(); jornadaAberta=null; pintarEquipe(); });
   atualizar();
 }
 function pintarEquipe(){
