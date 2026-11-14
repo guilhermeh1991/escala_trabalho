@@ -991,13 +991,17 @@ function jornadaLiquida(j){ let n=minutosHorario(j.saida)-minutosHorario(j.entra
 function textoDuracao(n){ return Math.floor(n/60)+'h'+String(n%60).padStart(2,'0'); }
 function resumoModelo(c){ const j=jornadaDe(c); const m=MODELOS_JORNADA.find(x=>x.id===j.modelo); return m ? m.nome : 'Sem modelo oficial — clique para configurar'; }
 function salvarEquipe(){ return store.set('escala:lojas', S.lojas); }
+/* Devolve apenas o conteúdo da célula. A linha é criada com insertRow para que
+   o navegador mantenha o contexto de tabela: um fragmento solto com <tr> e <td>
+   é descartado pelo analisador, e era isso que impedia os controles de
+   funcionarem. */
 function detalhesJornada(c){
   const j=jornadaDe(c), m=MODELOS_JORNADA.find(x=>x.id===j.modelo);
-  return `<tr class="jornada-detalhe"><td colspan="8"><section class="jornada-box" data-jornada="${c.id}">
+  return `<section class="jornada-box" data-jornada="${c.id}">
     <div class="jornada-topo"><div><strong>Definir a jornada padrão de ${esc(c.nome)}</strong><p>O domingo de folga, a folga fixa e os demais dados da pessoa continuam preservados.</p></div><span class="chip ${j.modelo?'ok':'mal'} jornada-status">${j.modelo?'Modelo oficial':'Modelo pendente'}</span></div>
     <div class="jornada-grade"><div class="jornada-area"><label class="jornada-rot">Modelo oficial</label><select data-j="modelo"><option value="">Manter o horário atual sem modelo</option>${MODELOS_JORNADA.map(x=>`<option value="${x.id}"${x.id===j.modelo?' selected':''}>${x.nome}</option>`).join('')}</select><p class="jornada-desc">${m?`<b>${esc(m.nome)}.</b> Os horários abaixo podem ser conferidos antes de aplicar.`:`<b>Horário atual preservado:</b> ${esc(c.horario||textoJornada(j)||'não informado')}.`}</p></div>
     <div class="jornada-area"><label class="jornada-rot">Conferir ou ajustar dados</label><div class="jornada-campos"><div class="jornada-campo"><label>Entrada</label><input type="time" data-j="entrada" value="${j.entrada}"></div><div class="jornada-campo"><label>Saída</label><input type="time" data-j="saida" value="${j.saida}"></div><div class="jornada-campo"><label>Intervalo</label><select data-j="intervalo"><option value="60"${Number(j.intervalo)===60?' selected':''}>1h00</option><option value="120"${Number(j.intervalo)===120?' selected':''}>2h00</option></select></div><div class="jornada-campo"><label>Jornada líquida</label><input readonly data-j="liquida" value="${textoDuracao(jornadaLiquida(j))}"></div></div><div class="jornada-rodape"><p class="jornada-resultado"></p><div class="jornada-acoes"><button class="btn ghost small" type="button" data-j="cancelar">Cancelar</button><button class="btn primary small" type="button" data-j="aplicar">Aplicar jornada</button></div></div></div>
-    </div></section></td></tr>`;
+    </div></section>`;
 }
 function configurarJornadaDetalhe(box,c){
   const campos = k=>box.querySelector(`[data-j="${k}"]`);
@@ -1032,7 +1036,14 @@ function pintarEquipe(){
     tr.querySelector('[data-jornada-abrir]').onclick=()=>{jornadaAberta=jornadaAberta===c.id?null:c.id;pintarEquipe();};
     tr.querySelector('[data-remover]').onclick=async()=>{if(!confirm(`Remover ${c.nome} da equipe?`))return;loja().colabs.splice(i,1);await salvarEquipe();pintarEquipe();pintarAus();};
     tb.appendChild(tr);
-    if(jornadaAberta===c.id){const detalhe=document.createRange().createContextualFragment(detalhesJornada(c)).firstElementChild;tb.appendChild(detalhe);configurarJornadaDetalhe(detalhe.querySelector('.jornada-box'),c);}
+    if(jornadaAberta===c.id){
+      const linha=tb.insertRow();
+      linha.className='jornada-detalhe';
+      const celula=linha.insertCell();
+      celula.colSpan=8;
+      celula.innerHTML=detalhesJornada(c);
+      configurarJornadaDetalhe(celula.querySelector('.jornada-box'),c);
+    }
   });
 }
 $('#btn-add-colab').onclick = async ()=>{loja().colabs.push({id:gerarId(),nome:'NOVO COLABORADOR',cargo:'BALCONISTA',horario:'09:00 AS 18:00',jornada:null,gerente:false,ativo:true,domTrabConsec:null,diasDesdeFolga:0,folgaFixa:null,ausencias:[]});await salvarEquipe();pintarEquipe();};
