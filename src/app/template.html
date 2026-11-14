@@ -50,6 +50,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 #pop-cel .pc-equipe-meta{margin-top:2px;font-size:11.5px;color:var(--fraco);line-height:1.35}
 #pop-cel .pc-select{width:100%;padding:7px 8px;margin-bottom:10px;border:1px solid var(--linha);border-radius:6px;
   background:#fff;color:var(--texto);font-size:12.5px}
+#pop-cel .pc-sugestoes{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:10px}
+#pop-cel .pc-sug{padding:6px 8px;border:1px solid var(--linha);border-radius:6px;background:#fff;
+  font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--texto);cursor:pointer;text-align:center}
+#pop-cel .pc-sug:hover{border-color:var(--teal);color:var(--teal)}
+#pop-cel .pc-sug.ativo{background:var(--teal-suave);border-color:var(--teal);color:var(--teal-escuro);font-weight:600}
+#pop-cel .pi-campos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+#pop-cel .pi-campo label{display:block;margin:0 0 4px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco)}
+#pop-cel .pi-campo input[type=time]{width:100%}
 #pop-cel .pc-linha{display:flex;gap:6px;align-items:center;margin-bottom:8px}
 #pop-cel input[type=time]{flex:1;padding:7px 8px;border:1px solid var(--linha);border-radius:6px;
   font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
@@ -335,6 +343,8 @@ table.esc th.intervalo,table.esc td.intervalo{position:sticky;left:calc(var(--w-
   font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--fraco);padding:0 6px;text-align:center;
   width:var(--w-intervalo);min-width:var(--w-intervalo);max-width:var(--w-intervalo);box-sizing:border-box;
   overflow:hidden;text-overflow:ellipsis}
+table.esc td.intervalo[data-id]{cursor:pointer;user-select:none;transition:background-color .12s ease,box-shadow .12s ease,color .12s ease}
+table.esc td.intervalo[data-id]:hover{color:var(--teal-escuro);background-color:var(--teal-suave);box-shadow:inset 0 0 0 2px var(--teal)}
 table.esc thead th.intervalo{z-index:5;background:#EFF4F1}
 table.esc thead tr.datas th.intervalo{background:#F6F8F7}
 /* sombra na divisa, para ficar claro que a tabela corre para o lado */
@@ -1005,16 +1015,47 @@ const MODELOS_JORNADA = [
 let jornadaAberta = null;
 function minutosHorario(v){ const p=String(v||'').split(':').map(Number); return p.length===2 ? p[0]*60+p[1] : 0; }
 function textoJornada(j){ return j && j.entrada && j.saida ? `${j.entrada} AS ${j.saida}` : ''; }
+function sugerirIntervalos(j){
+  if(!j || !j.entrada) return [{ini:'12:00', fim:'13:00'}];
+  const mId = MODELOS_JORNADA.find(x=>x.id===j.modelo);
+  if(mId && Array.isArray(mId.intervalos) && mId.intervalos.length)
+    return mId.intervalos.map(x=>({ini:x.ini, fim:x.fim}));
+  if(Number(j.intervalo) === 120)
+    return [{ini:'10:30', fim:'11:30'}, {ini:'14:00', fim:'15:00'}];
+  const mEnt = MODELOS_JORNADA.find(x=>x.entrada===j.entrada && Number(x.intervalo)!==120);
+  if(mEnt && Array.isArray(mEnt.intervalos) && mEnt.intervalos.length)
+    return mEnt.intervalos.map(x=>({ini:x.ini, fim:x.fim}));
+  const ent = minutosHorario(j.entrada);
+  if(ent <= 8*60)       return [{ini:'12:00', fim:'13:00'}];
+  if(ent <= 9*60 + 30)  return [{ini:'13:00', fim:'14:00'}];
+  if(ent <= 10*60 + 30) return [{ini:'14:00', fim:'15:00'}];
+  if(ent <= 11*60 + 30) return [{ini:'15:00', fim:'16:00'}];
+  if(ent <= 12*60 + 15) return [{ini:'16:00', fim:'17:00'}];
+  if(ent <= 13*60 + 15) return [{ini:'16:30', fim:'17:30'}];
+  return [{ini:'17:30', fim:'18:30'}];
+}
 function jornadaDe(c){
   if(c.jornada && c.jornada.entrada && c.jornada.saida){
     const modelo=MODELOS_JORNADA.find(x=>x.id===c.jornada.modelo);
-    // Jornadas salvas antes dos horários de pausa continuam válidas: o modelo
-    // completa os intervalos oficiais sem sobrescrever ajustes já existentes.
-    return Object.assign({}, modelo||{}, c.jornada, {intervalos:Array.isArray(c.jornada.intervalos)
-      ? c.jornada.intervalos : intervalosDaJornada(modelo).map(x=>({ini:x.ini,fim:x.fim}))});
+    const base = Object.assign({}, modelo||{}, c.jornada);
+    const salvos = Array.isArray(c.jornada.intervalos)
+      ? c.jornada.intervalos.filter(x=>x&&x.ini&&x.fim).map(x=>({ini:x.ini,fim:x.fim}))
+      : [];
+    return Object.assign(base, {intervalos:salvos.length ? salvos : sugerirIntervalos(base)});
   }
   const partes = String(c.horario||'').match(/(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/i);
-  return partes ? {modelo:'', entrada:partes[1].padStart(5,'0'), saida:partes[2].padStart(5,'0'), intervalo:null, turno:'',intervalos:[]} : {modelo:'', entrada:'09:00', saida:'18:00', intervalo:null, turno:'',intervalos:[]};
+  const base = partes
+    ? {modelo:'', entrada:partes[1].padStart(5,'0'), saida:partes[2].padStart(5,'0'), intervalo:60, turno:''}
+    : {modelo:'', entrada:'09:00', saida:'18:00', intervalo:60, turno:''};
+  base.intervalos = sugerirIntervalos(base);
+  return base;
+}
+function intervaloPersonalizado(c){
+  if(!c || !c.jornada || !Array.isArray(c.jornada.intervalos)) return false;
+  const atuais = c.jornada.intervalos.filter(x=>x&&x.ini&&x.fim);
+  if(!atuais.length) return false;
+  const sug = sugerirIntervalos(c.jornada);
+  return JSON.stringify(atuais) !== JSON.stringify(sug);
 }
 function jornadaLiquida(j){ let n=minutosHorario(j.saida)-minutosHorario(j.entrada)-Number(j.intervalo||0); if(n<0)n+=1440; return n; }
 function textoDuracao(n){ return Math.floor(n/60)+'h'+String(n%60).padStart(2,'0'); }
@@ -1812,6 +1853,184 @@ function abrirPopupCelula(td){
   }, 0);
 }
 
+function abrirPopupIntervalo(td){
+  fecharPopupCelula();
+  const id = td.dataset.id;
+  const c = S.res && S.res.ativos ? S.res.ativos.find(x=>x.id===id) : null;
+  if(!c) return;
+  const colabEquipe = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)
+    && loja().colabs.find(x=>x.id===id)) || c;
+  const jAtual = jornadaDe(colabEquipe);
+  const horarioEquipe = (colabEquipe.horario || textoJornada(jAtual) || '').trim() || 'Não informado';
+  const sugeridos = sugerirIntervalos(jAtual);
+  const sugeridoTexto = intervaloDaJornada({intervalos:sugeridos}, true);
+  const atuais = intervalosDaJornada(jAtual);
+  const iv1 = atuais[0] || sugeridos[0] || {ini:'12:00', fim:'13:00'};
+  const iv2 = atuais[1] || sugeridos[1] || {ini:'14:00', fim:'15:00'};
+  const temDois = atuais.length > 1;
+  const personalizado = intervaloPersonalizado(colabEquipe);
+
+  const SUGESTOES_RAPIDAS = [
+    {rot:'11:00–12:00', iv:[{ini:'11:00',fim:'12:00'}]},
+    {rot:'12:00–13:00', iv:[{ini:'12:00',fim:'13:00'}]},
+    {rot:'13:00–14:00', iv:[{ini:'13:00',fim:'14:00'}]},
+    {rot:'14:00–15:00', iv:[{ini:'14:00',fim:'15:00'}]},
+    {rot:'15:00–16:00', iv:[{ini:'15:00',fim:'16:00'}]},
+    {rot:'16:00–17:00', iv:[{ini:'16:00',fim:'17:00'}]},
+    {rot:'16:30–17:30', iv:[{ini:'16:30',fim:'17:30'}]},
+    {rot:'17:30–18:30', iv:[{ini:'17:30',fim:'18:30'}]}
+  ];
+
+  const pop = document.createElement('div');
+  pop.id = 'pop-cel';
+  pop.innerHTML = `
+    <div class="pc-topo">
+      <div class="pc-nome">${esc(c.nome)}</div>
+      <div class="pc-data">Jornada: ${esc(horarioEquipe)}</div>
+    </div>
+    <div class="pc-corpo">
+      <div class="pc-equipe">
+        <div class="pc-rot" style="margin-bottom:2px">Intervalo sugerido pela jornada</div>
+        <div class="pc-equipe-hora">${esc(sugeridoTexto)}</div>
+        <div class="pc-equipe-meta">Escolha uma sugestão abaixo ou defina o horário ideal.</div>
+      </div>
+      <div class="pc-rot">Sugestões rápidas (1h)</div>
+      <div class="pc-sugestoes">
+        ${SUGESTOES_RAPIDAS.map((s,idx)=>`<button type="button" class="pc-sug${!temDois && iv1.ini===s.iv[0].ini && iv1.fim===s.iv[0].fim?' ativo':''}" data-sug="${idx}">${s.rot}</button>`).join('')}
+      </div>
+      <div class="pc-rot">Horário ideal do intervalo</div>
+      <div class="pi-campos">
+        <div class="pi-campo"><label for="pi-ini1">Início</label><input type="time" id="pi-ini1" value="${esc(iv1.ini)}"></div>
+        <div class="pi-campo"><label for="pi-fim1">Fim</label><input type="time" id="pi-fim1" value="${esc(iv1.fim)}"></div>
+      </div>
+      <label class="pc-repetir" style="margin-top:4px"><input type="checkbox" id="pi-dois"${temDois?' checked':''}>
+        possui 2º intervalo na jornada</label>
+      <div class="pi-campos" id="pi-bloco2"${temDois?'':' hidden'}>
+        <div class="pi-campo"><label for="pi-ini2">2º início</label><input type="time" id="pi-ini2" value="${esc(iv2.ini)}"></div>
+        <div class="pi-campo"><label for="pi-fim2">2º fim</label><input type="time" id="pi-fim2" value="${esc(iv2.fim)}"></div>
+      </div>
+      <div class="pc-aviso-descanso" id="pi-aviso" role="status" aria-live="polite"></div>
+      <button class="pc-aplicar" id="pi-ok" style="width:100%;margin-top:6px">Aplicar intervalo</button>
+    </div>
+    <div class="pc-rodape">
+      ${personalizado
+        ? `<button class="pc-link pc-voltar" id="pi-reset">Voltar ao sugerido (${esc(sugeridoTexto)})</button>`
+        : '<span></span>'}
+      <button class="pc-link" id="pc-fechar">Fechar</button>
+    </div>`;
+
+  document.body.appendChild(pop);
+
+  const r = td.getBoundingClientRect();
+  const lp = pop.getBoundingClientRect();
+  let esq = r.left + window.scrollX;
+  let topo = r.bottom + window.scrollY + 6;
+  if(esq + lp.width > window.scrollX + document.documentElement.clientWidth - 10)
+    esq = window.scrollX + document.documentElement.clientWidth - lp.width - 10;
+  if(esq < window.scrollX + 8) esq = window.scrollX + 8;
+  if(r.bottom + lp.height + 12 > document.documentElement.clientHeight)
+    topo = r.top + window.scrollY - lp.height - 6;
+  pop.style.left = esq + 'px';
+  pop.style.top  = Math.max(window.scrollY + 8, topo) + 'px';
+
+  const ini1$ = document.getElementById('pi-ini1');
+  const fim1$ = document.getElementById('pi-fim1');
+  const dois$ = document.getElementById('pi-dois');
+  const bloco2$ = document.getElementById('pi-bloco2');
+  const ini2$ = document.getElementById('pi-ini2');
+  const fim2$ = document.getElementById('pi-fim2');
+  const aviso$ = document.getElementById('pi-aviso');
+
+  const atualizarBotoesSug = ()=>{
+    pop.querySelectorAll('.pc-sug').forEach(b=>{
+      const s = SUGESTOES_RAPIDAS[+b.dataset.sug];
+      b.classList.toggle('ativo', !dois$.checked && s && ini1$.value===s.iv[0].ini && fim1$.value===s.iv[0].fim);
+    });
+  };
+
+  pop.querySelectorAll('.pc-sug').forEach(b=>{
+    b.onclick = ()=>{
+      const s = SUGESTOES_RAPIDAS[+b.dataset.sug];
+      if(!s) return;
+      ini1$.value = s.iv[0].ini;
+      fim1$.value = s.iv[0].fim;
+      dois$.checked = false;
+      bloco2$.hidden = true;
+      aviso$.dataset.visivel = 'false';
+      atualizarBotoesSug();
+    };
+  });
+
+  ini1$.addEventListener('change', ()=>{
+    const m = minutosDaHora(ini1$.value);
+    if(m != null) fim1$.value = horaDosMinutos(m + 60);
+    atualizarBotoesSug();
+  });
+  fim1$.addEventListener('input', atualizarBotoesSug);
+  ini2$.addEventListener('change', ()=>{
+    const m = minutosDaHora(ini2$.value);
+    if(m != null) fim2$.value = horaDosMinutos(m + 60);
+  });
+  dois$.addEventListener('change', ()=>{
+    bloco2$.hidden = !dois$.checked;
+    atualizarBotoesSug();
+  });
+
+  const gravarIntervalos = async listaIntervalos=>{
+    const totalMin = listaIntervalos.reduce((acc,x)=>{
+      let d = minutosHorario(x.fim) - minutosHorario(x.ini);
+      if(d < 0) d += 1440;
+      return acc + d;
+    }, 0) || 60;
+    const novaJornada = Object.assign({}, jAtual, {
+      intervalo: totalMin,
+      intervalos: listaIntervalos.map(x=>({ini:x.ini, fim:x.fim}))
+    });
+    const novoHorario = colabEquipe.horario || textoJornada(novaJornada);
+    [colabEquipe, c, S.equipeEscala && S.equipeEscala.find(x=>x.id===id)].forEach(alvo=>{
+      if(!alvo) return;
+      alvo.jornada = Object.assign({}, novaJornada, {intervalos:novaJornada.intervalos.map(x=>({ini:x.ini,fim:x.fim}))});
+      if(!alvo.horario) alvo.horario = novoHorario;
+    });
+    await salvarEquipe();
+    S.salvo = false;
+    fecharPopupCelula();
+    pintarGrade();
+    pintarEquipe();
+  };
+
+  document.getElementById('pi-ok').onclick = async ()=>{
+    const mIni1 = minutosDaHora(ini1$.value), mFim1 = minutosDaHora(fim1$.value);
+    if(mIni1 == null || mFim1 == null || mFim1 <= mIni1){
+      aviso$.dataset.visivel = 'true';
+      aviso$.textContent = 'O fim do intervalo precisa ser depois do início.';
+      return;
+    }
+    const lista = [{ini:ini1$.value, fim:fim1$.value}];
+    if(dois$.checked){
+      const mIni2 = minutosDaHora(ini2$.value), mFim2 = minutosDaHora(fim2$.value);
+      if(mIni2 == null || mFim2 == null || mFim2 <= mIni2){
+        aviso$.dataset.visivel = 'true';
+        aviso$.textContent = 'Confira o horário do 2º intervalo (fim precisa ser depois do início).';
+        return;
+      }
+      lista.push({ini:ini2$.value, fim:fim2$.value});
+    }
+    await gravarIntervalos(lista);
+  };
+
+  const reset$ = document.getElementById('pi-reset');
+  if(reset$) reset$.onclick = async ()=>{
+    await gravarIntervalos(sugeridos);
+  };
+  document.getElementById('pc-fechar').onclick = fecharPopupCelula;
+
+  setTimeout(()=>{
+    document.addEventListener('keydown', _escFecha, true);
+    document.addEventListener('click', _foraFecha, true);
+  }, 0);
+}
+
 
 /* Identidade de quem esta conectado.
    O cabecalho mostrava "nome · papel · empresa" sempre. Quando a pessoa usa o
@@ -1931,8 +2150,9 @@ function pintarGrade(){
     faixaAnterior = g;
     const tagGerente = c.gerente ? '<span class="tag-gerente">Gerente</span>' : '';
     const avisosInterjornada=(interjornadas&&interjornadas[c.id])||{};
+    const ivPersonalizado = intervaloPersonalizado(c);
     h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome"><span>${esc(c.nome)}</span>${tagGerente}</div></td>`;
-    h += `<td class="hr">${horaDoDia(c, 0).slice(0,5)}</td><td class="intervalo" title="${esc(intervaloDe(c, true))}">${esc(intervaloDe(c))}</td>`;
+    h += `<td class="hr">${horaDoDia(c, 0).slice(0,5)}</td><td class="intervalo${ivPersonalizado?' cel-editada':''}" data-id="${c.id}" title="${esc(intervaloDe(c, true))} — clique para ajustar o intervalo">${esc(intervaloDe(c))}</td>`;
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const mudou = cod==='' && horaAjustada(c.id, i) != null;
@@ -1991,6 +2211,9 @@ function pintarGrade(){
 
   box.querySelectorAll('td.cel[data-i]').forEach(td=>{
     td.onclick = (ev)=>{ ev.stopPropagation(); abrirPopupCelula(td); };
+  });
+  box.querySelectorAll('td.intervalo[data-id]').forEach(td=>{
+    td.onclick = (ev)=>{ ev.stopPropagation(); abrirPopupIntervalo(td); };
   });
 
   // pendências
