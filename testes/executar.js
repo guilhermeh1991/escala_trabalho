@@ -388,14 +388,16 @@ const pdfMinimo = Documento.gerarPdfEscala({
   intervaloDe:()=> '12:00–13:00',
   periodo:'11/08/2026 a 11/08/2026',
   horaDe:()=> '07:00',
+  horaSaidaDe:()=> '16:24',
   faixaDe:()=> 4,
   rotuloFaixa:()=> 'Caixas',
   descricaoCargo:(c)=> Documento.descricaoCargoImpressao(c, 'caixa')
 }, 'Loja teste');
 const pdfTexto = Buffer.from(pdfMinimo).toString('latin1');
 conferir('PDF gerado começa corretamente', pdfTexto.slice(0,8) === '%PDF-1.4' ? 1 : 0, 1);
-conferir('PDF inclui coluna de intervalo e nota de descanso',
-  pdfTexto.includes('INTERVALO') && pdfTexto.includes('Revisar descanso:') ? 1 : 0, 1);
+conferir('PDF inclui jornada completa, intervalo e nota de descanso',
+  pdfTexto.includes('JORNADA') && pdfTexto.includes('07:00') && pdfTexto.includes('16:24')
+    && pdfTexto.includes('INTERVALO') && pdfTexto.includes('Revisar descanso:') ? 1 : 0, 1);
 
 const marcasMonocromaticas = typeof Documento.marcaMonocromaticaDocumento === 'function'
   ? ['X', 'FC', 'F', 'AT', 'LC'].map(Documento.marcaMonocromaticaDocumento) : [];
