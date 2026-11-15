@@ -38,36 +38,42 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .cel-editada{position:relative}
 .cel-editada::after{content:'';position:absolute;top:3px;right:3px;width:5px;height:5px;background:var(--teal);
   border-radius:50%;box-shadow:0 0 0 2px #fff}
-#pop-cel{position:absolute;z-index:60;width:320px;max-width:calc(100vw - 16px);background:#fff;border:1px solid var(--linha);
-  border-radius:var(--radius-lg);box-shadow:var(--sombra-alta);overflow:hidden;font-size:13px}
-#pop-cel .pc-topo{padding:11px 14px;border-bottom:1px solid var(--linha-suave);background:var(--superficie)}
-#pop-cel .pc-nome{font-weight:600;font-size:13px}
-#pop-cel .pc-data{font-size:12px;color:var(--fraco)}
-#pop-cel .pc-corpo{padding:12px 14px}
-#pop-cel .pc-rot{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#62736E;margin-bottom:8px}
-#pop-cel .pc-equipe{padding:8px 10px;margin-bottom:10px;border:1px solid var(--linha-suave);border-radius:6px;background:var(--superficie)}
+#pop-cel-fundo{position:fixed;z-index:60;inset:0;display:grid;place-items:center;padding:20px;background:rgba(18,38,45,.38);overflow:auto}
+#pop-cel{position:relative;width:380px;max-width:100%;max-height:calc(100vh - 40px);background:#fff;border:1px solid var(--linha);
+  border-radius:var(--radius-lg);box-shadow:var(--sombra-alta);overflow:auto;font-size:13px}
+#pop-cel .pc-topo{padding:14px 16px 12px;border-bottom:1px solid var(--linha-suave);background:var(--superficie)}
+#pop-cel .pc-nome{font-family:Archivo,Inter,sans-serif;font-weight:700;font-size:15px;letter-spacing:-.01em}
+#pop-cel .pc-data{margin-top:2px;font-size:12px;color:var(--fraco)}
+#pop-cel .pc-corpo{padding:14px 16px}
+#pop-cel .pc-rot{font-size:10.5px;font-weight:700;letter-spacing:.065em;text-transform:uppercase;color:#62736E;margin-bottom:7px}
+#pop-cel .pc-equipe{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:2px 12px;padding:9px 10px;margin-bottom:12px;border:1px solid #CDE3DD;border-radius:6px;background:var(--teal-suave)}
+#pop-cel .pc-equipe .pc-rot{grid-column:1/-1;margin:0}
 #pop-cel .pc-equipe-hora{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--texto)}
-#pop-cel .pc-equipe-meta{margin-top:2px;font-size:11.5px;color:var(--fraco);line-height:1.35}
-#pop-cel .pc-select{width:100%;padding:7px 8px;margin-bottom:10px;border:1px solid var(--linha);border-radius:6px;
+#pop-cel .pc-equipe-meta{margin:0;text-align:right;font-size:11.5px;color:var(--fraco);line-height:1.35}
+#pop-cel .pc-select{width:100%;padding:7px 8px;margin-bottom:12px;border:1px solid var(--linha);border-radius:6px;
   background:#fff;color:var(--texto);font-size:12.5px}
-#pop-cel .pc-sugestoes{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:10px}
-#pop-cel .pc-sug{padding:6px 8px;border:1px solid var(--linha);border-radius:6px;background:#fff;
-  font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--texto);cursor:pointer;text-align:center}
+#pop-cel .pc-sugestoes{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:12px}
+#pop-cel .pc-sug{min-height:32px;padding:5px 4px;border:1px solid var(--linha);border-radius:6px;background:#fff;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--texto);cursor:pointer;text-align:center}
 #pop-cel .pc-sug:hover{border-color:var(--teal);color:var(--teal)}
-#pop-cel .pc-sug.ativo{background:var(--teal-suave);border-color:var(--teal);color:var(--teal-escuro);font-weight:600}
-#pop-cel .pi-campos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+#pop-cel .pc-sug.ativo{background:var(--teal-suave);border-color:var(--teal);color:var(--teal-escuro);font-weight:600;box-shadow:inset 0 0 0 1px var(--teal)}
+#pop-cel .pi-campos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 #pop-cel .pi-campo label{display:block;margin:0 0 4px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco)}
 #pop-cel .pi-campo input[type=time]{width:100%}
-#pop-cel .pc-linha{display:flex;gap:6px;align-items:center;margin-bottom:8px}
-#pop-cel input[type=time]{flex:1;padding:7px 8px;border:1px solid var(--linha);border-radius:6px;
+#pop-cel .pc-linha{display:flex;gap:6px;align-items:center;margin-bottom:10px}
+#pop-cel input[type=time]{flex:1;padding:8px;border:1px solid var(--linha);border-radius:6px;
   font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
-#pop-cel .pc-aplicar{padding:7px 12px;border:0;border-radius:6px;background:var(--texto);color:#fff;
-  font-size:12.5px;font-weight:500;cursor:pointer}
+#pop-cel .pc-aplicar{padding:8px 12px;border:0;border-radius:6px;background:var(--teal);color:#fff;
+  font-size:12.5px;font-weight:600;cursor:pointer}
+#pop-cel .pc-aplicar:hover{background:var(--teal-escuro)}
 #pop-cel .pc-dias{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:8px}
 #pop-cel .pc-dia{padding:6px 2px;border:1px solid var(--linha);border-radius:20px;background:#fff;
   font-size:12px;font-weight:600;cursor:pointer;color:var(--fraco);text-align:center}
 #pop-cel .pc-dia:hover{border-color:var(--teal);color:var(--teal)}
 #pop-cel .pc-dia.ativo{background:var(--teal);border-color:var(--teal);color:#fff}
+#pop-cel .pc-nao-trabalha{margin:0;border-top:1px solid var(--linha-suave);padding-top:10px}
+#pop-cel .pc-nao-trabalha summary{color:var(--fraco);font-size:12px;font-weight:600;cursor:pointer}
+#pop-cel .pc-nao-trabalha[open] summary{margin-bottom:10px;color:var(--texto)}
 #pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:11.5px;color:var(--fraco);cursor:pointer}
 #pop-cel .pc-repetir input{accent-color:var(--teal);width:14px;height:14px}
 #pop-cel .pc-aviso-descanso{display:none;margin:8px 0 0;padding:8px 9px;border:1px solid #E4B7B1;border-radius:6px;background:var(--r-bg);color:var(--r-fg);font-size:11.5px;line-height:1.4}
@@ -77,11 +83,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
   border-radius:6px;background:#fff;font-size:12px;cursor:pointer;text-align:left}
 #pop-cel .pc-cod:hover{border-color:var(--teal)}
 #pop-cel .pc-cod b{width:13px;height:13px;border-radius:3px;flex-shrink:0}
-#pop-cel .pc-rodape{padding:9px 14px;border-top:1px solid var(--linha-suave);background:var(--superficie);
+#pop-cel .pc-rodape{padding:10px 16px;border-top:1px solid var(--linha-suave);background:var(--superficie);
   display:flex;justify-content:space-between;align-items:center;gap:10px}
 #pop-cel .pc-link{border:0;background:none;color:var(--fraco);font-size:12px;cursor:pointer;padding:0}
 #pop-cel .pc-link:hover{color:var(--texto)}
 #pop-cel .pc-link.pc-voltar{text-decoration:underline}
+@media(max-width:420px){#pop-cel-fundo{padding:10px}#pop-cel{max-height:calc(100vh - 20px)}}
 
 /* ---------- escalas salvas ---------- */
 .salva{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--linha)}
@@ -378,14 +385,14 @@ table.esc thead tr.datas th.hr{background:#F6F8F7}
 
 /* coluna 3 — intervalo. Propriedade da pessoa, mostrada uma vez em vez de
    repetir a pausa em cada um dos 31 dias da grade. */
-table.esc th.intervalo,table.esc td.intervalo{position:sticky;left:calc(var(--w-nome) + var(--w-hora));z-index:2;background:#fff;
-  font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--fraco);padding:0 6px;text-align:center;
+table.esc th.intervalo,table.esc td.intervalo{position:sticky;left:calc(var(--w-nome) + var(--w-hora));z-index:2;background:#EDF7F4;
+  font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--teal-escuro);padding:0 6px;text-align:center;
   width:var(--w-intervalo);min-width:var(--w-intervalo);max-width:var(--w-intervalo);box-sizing:border-box;
   overflow:hidden;text-overflow:ellipsis}
 table.esc td.intervalo[data-id]{cursor:pointer;user-select:none;transition:background-color .12s ease,box-shadow .12s ease,color .12s ease}
-table.esc td.intervalo[data-id]:hover{color:var(--teal-escuro);background-color:var(--teal-suave);box-shadow:inset 0 0 0 2px var(--teal)}
-table.esc thead th.intervalo{z-index:5;background:#EFF4F1}
-table.esc thead tr.datas th.intervalo{background:#F6F8F7}
+table.esc td.intervalo[data-id]:hover{color:var(--teal-escuro);background-color:#DDF1EC;box-shadow:inset 0 0 0 2px var(--teal)}
+table.esc thead th.intervalo{z-index:5;background:#DDEEE9;color:var(--teal-escuro);box-shadow:inset 0 -2px 0 var(--teal)}
+table.esc thead tr.datas th.intervalo{background:#EDF7F4}
 /* sombra na divisa, para ficar claro que a tabela corre para o lado */
 table.esc th.intervalo::after,table.esc td.intervalo::after{content:'';position:absolute;top:0;right:0;bottom:0;
   width:6px;transform:translateX(100%);pointer-events:none;
@@ -415,12 +422,16 @@ td.cel.interjornada .hora-interjornada{color:var(--r-fg);font-weight:700}
 td.cel.interjornada .marca-interjornada{position:absolute;right:3px;top:1px;color:var(--r-fg);font-size:10px;font-style:normal;font-weight:800;line-height:1}
 tr.sep td{height:6px;background:var(--fundo);border:0}
 tr.sep td.fixa,tr.sep td.hr,tr.sep td.intervalo{background:var(--fundo);border:0}
+tfoot tr.cobertura-separador td{height:22px;padding:0;border:0;background:#fff;position:static}
+tfoot tr.cobertura-separador td.fixa{position:sticky;left:0;z-index:5;padding:0 10px;background:#fff;text-align:left;
+  font-family:Inter;font-weight:700;font-size:10px;letter-spacing:.075em;text-transform:uppercase;color:var(--fraco)}
+tfoot tr.cobertura-separador td.fixa::after{content:'';display:inline-block;width:calc(100% - 103px);height:1px;margin-left:10px;vertical-align:middle;background:var(--linha)}
 tfoot td{font-size:11px;text-align:center;font-family:'JetBrains Mono',monospace;background:#EFF4F1;height:25px}
 tfoot td{position:sticky;bottom:0;z-index:3}
 tfoot td.fixa{position:sticky;left:0;z-index:5;font-family:Inter;font-weight:700;font-size:10.5px;
   text-transform:uppercase;letter-spacing:.055em;color:#52665F;background:#EFF4F1}
 tfoot td.hr{position:sticky;left:var(--w-nome);z-index:5;background:#EFF4F1}
-tfoot td.intervalo{position:sticky;left:calc(var(--w-nome) + var(--w-hora));z-index:5;background:#EFF4F1}
+tfoot td.intervalo{position:sticky;left:calc(var(--w-nome) + var(--w-hora));z-index:5;background:#EDF7F4}
 tfoot td.furo{background:var(--r-bg);color:var(--r-fg);font-weight:700;box-shadow:inset 0 0 0 1px rgba(150,58,50,.13)}
 tfoot td.leve{background:var(--m-bg);color:var(--m-fg);font-weight:600}
 th.domingo{color:var(--texto);background:#F8F3E3!important}
@@ -2299,10 +2310,10 @@ function gerarPdfEscala(D, nomeLoja){
   if(days.length > 62) throw new Error('O PDF aceita períodos de até 62 dias.');
   const L = 842, A = 595;
   const margem = 22;
-  const larguraNome = 96, larguraHora = 30, larguraIntervalo = 44;
-  const areaDias = L - margem*2 - larguraNome - larguraHora - larguraIntervalo;
+  const larguraNome = 96, larguraJornada = 58, larguraIntervalo = 44;
+  const areaDias = L - margem*2 - larguraNome - larguraJornada - larguraIntervalo;
   const largDia = areaDias / days.length;
-  const altLinha = 15;
+  const altLinha = 17;
   const topoTabela = 74;
 
   const rodapes = [
@@ -2316,7 +2327,9 @@ function gerarPdfEscala(D, nomeLoja){
 
   const notaInterjornada = ativos.some(c=>Object.keys((D.interjornadas && D.interjornadas[c.id]) || {}).length);
   const alturaUtil = A - topoTabela - margem - (rodapes.length * altLinha) - 26 - 6*11 - (notaInterjornada ? 10 : 0);
-  const porPagina = Math.max(1, Math.floor(alturaUtil / altLinha));
+  // Reserva duas linhas de respiro para que a última página continue cabendo
+  // quando a equipe alterna entre várias faixas de cargo antes da cobertura.
+  const porPagina = Math.max(1, Math.floor(alturaUtil / altLinha) - 2);
   const paginas = [];
   const totalPag = Math.max(1, Math.ceil(ativos.length / porPagina));
 
@@ -2336,12 +2349,12 @@ function gerarPdfEscala(D, nomeLoja){
     let y = topoTabela;
     p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.cabecalho);
     p.texto('COLABORADOR', margem + 4, y + 4, {tamanho:6.5, negrito:true, cor:COR_PDF.branco});
-    p.texto('ENTRA', margem + larguraNome + 2, y + 4,
-            {tamanho:6.5, negrito:true, cor:COR_PDF.branco, centro:true, largura:larguraHora});
-    p.texto('INTERVALO', margem + larguraNome + larguraHora, y + 4,
+    p.texto('JORNADA', margem + larguraNome + 2, y + 4,
+            {tamanho:6.5, negrito:true, cor:COR_PDF.branco, centro:true, largura:larguraJornada});
+    p.texto('INTERVALO', margem + larguraNome + larguraJornada, y + 4,
             {tamanho:5.5, negrito:true, cor:COR_PDF.branco, centro:true, largura:larguraIntervalo});
     days.forEach((d,i)=>{
-      const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+      const x = margem + larguraNome + larguraJornada + larguraIntervalo + i*largDia;
       p.texto(DIA_ABREV_PDF[d.getDay()], x, y + 4,
               {tamanho:5.8, negrito:true, cor:COR_PDF.branco, centro:true, largura:largDia});
     });
@@ -2349,7 +2362,7 @@ function gerarPdfEscala(D, nomeLoja){
     y += altLinha;
     p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.faixa);
     days.forEach((d,i)=>{
-      const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+      const x = margem + larguraNome + larguraJornada + larguraIntervalo + i*largDia;
       if(d.getDay()===0 || d.getDay()===6) p.retangulo(x, y, largDia, altLinha, [0.88,0.91,0.89]);
       p.texto(ddmmPdf(d), x, y + 4, {tamanho:6, negrito:true, centro:true, largura:largDia});
     });
@@ -2377,15 +2390,16 @@ function gerarPdfEscala(D, nomeLoja){
         p.texto(cortarTexto(descricao, 5, larguraNome - 8, false), margem + 4, y + 9.5,
                 {tamanho:5, cor:COR_PDF.fraco});
       }
-      const horaEntrada = String(D.horaDe ? D.horaDe(c, 0) : '');
-      p.texto(horaEntrada.slice(0,5), margem + larguraNome, y + 4.5,
-              {tamanho:6, cor:COR_PDF.fraco, centro:true, largura:larguraHora});
+      const horaEntrada = String(D.horaDe ? D.horaDe(c, 0) : '').slice(0,5);
+      const horaSaida = String(D.horaSaidaDe ? D.horaSaidaDe(c, 0) : '').slice(0,5);
+      p.texto(horaEntrada + '–' + horaSaida, margem + larguraNome, y + 6.5,
+              {tamanho:5.7, cor:COR_PDF.fraco, centro:true, largura:larguraJornada});
       const intervalo = String(D.intervaloDe ? D.intervaloDe(c) : (c.jornada && c.jornada.intervalo ? c.jornada.intervalo + ' min' : ''));
-      p.texto(cortarTexto(intervalo, 5.2, larguraIntervalo - 3, false), margem + larguraNome + larguraHora, y + 4.5,
+      p.texto(cortarTexto(intervalo, 5.2, larguraIntervalo - 3, false), margem + larguraNome + larguraJornada, y + 6.5,
               {tamanho:5.2, cor:COR_PDF.fraco, centro:true, largura:larguraIntervalo});
 
       days.forEach((d,i)=>{
-        const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+        const x = margem + larguraNome + larguraJornada + larguraIntervalo + i*largDia;
         const cod = (grid[c.id] && grid[c.id][i]) || '';
         const interjornada = D.interjornadas && D.interjornadas[c.id] && D.interjornadas[c.id][i];
         const fds = d.getDay()===0 || d.getDay()===6;
@@ -2397,9 +2411,12 @@ function gerarPdfEscala(D, nomeLoja){
         } else {
           if(interjornada) p.retangulo(x, y, largDia, altLinha, [0.90,0.90,0.90]);
           else if(fds) p.retangulo(x, y, largDia, altLinha, COR_PDF.fds);
-          const horaDia = String(D.horaDe ? D.horaDe(c, i) : '');
-          p.texto((interjornada?'* ':'') + horaDia.slice(0,5), x, y + 4.5,
-                  {tamanho:5.6, negrito:!!interjornada, cor:interjornada?COR_PDF.texto:COR_PDF.fraco, centro:true, largura:largDia});
+          const horaDia = String(D.horaDe ? D.horaDe(c, i) : '').slice(0,5);
+          const saidaDia = String(D.horaSaidaDe ? D.horaSaidaDe(c, i) : '').slice(0,5);
+          p.texto((interjornada?'* ':'') + horaDia, x, y + 3.6,
+                  {tamanho:5.6, negrito:true, cor:interjornada?COR_PDF.texto:COR_PDF.texto, centro:true, largura:largDia});
+          p.texto(saidaDia, x, y + 11.2,
+                  {tamanho:4.7, cor:COR_PDF.fraco, centro:true, largura:largDia});
         }
         p.linha(x, y, x, y + altLinha, COR_PDF.linha, d.getDay()===0 ? 0.9 : 0.35);
         if(d.getDay()===0) p.linha(x + 1.4, y, x + 1.4, y + altLinha, COR_PDF.texto, 0.35);
@@ -2414,7 +2431,7 @@ function gerarPdfEscala(D, nomeLoja){
         p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.faixa);
         p.texto(rot.toUpperCase(), margem + 4, y + 4.5, {tamanho:6, negrito:true, cor:COR_PDF.fraco});
         cob.forEach((c,i)=>{
-          const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+          const x = margem + larguraNome + larguraJornada + larguraIntervalo + i*largDia;
           const v = fn(c, i);
           let corFundo = null, corTexto = COR_PDF.texto, marca = '';
           const lim = typeof minimo === 'function' ? minimo(c,i) : minimo;
@@ -3801,6 +3818,7 @@ function baixarPdf(){
       return;
     }
     D.horaDe = (c, i) => horaDoDia(c, i);
+    D.horaSaidaDe = (c, i) => horaSaidaDoDia(c, i);
     D.faixaDe = typeof faixaDe === 'function' ? faixaDe : () => 0;
     D.rotuloFaixa = (g) => (typeof FAIXAS_CARGO !== 'undefined' && FAIXAS_CARGO[g] ? FAIXAS_CARGO[g].rotulo : 'Equipe');
     D.descricaoCargo = (c, g) => (typeof descricaoCargoImpressao === 'function'
@@ -4025,15 +4043,18 @@ function definirHora(id, i, valor){
 
 /* ---------- pop-up de edição da célula ---------- */
 function fecharPopupCelula(){
+  const fundo = document.getElementById('pop-cel-fundo');
   const p = document.getElementById('pop-cel');
-  if(p) p.remove();
+  if(fundo) fundo.remove();
+  else if(p) p.remove();
   document.removeEventListener('keydown', _escFecha, true);
   document.removeEventListener('click', _foraFecha, true);
 }
 function _escFecha(e){ if(e.key === 'Escape'){ e.stopPropagation(); fecharPopupCelula(); } }
 function _foraFecha(e){
+  const fundo = document.getElementById('pop-cel-fundo');
   const p = document.getElementById('pop-cel');
-  if(p && !p.contains(e.target)) fecharPopupCelula();
+  if(!fundo && p && !p.contains(e.target)) fecharPopupCelula();
 }
 
 function abrirPopupCelula(td){
@@ -4044,7 +4065,6 @@ function abrirPopupCelula(td){
   const colabEquipe = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)
     && loja().colabs.find(x=>x.id===id)) || c;
   const jEquipe = jornadaDe(colabEquipe);
-  const modeloEquipe = MODELOS_JORNADA.find(x=>x.id===jEquipe.modelo);
   const horarioEquipe = (colabEquipe.horario || textoJornada(jEquipe) || '').trim() || 'Não informado';
   const dia = S.res.days[i];
   const cod = S.res.grid[id][i];
@@ -4111,9 +4131,9 @@ function abrirPopupCelula(td){
     </div>
     <div class="pc-corpo">
       <div class="pc-equipe">
-        <div class="pc-rot" style="margin-bottom:2px">Horário estabelecido na equipe</div>
+        <div class="pc-rot">Horário da equipe</div>
         <div class="pc-equipe-hora">${esc(horarioEquipe)}</div>
-        <div class="pc-equipe-meta">${esc(modeloEquipe ? modeloEquipe.nome : 'Horário configurado na aba Equipe')} · Intervalo: <span id="pc-intervalo">${esc(intervalo)}</span></div>
+        <div class="pc-equipe-meta">Intervalo: <span id="pc-intervalo">${esc(intervalo)}</span></div>
       </div>
       <div class="pc-rot">Horários disponíveis</div>
       <select class="pc-select" id="pc-horario-disp" aria-label="Horários disponíveis">
@@ -4139,14 +4159,16 @@ function abrirPopupCelula(td){
       <div class="pc-aviso-descanso" id="pc-aviso-descanso" role="status" aria-live="polite"></div>
     </div>
     <div class="pc-corpo" style="padding-top:0">
-      <div class="pc-rot">Não trabalha</div>
-      <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
-        repetir deste dia até o fim do período</label>
-      <div class="pc-codigos">
-        ${CODIGOS.map(([k,rot,bg,fg],n)=>
-          `<button class="pc-cod" data-cod="${k}"${n===4?' style="grid-column:span 2"':''}>
-             <b style="background:${bg};border:1px solid ${fg}"></b>${rot}</button>`).join('')}
-      </div>
+      <details class="pc-nao-trabalha">
+        <summary>Não trabalha neste dia</summary>
+        <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
+          repetir deste dia até o fim do período</label>
+        <div class="pc-codigos">
+          ${CODIGOS.map(([k,rot,bg,fg],n)=>
+            `<button class="pc-cod" data-cod="${k}"${n===4?' style="grid-column:span 2"':''}>
+               <b style="background:${bg};border:1px solid ${fg}"></b>${rot}</button>`).join('')}
+        </div>
+      </details>
     </div>
     <div class="pc-rodape">
       ${(cod!=='' || ajustada!=null)
@@ -4155,20 +4177,11 @@ function abrirPopupCelula(td){
       <button class="pc-link" id="pc-fechar">Fechar</button>
     </div>`;
 
-  document.body.appendChild(pop);
-
-  // posicionar junto da célula, sem sair da janela
-  const r = td.getBoundingClientRect();
-  const lp = pop.getBoundingClientRect();
-  let esq = r.left + window.scrollX;
-  let topo = r.bottom + window.scrollY + 6;
-  if(esq + lp.width > window.scrollX + document.documentElement.clientWidth - 10)
-    esq = window.scrollX + document.documentElement.clientWidth - lp.width - 10;
-  if(esq < window.scrollX + 8) esq = window.scrollX + 8;
-  if(r.bottom + lp.height + 12 > document.documentElement.clientHeight)
-    topo = r.top + window.scrollY - lp.height - 6;
-  pop.style.left = esq + 'px';
-  pop.style.top  = Math.max(window.scrollY + 8, topo) + 'px';
+  const fundo = document.createElement('div');
+  fundo.id = 'pop-cel-fundo';
+  fundo.appendChild(pop);
+  document.body.appendChild(fundo);
+  fundo.addEventListener('click', e=>{ if(e.target === fundo) fecharPopupCelula(); });
 
   const aplicar = ()=>{
     validarEscalaAtual();
@@ -4380,9 +4393,9 @@ function abrirPopupIntervalo(td){
     </div>
     <div class="pc-corpo">
       <div class="pc-equipe">
-        <div class="pc-rot" style="margin-bottom:2px">Intervalo sugerido pela jornada</div>
+        <div class="pc-rot">Intervalo sugerido pela jornada</div>
         <div class="pc-equipe-hora">${esc(sugeridoTexto)}</div>
-        <div class="pc-equipe-meta">Escolha uma sugestão abaixo ou defina o horário ideal.</div>
+        <div class="pc-equipe-meta">Jornada: ${esc(horarioEquipe)}</div>
       </div>
       <div class="pc-rot">Sugestões rápidas (1h)</div>
       <div class="pc-sugestoes">
@@ -4409,19 +4422,11 @@ function abrirPopupIntervalo(td){
       <button class="pc-link" id="pc-fechar">Fechar</button>
     </div>`;
 
-  document.body.appendChild(pop);
-
-  const r = td.getBoundingClientRect();
-  const lp = pop.getBoundingClientRect();
-  let esq = r.left + window.scrollX;
-  let topo = r.bottom + window.scrollY + 6;
-  if(esq + lp.width > window.scrollX + document.documentElement.clientWidth - 10)
-    esq = window.scrollX + document.documentElement.clientWidth - lp.width - 10;
-  if(esq < window.scrollX + 8) esq = window.scrollX + 8;
-  if(r.bottom + lp.height + 12 > document.documentElement.clientHeight)
-    topo = r.top + window.scrollY - lp.height - 6;
-  pop.style.left = esq + 'px';
-  pop.style.top  = Math.max(window.scrollY + 8, topo) + 'px';
+  const fundo = document.createElement('div');
+  fundo.id = 'pop-cel-fundo';
+  fundo.appendChild(pop);
+  document.body.appendChild(fundo);
+  fundo.addEventListener('click', e=>{ if(e.target === fundo) fecharPopupCelula(); });
 
   const ini1$ = document.getElementById('pi-ini1');
   const fim1$ = document.getElementById('pi-fim1');
@@ -4665,6 +4670,7 @@ function pintarGrade(){
     h += `<td class="cel" style="cursor:default;font-weight:600">${grid[c.id].filter(v=>v==='X'||v==='FC').length}</td></tr>`;
   });
   h += '</tbody><tfoot>';
+  h += `<tr class="cobertura-separador"><td class="fixa">Cobertura do dia</td><td class="hr"></td><td class="intervalo"></td><td colspan="${days.length+1}"></td></tr>`;
   const cob = S.val.cobertura;
   const linhaFoot = (rot, f, min) => {
     let s = `<tr><td class="fixa">${rot}</td><td class="hr"></td><td class="intervalo"></td>`;
@@ -4755,6 +4761,10 @@ function dadosDaEscala(){
   const alvoFa = P.minFarma != null ? P.minFarma : 2;
   const alvoSg = P.minSubger != null ? P.minSubger : 1;
   return {days, grid, ativos, P, cob, alvo, alvoFa, alvoSg, interjornadas,
+          horaDe: (c, i)=>horaDoDia(c, i), horaSaidaDe: (c, i)=>horaSaidaDoDia(c, i),
+          faixaDe: c=>faixaDe(c),
+          rotuloFaixa: g=>(FAIXAS_CARGO[g]||FAIXAS_CARGO[FAIXAS_CARGO.length-1]).rotulo,
+          descricaoCargo: (c, g)=>descricaoCargoImpressao(c, (FAIXAS_CARGO[g]||FAIXAS_CARGO[FAIXAS_CARGO.length-1]).chave),
           intervaloDe: c=>intervaloDe(c), intervaloDetalhadoDe: c=>intervaloDe(c, true),
           periodo: ddmm(days[0]) + '/' + days[0].getFullYear() + ' a ' + ddmm(days[days.length-1]) + '/' + days[days.length-1].getFullYear()};
 }
@@ -4766,7 +4776,7 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
   const linhas = [];
   linhas.push([{v:'ESCALA — '+nomeLoja, e:'titulo'}, null, null, null, {v:D.periodo, e:'subtitulo'}]);
   linhas.push([{v:'X folga · FC folga compensatória · F férias · AT atestado · LC licença · * descanso menor que 11h', e:'legenda'}]);
-  linhas.push([{v:'COLABORADOR',e:'cabecalho'},{v:'ENTRA',e:'cabecalho'},{v:'INTERVALO',e:'cabecalho'},{v:'CARGO',e:'cabecalho'}]
+  linhas.push([{v:'COLABORADOR',e:'cabecalho'},{v:'JORNADA',e:'cabecalho'},{v:'INTERVALO',e:'cabecalho'},{v:'CARGO',e:'cabecalho'}]
     .concat(days.map(d=>({v:DIA_ABREV[d.getDay()], e:'cabecalho'}))));
   linhas.push([null,null,null,null].concat(days.map(d=>({v:ddmm(d), e:(d.getDay()===0||d.getDay()===6)?'dataFds':'data'}))));
 
@@ -4777,12 +4787,13 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
       linhas.push([{v:FAIXAS_CARGO[g].rotulo.toUpperCase(), e:'rotulo'}]);
       faixaXls = g;
     }
-    const l = [{v:c.nome, e:'nome'}, {v:horaDoDia(c, 0), e:'hora'}, {v:D.intervaloDe(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
+    const l = [{v:c.nome, e:'nome'}, {v:D.horaDe(c, 0)+'–'+D.horaSaidaDe(c, 0), e:'hora'}, {v:D.intervaloDe(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
     const avisos=(interjornadas&&interjornadas[c.id])||{};
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const fds = (d.getDay()===0 || d.getDay()===6);
-      if(cod === '') l.push({v: (avisos[i]?'* ':'') + horaDoDia(c, i), e: avisos[i]?'interjornada':(fds ? 'trabalhaFds' : 'trabalha')});
+      const turno = D.horaDe(c, i)+'–'+D.horaSaidaDe(c, i);
+      if(cod === '') l.push({v: (avisos[i]?'* ':'') + turno, e: avisos[i]?'interjornada':(fds ? 'trabalhaFds' : 'trabalha')});
       else l.push({v: cod, e: estiloCod[cod] || 'trabalha'});
     });
     linhas.push(l);
@@ -4810,7 +4821,7 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
 
   return {
     aba: 'Escala ' + idLoja,
-    colunas: [24, 8, 13, 15].concat(days.map(()=>4.4)),
+    colunas: [24, 13, 13, 15].concat(days.map(()=>8.5)),
     congelar: {coluna:4, linha:4},
     merges: ['A1:D1'],
     alturas: {0:22, 2:18},
@@ -4833,6 +4844,7 @@ $('#btn-xlsx').onclick = ()=>{
 function htmlDeImpressao(D, nomeLoja){
   const {days, grid, ativos, P, cob, interjornadas} = D;
   const classeStatus = {X:'status-x', FC:'status-fc', F:'status-f', AT:'status-at', LC:'status-lc'};
+  const turnoDia = (c, i) => `${esc(D.horaDe(c, i).slice(0,5))}<small>${esc(D.horaSaidaDe(c, i).slice(0,5))}</small>`;
   const notasInterjornada = [];
   ativos.forEach(c=>Object.values((interjornadas&&interjornadas[c.id])||{}).forEach(a=>notasInterjornada.push(`${c.nome}: ${a.txt}`)));
   let corpo = '';
@@ -4845,14 +4857,15 @@ function htmlDeImpressao(D, nomeLoja){
       faixaImp = g;
     }
     const descricao = descricaoCargoImpressao(c, FAIXAS_CARGO[g].chave);
+    const jornada = `${D.horaDe(c, 0).slice(0,5)}–${D.horaSaidaDe(c, 0).slice(0,5)}`;
     corpo += `<tr><td class="nm${descricao?'':' sem-desc'}">${esc(c.nome)}`
            + `${descricao ? `<span>${esc(descricao)}</span>` : ''}`
-           + `</td><td class="hr">${horaDoDia(c, 0)}</td><td class="iv">${esc(D.intervaloDe(c))}</td>`;
+           + `</td><td class="hr">${esc(jornada)}</td><td class="iv">${esc(D.intervaloDe(c))}</td>`;
     const avisos=(interjornadas&&interjornadas[c.id])||{};
     days.forEach((d,i)=>{
       const v = grid[c.id][i], fds = (d.getDay()===0||d.getDay()===6), dom = d.getDay()===0;
       const cls = (fds?'fds ':'') + (dom?'domingo ':'') + (avisos[i]?' interjornada ':'');
-      if(v==='') corpo += `<td class="${cls}"><i>${avisos[i]?'* ':''}${horaDoDia(c, i)}</i></td>`;
+      if(v==='') corpo += `<td class="${cls}"><i>${avisos[i]?'* ':''}${turnoDia(c, i)}</i></td>`;
       else corpo += `<td class="${cls}${classeStatus[v]||''}">${v}</td>`;
     });
     corpo += '</tr>';
@@ -4874,45 +4887,29 @@ function htmlDeImpressao(D, nomeLoja){
 <style>
 @page{size:A4 landscape;margin:7mm}
 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{margin:0;font:11px/1.3 Arial,Helvetica,sans-serif;color:#16232B}
-h1{font-size:15px;margin:0 0 1px}
-p.sub{margin:0 0 7px;font-size:10px;color:#5b6b66}
+body{margin:0;font:10px/1.25 Arial,Helvetica,sans-serif;color:#16232B}
+h1{font-size:16px;margin:0 0 2px;letter-spacing:-.02em}
+p.sub{margin:0 0 8px;font-size:9px;color:#53665F}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
-thead{display:table-header-group}
-tr{page-break-inside:avoid}
-th,td{border:1px solid #CBD5CE;padding:1px 2px;text-align:center;font-size:8px;height:15px;overflow:hidden}
-th{background:#16232B;color:#fff;font-size:7.5px;text-transform:uppercase}
-th.dt{background:#E7EDE9;color:#16232B;font-weight:700}
-th.dtf{background:#DCE2DE;color:#16232B;font-weight:700}
-th.domingo,td.domingo{border-left:3px double #16232B;border-right:2px solid #16232B}
-td.nm{text-align:left;font-weight:700;font-size:8.5px}
-td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-transform:none}
-td.nm.sem-desc{vertical-align:middle}
-td.hr,td.iv{font-size:7.5px;color:#63736F}
-td.iv{font-size:6.4px}
-td i{font-style:normal;color:#485650}
-td.interjornada{background:#E7E7E7;box-shadow:inset 0 0 0 1px #222;font-weight:700}
-td.fds{background:#F1F1F1}
-td.status-x{font-weight:700;background:repeating-linear-gradient(135deg,#fff 0 3px,#B8B8B8 3px 4px);box-shadow:inset 0 0 0 1px #222}
-td.status-fc{font-weight:700;background:repeating-linear-gradient(45deg,#fff 0 3px,#AAA 3px 4px);box-shadow:inset 0 0 0 1px #444}
-td.status-f{font-weight:700;background:#fff;box-shadow:inset 0 0 0 2px #111}
-td.status-at{font-weight:700;background:#CFCFCF;box-shadow:inset 0 0 0 2px #111;position:relative}
-td.status-at::after{content:'+';position:absolute;right:2px;top:0;font-size:7px}
-td.status-lc{font-weight:700;background:repeating-linear-gradient(0deg,#fff 0 3px,#B4B4B4 3px 4px);box-shadow:inset 0 0 0 1px #222}
-tr.gr td{background:#E3E3E3;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#333;text-align:left;height:12px}
-tr.rp td{background:#ECECEC;font-weight:600;font-size:8px}
-tr.rp td.nm{font-size:7.5px;text-transform:uppercase}
-tr.rp td.minimo{background:#BDBDBD;color:#111;font-weight:700;box-shadow:inset 0 0 0 2px #111}
-tr.rp td.alvo{background:#E2E2E2;color:#111;font-weight:700;box-shadow:inset 0 0 0 1px #555}
-.lg{margin-top:6px;font-size:8px;color:#333}
-.lg b{display:inline-block;width:11px;height:8px;border:1px solid #444;margin:0 3px 0 9px}
+thead{display:table-header-group}tr{page-break-inside:avoid}
+th,td{border:1px solid #CBD5CE;padding:1px 2px;text-align:center;font-size:7.4px;height:21px;overflow:hidden}
+th{background:#12262D;color:#fff;font-size:7px;letter-spacing:.045em;text-transform:uppercase}
+th.dt{background:#E7EDE9;color:#16232B;font-weight:700}th.dtf{background:#DCE8E2;color:#16232B;font-weight:700}
+th.domingo,td.domingo{border-left:3px double #12262D;border-right:2px solid #12262D}
+td.nm{text-align:left;font-weight:700;font-size:8.5px;padding-left:4px}td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-transform:none}td.nm.sem-desc{vertical-align:middle}
+td.hr,td.iv{font-size:6.7px;color:#53665F;font-weight:600}td.iv{font-size:6.2px;font-weight:400}
+td i{display:block;font-style:normal;line-height:1.08;color:#16232B;font-weight:700;font-variant-numeric:tabular-nums}td i small{display:block;font-size:6px;color:#63736F;font-weight:400}
+td.interjornada{background:#E7E7E7;box-shadow:inset 0 0 0 1px #222;font-weight:700}td.fds{background:#F1F4F2}
+td.status-x{font-weight:700;background:repeating-linear-gradient(135deg,#fff 0 3px,#B8D8C6 3px 4px);box-shadow:inset 0 0 0 1px #14663F;color:#14663F}td.status-fc{font-weight:700;background:repeating-linear-gradient(45deg,#fff 0 3px,#E6CF95 3px 4px);box-shadow:inset 0 0 0 1px #8A5E06;color:#8A5E06}td.status-f{font-weight:700;background:#E1EBF3;box-shadow:inset 0 0 0 2px #1F5580;color:#1F5580}td.status-at{font-weight:700;background:#F0D9D5;box-shadow:inset 0 0 0 2px #96332A;color:#96332A;position:relative}td.status-at::after{content:'+';position:absolute;right:2px;top:0;font-size:7px}td.status-lc{font-weight:700;background:repeating-linear-gradient(0deg,#fff 0 3px,#D1C7E8 3px 4px);box-shadow:inset 0 0 0 1px #50407E;color:#50407E}
+tr.gr td{background:#EAF0ED;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#38524A;text-align:left;height:13px;padding-left:4px}tr.rp td{background:#EFF4F1;font-weight:600;font-size:7.5px}tr.rp td.nm{font-size:7px;text-transform:uppercase}tr.rp td.minimo{background:#F3DBD7;color:#96332A;font-weight:700;box-shadow:inset 0 0 0 2px #96332A}tr.rp td.alvo{background:#F6E7C4;color:#8A5E06;font-weight:700;box-shadow:inset 0 0 0 1px #8A5E06}
+.lg{margin-top:7px;font-size:7.5px;line-height:1.5;color:#354640}.lg b{display:inline-block;width:11px;height:8px;border:1px solid #444;margin:0 3px 0 9px;vertical-align:-1px}
 </style></head><body>
 <h1>Escala — ${esc(nomeLoja)}</h1>
-<p class="sub">${D.periodo} &nbsp;·&nbsp; ${ativos.length} colaboradores &nbsp;·&nbsp; emitida em ${new Date().toLocaleDateString('pt-BR')}</p>
+<p class="sub">${D.periodo} &nbsp;·&nbsp; ${ativos.length} colaboradores &nbsp;·&nbsp; turnos, pausas e cobertura do período &nbsp;·&nbsp; emitida em ${new Date().toLocaleDateString('pt-BR')}</p>
 <table>
-<colgroup><col style="width:14%"><col style="width:5%"><col style="width:7%">${days.map(()=>`<col style="width:${(74/days.length).toFixed(3)}%">`).join('')}</colgroup>
+<colgroup><col style="width:17%"><col style="width:9%"><col style="width:8%">${days.map(()=>`<col style="width:${(66/days.length).toFixed(3)}%">`).join('')}</colgroup>
 <thead>
-<tr><th>Colaborador</th><th>Entra</th><th>Intervalo</th>${days.map(d=>`<th class="${d.getDay()===0?'domingo':''}">${DIA_ABREV[d.getDay()]}</th>`).join('')}</tr>
+<tr><th>Colaborador</th><th>Jornada</th><th>Intervalo</th>${days.map(d=>`<th class="${d.getDay()===0?'domingo':''}">${DIA_ABREV[d.getDay()]}</th>`).join('')}</tr>
 <tr><th></th><th></th><th></th>${days.map(d=>`<th class="${(d.getDay()===0||d.getDay()===6)?'dtf':'dt'} ${d.getDay()===0?'domingo':''}">${ddmm(d)}</th>`).join('')}</tr>
 </thead>
 <tbody>${corpo}

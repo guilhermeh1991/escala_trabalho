@@ -267,10 +267,10 @@ function gerarPdfEscala(D, nomeLoja){
   if(days.length > 62) throw new Error('O PDF aceita períodos de até 62 dias.');
   const L = 842, A = 595;
   const margem = 22;
-  const larguraNome = 96, larguraHora = 30, larguraIntervalo = 44;
-  const areaDias = L - margem*2 - larguraNome - larguraHora - larguraIntervalo;
+  const larguraNome = 96, larguraJornada = 58, larguraIntervalo = 44;
+  const areaDias = L - margem*2 - larguraNome - larguraJornada - larguraIntervalo;
   const largDia = areaDias / days.length;
-  const altLinha = 15;
+  const altLinha = 17;
   const topoTabela = 74;
 
   const rodapes = [
@@ -284,7 +284,9 @@ function gerarPdfEscala(D, nomeLoja){
 
   const notaInterjornada = ativos.some(c=>Object.keys((D.interjornadas && D.interjornadas[c.id]) || {}).length);
   const alturaUtil = A - topoTabela - margem - (rodapes.length * altLinha) - 26 - 6*11 - (notaInterjornada ? 10 : 0);
-  const porPagina = Math.max(1, Math.floor(alturaUtil / altLinha));
+  // Reserva duas linhas de respiro para que a última página continue cabendo
+  // quando a equipe alterna entre várias faixas de cargo antes da cobertura.
+  const porPagina = Math.max(1, Math.floor(alturaUtil / altLinha) - 2);
   const paginas = [];
   const totalPag = Math.max(1, Math.ceil(ativos.length / porPagina));
 
@@ -304,12 +306,12 @@ function gerarPdfEscala(D, nomeLoja){
     let y = topoTabela;
     p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.cabecalho);
     p.texto('COLABORADOR', margem + 4, y + 4, {tamanho:6.5, negrito:true, cor:COR_PDF.branco});
-    p.texto('ENTRA', margem + larguraNome + 2, y + 4,
-            {tamanho:6.5, negrito:true, cor:COR_PDF.branco, centro:true, largura:larguraHora});
-    p.texto('INTERVALO', margem + larguraNome + larguraHora, y + 4,
+    p.texto('JORNADA', margem + larguraNome + 2, y + 4,
+            {tamanho:6.5, negrito:true, cor:COR_PDF.branco, centro:true, largura:larguraJornada});
+    p.texto('INTERVALO', margem + larguraNome + larguraJornada, y + 4,
             {tamanho:5.5, negrito:true, cor:COR_PDF.branco, centro:true, largura:larguraIntervalo});
     days.forEach((d,i)=>{
-      const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+      const x = margem + larguraNome + larguraJornada + larguraIntervalo + i*largDia;
       p.texto(DIA_ABREV_PDF[d.getDay()], x, y + 4,
               {tamanho:5.8, negrito:true, cor:COR_PDF.branco, centro:true, largura:largDia});
     });
@@ -317,7 +319,7 @@ function gerarPdfEscala(D, nomeLoja){
     y += altLinha;
     p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.faixa);
     days.forEach((d,i)=>{
-      const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+      const x = margem + larguraNome + larguraJornada + larguraIntervalo + i*largDia;
       if(d.getDay()===0 || d.getDay()===6) p.retangulo(x, y, largDia, altLinha, [0.88,0.91,0.89]);
       p.texto(ddmmPdf(d), x, y + 4, {tamanho:6, negrito:true, centro:true, largura:largDia});
     });
@@ -345,15 +347,16 @@ function gerarPdfEscala(D, nomeLoja){
         p.texto(cortarTexto(descricao, 5, larguraNome - 8, false), margem + 4, y + 9.5,
                 {tamanho:5, cor:COR_PDF.fraco});
       }
-      const horaEntrada = String(D.horaDe ? D.horaDe(c, 0) : '');
-      p.texto(horaEntrada.slice(0,5), margem + larguraNome, y + 4.5,
-              {tamanho:6, cor:COR_PDF.fraco, centro:true, largura:larguraHora});
+      const horaEntrada = String(D.horaDe ? D.horaDe(c, 0) : '').slice(0,5);
+      const horaSaida = String(D.horaSaidaDe ? D.horaSaidaDe(c, 0) : '').slice(0,5);
+      p.texto(horaEntrada + '–' + horaSaida, margem + larguraNome, y + 6.5,
+              {tamanho:5.7, cor:COR_PDF.fraco, centro:true, largura:larguraJornada});
       const intervalo = String(D.intervaloDe ? D.intervaloDe(c) : (c.jornada && c.jornada.intervalo ? c.jornada.intervalo + ' min' : ''));
-      p.texto(cortarTexto(intervalo, 5.2, larguraIntervalo - 3, false), margem + larguraNome + larguraHora, y + 4.5,
+      p.texto(cortarTexto(intervalo, 5.2, larguraIntervalo - 3, false), margem + larguraNome + larguraJornada, y + 6.5,
               {tamanho:5.2, cor:COR_PDF.fraco, centro:true, largura:larguraIntervalo});
 
       days.forEach((d,i)=>{
-        const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+        const x = margem + larguraNome + larguraJornada + larguraIntervalo + i*largDia;
         const cod = (grid[c.id] && grid[c.id][i]) || '';
         const interjornada = D.interjornadas && D.interjornadas[c.id] && D.interjornadas[c.id][i];
         const fds = d.getDay()===0 || d.getDay()===6;
@@ -365,9 +368,12 @@ function gerarPdfEscala(D, nomeLoja){
         } else {
           if(interjornada) p.retangulo(x, y, largDia, altLinha, [0.90,0.90,0.90]);
           else if(fds) p.retangulo(x, y, largDia, altLinha, COR_PDF.fds);
-          const horaDia = String(D.horaDe ? D.horaDe(c, i) : '');
-          p.texto((interjornada?'* ':'') + horaDia.slice(0,5), x, y + 4.5,
-                  {tamanho:5.6, negrito:!!interjornada, cor:interjornada?COR_PDF.texto:COR_PDF.fraco, centro:true, largura:largDia});
+          const horaDia = String(D.horaDe ? D.horaDe(c, i) : '').slice(0,5);
+          const saidaDia = String(D.horaSaidaDe ? D.horaSaidaDe(c, i) : '').slice(0,5);
+          p.texto((interjornada?'* ':'') + horaDia, x, y + 3.6,
+                  {tamanho:5.6, negrito:true, cor:interjornada?COR_PDF.texto:COR_PDF.texto, centro:true, largura:largDia});
+          p.texto(saidaDia, x, y + 11.2,
+                  {tamanho:4.7, cor:COR_PDF.fraco, centro:true, largura:largDia});
         }
         p.linha(x, y, x, y + altLinha, COR_PDF.linha, d.getDay()===0 ? 0.9 : 0.35);
         if(d.getDay()===0) p.linha(x + 1.4, y, x + 1.4, y + altLinha, COR_PDF.texto, 0.35);
@@ -382,7 +388,7 @@ function gerarPdfEscala(D, nomeLoja){
         p.retangulo(margem, y, L - margem*2, altLinha, COR_PDF.faixa);
         p.texto(rot.toUpperCase(), margem + 4, y + 4.5, {tamanho:6, negrito:true, cor:COR_PDF.fraco});
         cob.forEach((c,i)=>{
-          const x = margem + larguraNome + larguraHora + larguraIntervalo + i*largDia;
+          const x = margem + larguraNome + larguraJornada + larguraIntervalo + i*largDia;
           const v = fn(c, i);
           let corFundo = null, corTexto = COR_PDF.texto, marca = '';
           const lim = typeof minimo === 'function' ? minimo(c,i) : minimo;

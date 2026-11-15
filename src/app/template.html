@@ -1449,6 +1449,7 @@ function baixarPdf(){
       return;
     }
     D.horaDe = (c, i) => horaDoDia(c, i);
+    D.horaSaidaDe = (c, i) => horaSaidaDoDia(c, i);
     D.faixaDe = typeof faixaDe === 'function' ? faixaDe : () => 0;
     D.rotuloFaixa = (g) => (typeof FAIXAS_CARGO !== 'undefined' && FAIXAS_CARGO[g] ? FAIXAS_CARGO[g].rotulo : 'Equipe');
     D.descricaoCargo = (c, g) => (typeof descricaoCargoImpressao === 'function'
@@ -2391,6 +2392,10 @@ function dadosDaEscala(){
   const alvoFa = P.minFarma != null ? P.minFarma : 2;
   const alvoSg = P.minSubger != null ? P.minSubger : 1;
   return {days, grid, ativos, P, cob, alvo, alvoFa, alvoSg, interjornadas,
+          horaDe: (c, i)=>horaDoDia(c, i), horaSaidaDe: (c, i)=>horaSaidaDoDia(c, i),
+          faixaDe: c=>faixaDe(c),
+          rotuloFaixa: g=>(FAIXAS_CARGO[g]||FAIXAS_CARGO[FAIXAS_CARGO.length-1]).rotulo,
+          descricaoCargo: (c, g)=>descricaoCargoImpressao(c, (FAIXAS_CARGO[g]||FAIXAS_CARGO[FAIXAS_CARGO.length-1]).chave),
           intervaloDe: c=>intervaloDe(c), intervaloDetalhadoDe: c=>intervaloDe(c, true),
           periodo: ddmm(days[0]) + '/' + days[0].getFullYear() + ' a ' + ddmm(days[days.length-1]) + '/' + days[days.length-1].getFullYear()};
 }
@@ -2402,7 +2407,7 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
   const linhas = [];
   linhas.push([{v:'ESCALA — '+nomeLoja, e:'titulo'}, null, null, null, {v:D.periodo, e:'subtitulo'}]);
   linhas.push([{v:'X folga · FC folga compensatória · F férias · AT atestado · LC licença · * descanso menor que 11h', e:'legenda'}]);
-  linhas.push([{v:'COLABORADOR',e:'cabecalho'},{v:'ENTRA',e:'cabecalho'},{v:'INTERVALO',e:'cabecalho'},{v:'CARGO',e:'cabecalho'}]
+  linhas.push([{v:'COLABORADOR',e:'cabecalho'},{v:'JORNADA',e:'cabecalho'},{v:'INTERVALO',e:'cabecalho'},{v:'CARGO',e:'cabecalho'}]
     .concat(days.map(d=>({v:DIA_ABREV[d.getDay()], e:'cabecalho'}))));
   linhas.push([null,null,null,null].concat(days.map(d=>({v:ddmm(d), e:(d.getDay()===0||d.getDay()===6)?'dataFds':'data'}))));
 
@@ -2413,12 +2418,13 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
       linhas.push([{v:FAIXAS_CARGO[g].rotulo.toUpperCase(), e:'rotulo'}]);
       faixaXls = g;
     }
-    const l = [{v:c.nome, e:'nome'}, {v:horaDoDia(c, 0), e:'hora'}, {v:D.intervaloDe(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
+    const l = [{v:c.nome, e:'nome'}, {v:D.horaDe(c, 0)+'–'+D.horaSaidaDe(c, 0), e:'hora'}, {v:D.intervaloDe(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
     const avisos=(interjornadas&&interjornadas[c.id])||{};
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const fds = (d.getDay()===0 || d.getDay()===6);
-      if(cod === '') l.push({v: (avisos[i]?'* ':'') + horaDoDia(c, i), e: avisos[i]?'interjornada':(fds ? 'trabalhaFds' : 'trabalha')});
+      const turno = D.horaDe(c, i)+'–'+D.horaSaidaDe(c, i);
+      if(cod === '') l.push({v: (avisos[i]?'* ':'') + turno, e: avisos[i]?'interjornada':(fds ? 'trabalhaFds' : 'trabalha')});
       else l.push({v: cod, e: estiloCod[cod] || 'trabalha'});
     });
     linhas.push(l);
@@ -2446,7 +2452,7 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
 
   return {
     aba: 'Escala ' + idLoja,
-    colunas: [24, 8, 13, 15].concat(days.map(()=>4.4)),
+    colunas: [24, 13, 13, 15].concat(days.map(()=>8.5)),
     congelar: {coluna:4, linha:4},
     merges: ['A1:D1'],
     alturas: {0:22, 2:18},
@@ -2469,6 +2475,7 @@ $('#btn-xlsx').onclick = ()=>{
 function htmlDeImpressao(D, nomeLoja){
   const {days, grid, ativos, P, cob, interjornadas} = D;
   const classeStatus = {X:'status-x', FC:'status-fc', F:'status-f', AT:'status-at', LC:'status-lc'};
+  const turnoDia = (c, i) => `${esc(D.horaDe(c, i).slice(0,5))}<small>${esc(D.horaSaidaDe(c, i).slice(0,5))}</small>`;
   const notasInterjornada = [];
   ativos.forEach(c=>Object.values((interjornadas&&interjornadas[c.id])||{}).forEach(a=>notasInterjornada.push(`${c.nome}: ${a.txt}`)));
   let corpo = '';
@@ -2481,14 +2488,15 @@ function htmlDeImpressao(D, nomeLoja){
       faixaImp = g;
     }
     const descricao = descricaoCargoImpressao(c, FAIXAS_CARGO[g].chave);
+    const jornada = `${D.horaDe(c, 0).slice(0,5)}–${D.horaSaidaDe(c, 0).slice(0,5)}`;
     corpo += `<tr><td class="nm${descricao?'':' sem-desc'}">${esc(c.nome)}`
            + `${descricao ? `<span>${esc(descricao)}</span>` : ''}`
-           + `</td><td class="hr">${horaDoDia(c, 0)}</td><td class="iv">${esc(D.intervaloDe(c))}</td>`;
+           + `</td><td class="hr">${esc(jornada)}</td><td class="iv">${esc(D.intervaloDe(c))}</td>`;
     const avisos=(interjornadas&&interjornadas[c.id])||{};
     days.forEach((d,i)=>{
       const v = grid[c.id][i], fds = (d.getDay()===0||d.getDay()===6), dom = d.getDay()===0;
       const cls = (fds?'fds ':'') + (dom?'domingo ':'') + (avisos[i]?' interjornada ':'');
-      if(v==='') corpo += `<td class="${cls}"><i>${avisos[i]?'* ':''}${horaDoDia(c, i)}</i></td>`;
+      if(v==='') corpo += `<td class="${cls}"><i>${avisos[i]?'* ':''}${turnoDia(c, i)}</i></td>`;
       else corpo += `<td class="${cls}${classeStatus[v]||''}">${v}</td>`;
     });
     corpo += '</tr>';
@@ -2510,45 +2518,29 @@ function htmlDeImpressao(D, nomeLoja){
 <style>
 @page{size:A4 landscape;margin:7mm}
 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{margin:0;font:11px/1.3 Arial,Helvetica,sans-serif;color:#16232B}
-h1{font-size:15px;margin:0 0 1px}
-p.sub{margin:0 0 7px;font-size:10px;color:#5b6b66}
+body{margin:0;font:10px/1.25 Arial,Helvetica,sans-serif;color:#16232B}
+h1{font-size:16px;margin:0 0 2px;letter-spacing:-.02em}
+p.sub{margin:0 0 8px;font-size:9px;color:#53665F}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
-thead{display:table-header-group}
-tr{page-break-inside:avoid}
-th,td{border:1px solid #CBD5CE;padding:1px 2px;text-align:center;font-size:8px;height:15px;overflow:hidden}
-th{background:#16232B;color:#fff;font-size:7.5px;text-transform:uppercase}
-th.dt{background:#E7EDE9;color:#16232B;font-weight:700}
-th.dtf{background:#DCE2DE;color:#16232B;font-weight:700}
-th.domingo,td.domingo{border-left:3px double #16232B;border-right:2px solid #16232B}
-td.nm{text-align:left;font-weight:700;font-size:8.5px}
-td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-transform:none}
-td.nm.sem-desc{vertical-align:middle}
-td.hr,td.iv{font-size:7.5px;color:#63736F}
-td.iv{font-size:6.4px}
-td i{font-style:normal;color:#485650}
-td.interjornada{background:#E7E7E7;box-shadow:inset 0 0 0 1px #222;font-weight:700}
-td.fds{background:#F1F1F1}
-td.status-x{font-weight:700;background:repeating-linear-gradient(135deg,#fff 0 3px,#B8B8B8 3px 4px);box-shadow:inset 0 0 0 1px #222}
-td.status-fc{font-weight:700;background:repeating-linear-gradient(45deg,#fff 0 3px,#AAA 3px 4px);box-shadow:inset 0 0 0 1px #444}
-td.status-f{font-weight:700;background:#fff;box-shadow:inset 0 0 0 2px #111}
-td.status-at{font-weight:700;background:#CFCFCF;box-shadow:inset 0 0 0 2px #111;position:relative}
-td.status-at::after{content:'+';position:absolute;right:2px;top:0;font-size:7px}
-td.status-lc{font-weight:700;background:repeating-linear-gradient(0deg,#fff 0 3px,#B4B4B4 3px 4px);box-shadow:inset 0 0 0 1px #222}
-tr.gr td{background:#E3E3E3;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#333;text-align:left;height:12px}
-tr.rp td{background:#ECECEC;font-weight:600;font-size:8px}
-tr.rp td.nm{font-size:7.5px;text-transform:uppercase}
-tr.rp td.minimo{background:#BDBDBD;color:#111;font-weight:700;box-shadow:inset 0 0 0 2px #111}
-tr.rp td.alvo{background:#E2E2E2;color:#111;font-weight:700;box-shadow:inset 0 0 0 1px #555}
-.lg{margin-top:6px;font-size:8px;color:#333}
-.lg b{display:inline-block;width:11px;height:8px;border:1px solid #444;margin:0 3px 0 9px}
+thead{display:table-header-group}tr{page-break-inside:avoid}
+th,td{border:1px solid #CBD5CE;padding:1px 2px;text-align:center;font-size:7.4px;height:21px;overflow:hidden}
+th{background:#12262D;color:#fff;font-size:7px;letter-spacing:.045em;text-transform:uppercase}
+th.dt{background:#E7EDE9;color:#16232B;font-weight:700}th.dtf{background:#DCE8E2;color:#16232B;font-weight:700}
+th.domingo,td.domingo{border-left:3px double #12262D;border-right:2px solid #12262D}
+td.nm{text-align:left;font-weight:700;font-size:8.5px;padding-left:4px}td.nm span{display:block;font-weight:400;font-size:6.5px;color:#63736F;text-transform:none}td.nm.sem-desc{vertical-align:middle}
+td.hr,td.iv{font-size:6.7px;color:#53665F;font-weight:600}td.iv{font-size:6.2px;font-weight:400}
+td i{display:block;font-style:normal;line-height:1.08;color:#16232B;font-weight:700;font-variant-numeric:tabular-nums}td i small{display:block;font-size:6px;color:#63736F;font-weight:400}
+td.interjornada{background:#E7E7E7;box-shadow:inset 0 0 0 1px #222;font-weight:700}td.fds{background:#F1F4F2}
+td.status-x{font-weight:700;background:repeating-linear-gradient(135deg,#fff 0 3px,#B8D8C6 3px 4px);box-shadow:inset 0 0 0 1px #14663F;color:#14663F}td.status-fc{font-weight:700;background:repeating-linear-gradient(45deg,#fff 0 3px,#E6CF95 3px 4px);box-shadow:inset 0 0 0 1px #8A5E06;color:#8A5E06}td.status-f{font-weight:700;background:#E1EBF3;box-shadow:inset 0 0 0 2px #1F5580;color:#1F5580}td.status-at{font-weight:700;background:#F0D9D5;box-shadow:inset 0 0 0 2px #96332A;color:#96332A;position:relative}td.status-at::after{content:'+';position:absolute;right:2px;top:0;font-size:7px}td.status-lc{font-weight:700;background:repeating-linear-gradient(0deg,#fff 0 3px,#D1C7E8 3px 4px);box-shadow:inset 0 0 0 1px #50407E;color:#50407E}
+tr.gr td{background:#EAF0ED;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#38524A;text-align:left;height:13px;padding-left:4px}tr.rp td{background:#EFF4F1;font-weight:600;font-size:7.5px}tr.rp td.nm{font-size:7px;text-transform:uppercase}tr.rp td.minimo{background:#F3DBD7;color:#96332A;font-weight:700;box-shadow:inset 0 0 0 2px #96332A}tr.rp td.alvo{background:#F6E7C4;color:#8A5E06;font-weight:700;box-shadow:inset 0 0 0 1px #8A5E06}
+.lg{margin-top:7px;font-size:7.5px;line-height:1.5;color:#354640}.lg b{display:inline-block;width:11px;height:8px;border:1px solid #444;margin:0 3px 0 9px;vertical-align:-1px}
 </style></head><body>
 <h1>Escala — ${esc(nomeLoja)}</h1>
-<p class="sub">${D.periodo} &nbsp;·&nbsp; ${ativos.length} colaboradores &nbsp;·&nbsp; emitida em ${new Date().toLocaleDateString('pt-BR')}</p>
+<p class="sub">${D.periodo} &nbsp;·&nbsp; ${ativos.length} colaboradores &nbsp;·&nbsp; turnos, pausas e cobertura do período &nbsp;·&nbsp; emitida em ${new Date().toLocaleDateString('pt-BR')}</p>
 <table>
-<colgroup><col style="width:14%"><col style="width:5%"><col style="width:7%">${days.map(()=>`<col style="width:${(74/days.length).toFixed(3)}%">`).join('')}</colgroup>
+<colgroup><col style="width:17%"><col style="width:9%"><col style="width:8%">${days.map(()=>`<col style="width:${(66/days.length).toFixed(3)}%">`).join('')}</colgroup>
 <thead>
-<tr><th>Colaborador</th><th>Entra</th><th>Intervalo</th>${days.map(d=>`<th class="${d.getDay()===0?'domingo':''}">${DIA_ABREV[d.getDay()]}</th>`).join('')}</tr>
+<tr><th>Colaborador</th><th>Jornada</th><th>Intervalo</th>${days.map(d=>`<th class="${d.getDay()===0?'domingo':''}">${DIA_ABREV[d.getDay()]}</th>`).join('')}</tr>
 <tr><th></th><th></th><th></th>${days.map(d=>`<th class="${(d.getDay()===0||d.getDay()===6)?'dtf':'dt'} ${d.getDay()===0?'domingo':''}">${ddmm(d)}</th>`).join('')}</tr>
 </thead>
 <tbody>${corpo}
