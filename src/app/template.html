@@ -38,36 +38,42 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .cel-editada{position:relative}
 .cel-editada::after{content:'';position:absolute;top:3px;right:3px;width:5px;height:5px;background:var(--teal);
   border-radius:50%;box-shadow:0 0 0 2px #fff}
-#pop-cel{position:absolute;z-index:60;width:320px;max-width:calc(100vw - 16px);background:#fff;border:1px solid var(--linha);
-  border-radius:var(--radius-lg);box-shadow:var(--sombra-alta);overflow:hidden;font-size:13px}
-#pop-cel .pc-topo{padding:11px 14px;border-bottom:1px solid var(--linha-suave);background:var(--superficie)}
-#pop-cel .pc-nome{font-weight:600;font-size:13px}
-#pop-cel .pc-data{font-size:12px;color:var(--fraco)}
-#pop-cel .pc-corpo{padding:12px 14px}
-#pop-cel .pc-rot{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#62736E;margin-bottom:8px}
-#pop-cel .pc-equipe{padding:8px 10px;margin-bottom:10px;border:1px solid var(--linha-suave);border-radius:6px;background:var(--superficie)}
+#pop-cel-fundo{position:fixed;z-index:60;inset:0;display:grid;place-items:center;padding:20px;background:rgba(18,38,45,.38);overflow:auto}
+#pop-cel{position:relative;width:380px;max-width:100%;max-height:calc(100vh - 40px);background:#fff;border:1px solid var(--linha);
+  border-radius:var(--radius-lg);box-shadow:var(--sombra-alta);overflow:auto;font-size:13px}
+#pop-cel .pc-topo{padding:14px 16px 12px;border-bottom:1px solid var(--linha-suave);background:var(--superficie)}
+#pop-cel .pc-nome{font-family:Archivo,Inter,sans-serif;font-weight:700;font-size:15px;letter-spacing:-.01em}
+#pop-cel .pc-data{margin-top:2px;font-size:12px;color:var(--fraco)}
+#pop-cel .pc-corpo{padding:14px 16px}
+#pop-cel .pc-rot{font-size:10.5px;font-weight:700;letter-spacing:.065em;text-transform:uppercase;color:#62736E;margin-bottom:7px}
+#pop-cel .pc-equipe{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:2px 12px;padding:9px 10px;margin-bottom:12px;border:1px solid #CDE3DD;border-radius:6px;background:var(--teal-suave)}
+#pop-cel .pc-equipe .pc-rot{grid-column:1/-1;margin:0}
 #pop-cel .pc-equipe-hora{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--texto)}
-#pop-cel .pc-equipe-meta{margin-top:2px;font-size:11.5px;color:var(--fraco);line-height:1.35}
-#pop-cel .pc-select{width:100%;padding:7px 8px;margin-bottom:10px;border:1px solid var(--linha);border-radius:6px;
+#pop-cel .pc-equipe-meta{margin:0;text-align:right;font-size:11.5px;color:var(--fraco);line-height:1.35}
+#pop-cel .pc-select{width:100%;padding:7px 8px;margin-bottom:12px;border:1px solid var(--linha);border-radius:6px;
   background:#fff;color:var(--texto);font-size:12.5px}
-#pop-cel .pc-sugestoes{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:10px}
-#pop-cel .pc-sug{padding:6px 8px;border:1px solid var(--linha);border-radius:6px;background:#fff;
-  font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--texto);cursor:pointer;text-align:center}
+#pop-cel .pc-sugestoes{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:12px}
+#pop-cel .pc-sug{min-height:32px;padding:5px 4px;border:1px solid var(--linha);border-radius:6px;background:#fff;
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--texto);cursor:pointer;text-align:center}
 #pop-cel .pc-sug:hover{border-color:var(--teal);color:var(--teal)}
-#pop-cel .pc-sug.ativo{background:var(--teal-suave);border-color:var(--teal);color:var(--teal-escuro);font-weight:600}
-#pop-cel .pi-campos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+#pop-cel .pc-sug.ativo{background:var(--teal-suave);border-color:var(--teal);color:var(--teal-escuro);font-weight:600;box-shadow:inset 0 0 0 1px var(--teal)}
+#pop-cel .pi-campos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 #pop-cel .pi-campo label{display:block;margin:0 0 4px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco)}
 #pop-cel .pi-campo input[type=time]{width:100%}
-#pop-cel .pc-linha{display:flex;gap:6px;align-items:center;margin-bottom:8px}
-#pop-cel input[type=time]{flex:1;padding:7px 8px;border:1px solid var(--linha);border-radius:6px;
+#pop-cel .pc-linha{display:flex;gap:6px;align-items:center;margin-bottom:10px}
+#pop-cel input[type=time]{flex:1;padding:8px;border:1px solid var(--linha);border-radius:6px;
   font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--texto)}
-#pop-cel .pc-aplicar{padding:7px 12px;border:0;border-radius:6px;background:var(--texto);color:#fff;
-  font-size:12.5px;font-weight:500;cursor:pointer}
+#pop-cel .pc-aplicar{padding:8px 12px;border:0;border-radius:6px;background:var(--teal);color:#fff;
+  font-size:12.5px;font-weight:600;cursor:pointer}
+#pop-cel .pc-aplicar:hover{background:var(--teal-escuro)}
 #pop-cel .pc-dias{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:8px}
 #pop-cel .pc-dia{padding:6px 2px;border:1px solid var(--linha);border-radius:20px;background:#fff;
   font-size:12px;font-weight:600;cursor:pointer;color:var(--fraco);text-align:center}
 #pop-cel .pc-dia:hover{border-color:var(--teal);color:var(--teal)}
 #pop-cel .pc-dia.ativo{background:var(--teal);border-color:var(--teal);color:#fff}
+#pop-cel .pc-nao-trabalha{margin:0;border-top:1px solid var(--linha-suave);padding-top:10px}
+#pop-cel .pc-nao-trabalha summary{color:var(--fraco);font-size:12px;font-weight:600;cursor:pointer}
+#pop-cel .pc-nao-trabalha[open] summary{margin-bottom:10px;color:var(--texto)}
 #pop-cel .pc-repetir{display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:11.5px;color:var(--fraco);cursor:pointer}
 #pop-cel .pc-repetir input{accent-color:var(--teal);width:14px;height:14px}
 #pop-cel .pc-aviso-descanso{display:none;margin:8px 0 0;padding:8px 9px;border:1px solid #E4B7B1;border-radius:6px;background:var(--r-bg);color:var(--r-fg);font-size:11.5px;line-height:1.4}
@@ -77,11 +83,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
   border-radius:6px;background:#fff;font-size:12px;cursor:pointer;text-align:left}
 #pop-cel .pc-cod:hover{border-color:var(--teal)}
 #pop-cel .pc-cod b{width:13px;height:13px;border-radius:3px;flex-shrink:0}
-#pop-cel .pc-rodape{padding:9px 14px;border-top:1px solid var(--linha-suave);background:var(--superficie);
+#pop-cel .pc-rodape{padding:10px 16px;border-top:1px solid var(--linha-suave);background:var(--superficie);
   display:flex;justify-content:space-between;align-items:center;gap:10px}
 #pop-cel .pc-link{border:0;background:none;color:var(--fraco);font-size:12px;cursor:pointer;padding:0}
 #pop-cel .pc-link:hover{color:var(--texto)}
 #pop-cel .pc-link.pc-voltar{text-decoration:underline}
+@media(max-width:420px){#pop-cel-fundo{padding:10px}#pop-cel{max-height:calc(100vh - 20px)}}
 
 /* ---------- escalas salvas ---------- */
 .salva{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--linha)}
@@ -339,14 +346,14 @@ table.esc thead tr.datas th.hr{background:#F6F8F7}
 
 /* coluna 3 — intervalo. Propriedade da pessoa, mostrada uma vez em vez de
    repetir a pausa em cada um dos 31 dias da grade. */
-table.esc th.intervalo,table.esc td.intervalo{position:sticky;left:calc(var(--w-nome) + var(--w-hora));z-index:2;background:#fff;
-  font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--fraco);padding:0 6px;text-align:center;
+table.esc th.intervalo,table.esc td.intervalo{position:sticky;left:calc(var(--w-nome) + var(--w-hora));z-index:2;background:#EDF7F4;
+  font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--teal-escuro);padding:0 6px;text-align:center;
   width:var(--w-intervalo);min-width:var(--w-intervalo);max-width:var(--w-intervalo);box-sizing:border-box;
   overflow:hidden;text-overflow:ellipsis}
 table.esc td.intervalo[data-id]{cursor:pointer;user-select:none;transition:background-color .12s ease,box-shadow .12s ease,color .12s ease}
-table.esc td.intervalo[data-id]:hover{color:var(--teal-escuro);background-color:var(--teal-suave);box-shadow:inset 0 0 0 2px var(--teal)}
-table.esc thead th.intervalo{z-index:5;background:#EFF4F1}
-table.esc thead tr.datas th.intervalo{background:#F6F8F7}
+table.esc td.intervalo[data-id]:hover{color:var(--teal-escuro);background-color:#DDF1EC;box-shadow:inset 0 0 0 2px var(--teal)}
+table.esc thead th.intervalo{z-index:5;background:#DDEEE9;color:var(--teal-escuro);box-shadow:inset 0 -2px 0 var(--teal)}
+table.esc thead tr.datas th.intervalo{background:#EDF7F4}
 /* sombra na divisa, para ficar claro que a tabela corre para o lado */
 table.esc th.intervalo::after,table.esc td.intervalo::after{content:'';position:absolute;top:0;right:0;bottom:0;
   width:6px;transform:translateX(100%);pointer-events:none;
@@ -376,12 +383,16 @@ td.cel.interjornada .hora-interjornada{color:var(--r-fg);font-weight:700}
 td.cel.interjornada .marca-interjornada{position:absolute;right:3px;top:1px;color:var(--r-fg);font-size:10px;font-style:normal;font-weight:800;line-height:1}
 tr.sep td{height:6px;background:var(--fundo);border:0}
 tr.sep td.fixa,tr.sep td.hr,tr.sep td.intervalo{background:var(--fundo);border:0}
+tfoot tr.cobertura-separador td{height:22px;padding:0;border:0;background:#fff;position:static}
+tfoot tr.cobertura-separador td.fixa{position:sticky;left:0;z-index:5;padding:0 10px;background:#fff;text-align:left;
+  font-family:Inter;font-weight:700;font-size:10px;letter-spacing:.075em;text-transform:uppercase;color:var(--fraco)}
+tfoot tr.cobertura-separador td.fixa::after{content:'';display:inline-block;width:calc(100% - 103px);height:1px;margin-left:10px;vertical-align:middle;background:var(--linha)}
 tfoot td{font-size:11px;text-align:center;font-family:'JetBrains Mono',monospace;background:#EFF4F1;height:25px}
 tfoot td{position:sticky;bottom:0;z-index:3}
 tfoot td.fixa{position:sticky;left:0;z-index:5;font-family:Inter;font-weight:700;font-size:10.5px;
   text-transform:uppercase;letter-spacing:.055em;color:#52665F;background:#EFF4F1}
 tfoot td.hr{position:sticky;left:var(--w-nome);z-index:5;background:#EFF4F1}
-tfoot td.intervalo{position:sticky;left:calc(var(--w-nome) + var(--w-hora));z-index:5;background:#EFF4F1}
+tfoot td.intervalo{position:sticky;left:calc(var(--w-nome) + var(--w-hora));z-index:5;background:#EDF7F4}
 tfoot td.furo{background:var(--r-bg);color:var(--r-fg);font-weight:700;box-shadow:inset 0 0 0 1px rgba(150,58,50,.13)}
 tfoot td.leve{background:var(--m-bg);color:var(--m-fg);font-weight:600}
 th.domingo{color:var(--texto);background:#F8F3E3!important}
@@ -1662,15 +1673,18 @@ function definirHora(id, i, valor){
 
 /* ---------- pop-up de edição da célula ---------- */
 function fecharPopupCelula(){
+  const fundo = document.getElementById('pop-cel-fundo');
   const p = document.getElementById('pop-cel');
-  if(p) p.remove();
+  if(fundo) fundo.remove();
+  else if(p) p.remove();
   document.removeEventListener('keydown', _escFecha, true);
   document.removeEventListener('click', _foraFecha, true);
 }
 function _escFecha(e){ if(e.key === 'Escape'){ e.stopPropagation(); fecharPopupCelula(); } }
 function _foraFecha(e){
+  const fundo = document.getElementById('pop-cel-fundo');
   const p = document.getElementById('pop-cel');
-  if(p && !p.contains(e.target)) fecharPopupCelula();
+  if(!fundo && p && !p.contains(e.target)) fecharPopupCelula();
 }
 
 function abrirPopupCelula(td){
@@ -1681,7 +1695,6 @@ function abrirPopupCelula(td){
   const colabEquipe = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)
     && loja().colabs.find(x=>x.id===id)) || c;
   const jEquipe = jornadaDe(colabEquipe);
-  const modeloEquipe = MODELOS_JORNADA.find(x=>x.id===jEquipe.modelo);
   const horarioEquipe = (colabEquipe.horario || textoJornada(jEquipe) || '').trim() || 'Não informado';
   const dia = S.res.days[i];
   const cod = S.res.grid[id][i];
@@ -1748,9 +1761,9 @@ function abrirPopupCelula(td){
     </div>
     <div class="pc-corpo">
       <div class="pc-equipe">
-        <div class="pc-rot" style="margin-bottom:2px">Horário estabelecido na equipe</div>
+        <div class="pc-rot">Horário da equipe</div>
         <div class="pc-equipe-hora">${esc(horarioEquipe)}</div>
-        <div class="pc-equipe-meta">${esc(modeloEquipe ? modeloEquipe.nome : 'Horário configurado na aba Equipe')} · Intervalo: <span id="pc-intervalo">${esc(intervalo)}</span></div>
+        <div class="pc-equipe-meta">Intervalo: <span id="pc-intervalo">${esc(intervalo)}</span></div>
       </div>
       <div class="pc-rot">Horários disponíveis</div>
       <select class="pc-select" id="pc-horario-disp" aria-label="Horários disponíveis">
@@ -1776,14 +1789,16 @@ function abrirPopupCelula(td){
       <div class="pc-aviso-descanso" id="pc-aviso-descanso" role="status" aria-live="polite"></div>
     </div>
     <div class="pc-corpo" style="padding-top:0">
-      <div class="pc-rot">Não trabalha</div>
-      <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
-        repetir deste dia até o fim do período</label>
-      <div class="pc-codigos">
-        ${CODIGOS.map(([k,rot,bg,fg],n)=>
-          `<button class="pc-cod" data-cod="${k}"${n===4?' style="grid-column:span 2"':''}>
-             <b style="background:${bg};border:1px solid ${fg}"></b>${rot}</button>`).join('')}
-      </div>
+      <details class="pc-nao-trabalha">
+        <summary>Não trabalha neste dia</summary>
+        <label class="pc-repetir"><input type="checkbox" id="pc-repetir">
+          repetir deste dia até o fim do período</label>
+        <div class="pc-codigos">
+          ${CODIGOS.map(([k,rot,bg,fg],n)=>
+            `<button class="pc-cod" data-cod="${k}"${n===4?' style="grid-column:span 2"':''}>
+               <b style="background:${bg};border:1px solid ${fg}"></b>${rot}</button>`).join('')}
+        </div>
+      </details>
     </div>
     <div class="pc-rodape">
       ${(cod!=='' || ajustada!=null)
@@ -1792,20 +1807,11 @@ function abrirPopupCelula(td){
       <button class="pc-link" id="pc-fechar">Fechar</button>
     </div>`;
 
-  document.body.appendChild(pop);
-
-  // posicionar junto da célula, sem sair da janela
-  const r = td.getBoundingClientRect();
-  const lp = pop.getBoundingClientRect();
-  let esq = r.left + window.scrollX;
-  let topo = r.bottom + window.scrollY + 6;
-  if(esq + lp.width > window.scrollX + document.documentElement.clientWidth - 10)
-    esq = window.scrollX + document.documentElement.clientWidth - lp.width - 10;
-  if(esq < window.scrollX + 8) esq = window.scrollX + 8;
-  if(r.bottom + lp.height + 12 > document.documentElement.clientHeight)
-    topo = r.top + window.scrollY - lp.height - 6;
-  pop.style.left = esq + 'px';
-  pop.style.top  = Math.max(window.scrollY + 8, topo) + 'px';
+  const fundo = document.createElement('div');
+  fundo.id = 'pop-cel-fundo';
+  fundo.appendChild(pop);
+  document.body.appendChild(fundo);
+  fundo.addEventListener('click', e=>{ if(e.target === fundo) fecharPopupCelula(); });
 
   const aplicar = ()=>{
     validarEscalaAtual();
@@ -2017,9 +2023,9 @@ function abrirPopupIntervalo(td){
     </div>
     <div class="pc-corpo">
       <div class="pc-equipe">
-        <div class="pc-rot" style="margin-bottom:2px">Intervalo sugerido pela jornada</div>
+        <div class="pc-rot">Intervalo sugerido pela jornada</div>
         <div class="pc-equipe-hora">${esc(sugeridoTexto)}</div>
-        <div class="pc-equipe-meta">Escolha uma sugestão abaixo ou defina o horário ideal.</div>
+        <div class="pc-equipe-meta">Jornada: ${esc(horarioEquipe)}</div>
       </div>
       <div class="pc-rot">Sugestões rápidas (1h)</div>
       <div class="pc-sugestoes">
@@ -2046,19 +2052,11 @@ function abrirPopupIntervalo(td){
       <button class="pc-link" id="pc-fechar">Fechar</button>
     </div>`;
 
-  document.body.appendChild(pop);
-
-  const r = td.getBoundingClientRect();
-  const lp = pop.getBoundingClientRect();
-  let esq = r.left + window.scrollX;
-  let topo = r.bottom + window.scrollY + 6;
-  if(esq + lp.width > window.scrollX + document.documentElement.clientWidth - 10)
-    esq = window.scrollX + document.documentElement.clientWidth - lp.width - 10;
-  if(esq < window.scrollX + 8) esq = window.scrollX + 8;
-  if(r.bottom + lp.height + 12 > document.documentElement.clientHeight)
-    topo = r.top + window.scrollY - lp.height - 6;
-  pop.style.left = esq + 'px';
-  pop.style.top  = Math.max(window.scrollY + 8, topo) + 'px';
+  const fundo = document.createElement('div');
+  fundo.id = 'pop-cel-fundo';
+  fundo.appendChild(pop);
+  document.body.appendChild(fundo);
+  fundo.addEventListener('click', e=>{ if(e.target === fundo) fecharPopupCelula(); });
 
   const ini1$ = document.getElementById('pi-ini1');
   const fim1$ = document.getElementById('pi-fim1');
@@ -2302,6 +2300,7 @@ function pintarGrade(){
     h += `<td class="cel" style="cursor:default;font-weight:600">${grid[c.id].filter(v=>v==='X'||v==='FC').length}</td></tr>`;
   });
   h += '</tbody><tfoot>';
+  h += `<tr class="cobertura-separador"><td class="fixa">Cobertura do dia</td><td class="hr"></td><td class="intervalo"></td><td colspan="${days.length+1}"></td></tr>`;
   const cob = S.val.cobertura;
   const linhaFoot = (rot, f, min) => {
     let s = `<tr><td class="fixa">${rot}</td><td class="hr"></td><td class="intervalo"></td>`;
