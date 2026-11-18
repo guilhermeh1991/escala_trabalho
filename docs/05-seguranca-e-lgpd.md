@@ -81,7 +81,7 @@ Quem cria a empresa vira `admin`. Quem entra por código de convite vira
 
 A tabela `registro_acoes` guarda quem gerou ou alterou cada escala e quando.
 Atende ao dever de rastreabilidade e resolve a pergunta prática de "quem mudou
-a folga da Renata".
+a folga de um colaborador específico".
 
 ## Dados pessoais
 

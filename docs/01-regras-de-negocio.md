@@ -134,7 +134,7 @@ cobre. O sistema concede a folga e marca o dia.
 O alvo não é distribuição plana, e sim a **curva de movimento da loja**. Esta
 foi extraída das planilhas históricas:
 
-| | Loja 330 | Loja 332 |
+| | Unidade Aurora | Unidade Horizonte |
 |---|---|---|
 | Dia mais cheio | terça, 11 pessoas | terça, quinta e sábado, 12,8 |
 | Dia mais vazio | domingo, 7,3 | sexta, 9,2 |

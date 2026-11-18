@@ -99,7 +99,7 @@ R2=$(chamar "$COOKIES_B" auth.php '{"acao":"recuperar","email":"naoexiste@teste.
 echo ""
 echo "=== 6. Empresa e convite ==="
 CSRF_A=$(chamar "$COOKIES_A" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
-R=$(chamar "$COOKIES_A" auth.php '{"acao":"criar_empresa","nome":"Drogaria A","chave":"teste-ci-123","loja":"Loja 330"}' "$CSRF_A")
+R=$(chamar "$COOKIES_A" auth.php '{"acao":"criar_empresa","nome":"Drogaria A","chave":"teste-ci-123","loja":"Loja Teste A"}' "$CSRF_A")
 echo "$R" | grep -q '"ok":true' && ok "empresa criada" || falha "criar empresa: $R"
 CONVITE_A=$(echo "$R" | grep -o '"codigo_convite":"[^"]*"' | cut -d'"' -f4)
 EMPRESA_A=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4); LOJA_A=$(echo "$R" | grep -o '"loja_id":"[^"]*"' | cut -d'"' -f4)
@@ -122,15 +122,15 @@ EMPRESA_B=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4)
 
 echo ""
 echo "=== 8. Dados: criar loja e salvar equipe ==="
-R=$(chamar "$COOKIES_A" dados.php '{"acao":"criar_loja","nome":"Loja 330"}' "$CSRF_A")
+R=$(chamar "$COOKIES_A" dados.php '{"acao":"criar_loja","nome":"Loja Teste A"}' "$CSRF_A")
 LOJA_A2=$(echo "$R" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
 echo "$R" | grep -q "uma loja s" && ok "criar_loja bloqueado: conta presa a uma loja" || falha "criar_loja nao foi bloqueado: $R"
 
 PAYLOAD=$(cat <<JSON
-{"acao":"salvar","lojas":{"$LOJA_A":{"nome":"Loja 330","_ordem":0,"params":{"modelo":"5x2"},
-"colabs":[{"nome":"GUILHERME","cargo":"GERENTE","horario":"07:00 AS 16:24","jornada":{"modelo":"gerente-1","entrada":"07:00","saida":"16:24","intervalo":60},"gerente":true,"ativo":true,
+{"acao":"salvar","lojas":{"$LOJA_A":{"nome":"Loja Teste A","_ordem":0,"params":{"modelo":"5x2"},
+"colabs":[{"nome":"COLABORADOR A","cargo":"GERENTE","horario":"07:00 AS 16:24","jornada":{"modelo":"gerente-1","entrada":"07:00","saida":"16:24","intervalo":60},"gerente":true,"ativo":true,
 "folgaFixa":null,"primeiroDomingo":null,"ausencias":[]},
-{"nome":"RENATA","cargo":"SUBGERENTE","horario":"10:00","gerente":false,"ativo":true,
+{"nome":"COLABORADORA B","cargo":"SUBGERENTE","horario":"10:00","gerente":false,"ativo":true,
 "folgaFixa":1,"primeiroDomingo":"2026-08-16","ausencias":[{"tipo":"F","ini":"2026-08-20","fim":"2026-08-25"}]}]}}}
 JSON
 )
@@ -142,7 +142,7 @@ NA=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM ausenc
 [ "$NA" = "1" ] && ok "ausência gravada" || falha "ausências: $NA"
 
 R=$(chamar "$COOKIES_A" dados.php '{"acao":"carregar"}' "$CSRF_A")
-echo "$R" | grep -q "RENATA" && ok "carregamento devolve a equipe" || falha "carregar: $R"
+echo "$R" | grep -q "COLABORADORA B" && ok "carregamento devolve a equipe" || falha "carregar: $R"
 echo "$R" | grep -q '"folgaFixa":1' && ok "folga fixa preservada" || falha "folga fixa perdida"
 echo "$R" | grep -q '"primeiroDomingo":"2026-08-16"' && ok "domingo de folga preservado" || falha "domingo de folga perdido"
 echo "$R" | grep -q '"modelo":"gerente-1"' && ok "jornada estruturada preservada" || falha "jornada estruturada perdida"
@@ -150,7 +150,7 @@ echo "$R" | grep -q '"modelo":"gerente-1"' && ok "jornada estruturada preservada
 echo ""
 echo "=== 9. ISOLAMENTO ENTRE EMPRESAS (o teste que mais importa) ==="
 R=$(chamar "$COOKIES_B" dados.php '{"acao":"carregar"}' "$CSRF_B")
-echo "$R" | grep -q "RENATA" && falha "empresa B ENXERGOU dados da empresa A" || ok "empresa B não vê dados da empresa A"
+echo "$R" | grep -q "COLABORADORA B" && falha "empresa B ENXERGOU dados da empresa A" || ok "empresa B não vê dados da empresa A"
 
 R=$(chamar "$COOKIES_B" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"x\":1}}" "$CSRF_B")
 echo "$R" | grep -q "não encontrada" && ok "empresa B barrada ao gravar na loja da empresa A" || falha "B gravou na loja de A: $R"
@@ -165,7 +165,7 @@ PAYLOAD_INVASAO="{\"acao\":\"salvar\",\"lojas\":{\"$LOJA_A\":{\"nome\":\"INVADID
 R=$(chamar "$COOKIES_B" dados.php "$PAYLOAD_INVASAO" "$CSRF_B")
 echo "$R" | grep -qE "outra empresa|fora do seu acesso" && ok "empresa B barrada ao sobrescrever loja da empresa A" || falha "B sobrescreveu loja de A: $R"
 NOME=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT nome FROM lojas WHERE id='$LOJA_A';")
-[ "$NOME" = "Loja 330" ] && ok "nome da loja intacto após tentativa" || falha "loja renomeada para: $NOME"
+[ "$NOME" = "Loja Teste A" ] && ok "nome da loja intacto após tentativa" || falha "loja renomeada para: $NOME"
 
 echo ""
 echo "=== 10. Escala ==="

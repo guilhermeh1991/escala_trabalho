@@ -105,24 +105,27 @@ const mk = l => l.map((r, i) => ({
   diasDesdeFolga: null, folgaFixa: null, primeiroDomingo: null
 }));
 
+/* Equipes fictícias que reproduzem a composição de cargos e jornadas das duas
+   curvas de movimento usadas na regressão. Os nomes são identificadores de
+   teste, não pessoas. */
 const L330 = mk([
-  ['GUILHERME','GERENTE','07:00 AS 16:20',true], ['RENATA','SUBGERENTE','10:00 AS 18:20'],
-  ['QUESNEL','SUBGERENTE','14:40 AS 23:00'], ['ROBERTA','FARMACÊUTICO','07:00 AS 15:20'],
-  ['PRISCILA','FARMACÊUTICO','11:00 AS 19:20'], ['MIANGUE','FARMACÊUTICO','14:40 AS 23:00'],
-  ['JESSICA','BALCONISTA','08:00 AS 16:20'], ['LUCAS ARAUJO','BALCONISTA','10:00 AS 18:20'],
-  ['MIRIÃ','CAIXA','07:00 AS 15:20'], ['JULIA','CAIXA','11:00 AS 19:20'],
-  ['GIANE','CAIXA','13:00 AS 21:20'], ['LUCAS HATEWA','CAIXA','14:40 AS 23:00'],
-  ['LORENZO','AX. LOJA','09:00 AS 18:00']
+  ['COLABORADOR 01','GERENTE','07:00 AS 16:20',true], ['COLABORADOR 02','SUBGERENTE','10:00 AS 18:20'],
+  ['COLABORADOR 03','SUBGERENTE','14:40 AS 23:00'], ['COLABORADOR 04','FARMACÊUTICO','07:00 AS 15:20'],
+  ['COLABORADOR 05','FARMACÊUTICO','11:00 AS 19:20'], ['COLABORADOR 06','FARMACÊUTICO','14:40 AS 23:00'],
+  ['COLABORADOR 07','BALCONISTA','08:00 AS 16:20'], ['COLABORADOR 08','BALCONISTA','10:00 AS 18:20'],
+  ['COLABORADOR 09','CAIXA','07:00 AS 15:20'], ['COLABORADOR 10','CAIXA','11:00 AS 19:20'],
+  ['COLABORADOR 11','CAIXA','13:00 AS 21:20'], ['COLABORADOR 12','CAIXA','14:40 AS 23:00'],
+  ['COLABORADOR 13','AX. LOJA','09:00 AS 18:00']
 ]);
 const L332 = mk([
-  ['MAYARA','GERENTE','07:00 AS 16:20',true], ['MIRIAN','SUB/FARMA','07:00 AS 15:20'],
-  ['VANDERLEIA','SUBGERENTE','14:40 AS 23:00'], ['EDUARDA','SUBGERENTE','14:40 AS 23:00'],
-  ['LETICIA','FARMACÊUTICO','11:00 AS 19:20'], ['ANA PAULA','FARMACÊUTICO','14:40 AS 23:00'],
-  ['MARIA','BALCONISTA','09:00 AS 18:00'], ['ANNA','BALCONISTA','12:00 AS 20:20'],
-  ['RAQUEL','CAIXA','07:00 AS 15:20'], ['NICOLE','CAIXA','07:00 AS 15:20'],
-  ['FELIPE','CAIXA','13:00 AS 21:20'], ['ELOISA','CAIXA','14:40 AS 23:00'],
-  ['ESMERALDA','CAIXA','14:40 AS 23:00'], ['ALINE','CAIXA','14:40 AS 23:00'],
-  ['LIVIA','REPOSITOR','08:00 AS 17:00'], ['ROSA','AX. LOJA','08:00 AS 17:00']
+  ['COLABORADOR 14','GERENTE','07:00 AS 16:20',true], ['COLABORADOR 15','SUB/FARMA','07:00 AS 15:20'],
+  ['COLABORADOR 16','SUBGERENTE','14:40 AS 23:00'], ['COLABORADOR 17','SUBGERENTE','14:40 AS 23:00'],
+  ['COLABORADOR 18','FARMACÊUTICO','11:00 AS 19:20'], ['COLABORADOR 19','FARMACÊUTICO','14:40 AS 23:00'],
+  ['COLABORADOR 20','BALCONISTA','09:00 AS 18:00'], ['COLABORADOR 21','BALCONISTA','12:00 AS 20:20'],
+  ['COLABORADOR 22','CAIXA','07:00 AS 15:20'], ['COLABORADOR 23','CAIXA','07:00 AS 15:20'],
+  ['COLABORADOR 24','CAIXA','13:00 AS 21:20'], ['COLABORADOR 25','CAIXA','14:40 AS 23:00'],
+  ['COLABORADOR 26','CAIXA','14:40 AS 23:00'], ['COLABORADOR 27','CAIXA','14:40 AS 23:00'],
+  ['COLABORADOR 28','REPOSITOR','08:00 AS 17:00'], ['COLABORADOR 29','AX. LOJA','08:00 AS 17:00']
 ]);
 
 const base = {cicloDomingo:3, maxSeq:6, minFarma:2, minSubger:1, subgerFds:true,
@@ -248,7 +251,7 @@ conferir('âncora de agosto mantém o ciclo de outubro para C',
    na lista era tratada como histórico de domingos trabalhados e forçava uma
    segunda folga para a terceira farmacêutica no primeiro domingo disponível. */
 const farmasSemHistorico = [
-  'ROBERTA', 'PRISCILA', 'MIANGUE'
+  'COLABORADOR 04', 'COLABORADOR 05', 'COLABORADOR 06'
 ].map((nome, i) => ({
   id:'farm' + i, nome, cargo:'FARMACÊUTICO', horario:['07:00', '11:00', '14:40'][i], ativo:true, ausencias:[]
 }));
@@ -261,7 +264,7 @@ conferir('sem domingo informado não presume histórico para farmacêuticos',
 /* Duas âncoras iguais são uma escolha do usuário: ambas devem permanecer,
    mesmo que a cobertura do cargo fique menor naquele domingo. */
 const farmasComConflito = [
-  ['ROBERTA', '2026-11-15'], ['PRISCILA', '2026-11-15'], ['MIANGUE', '2026-11-29']
+  ['COLABORADOR 04', '2026-11-15'], ['COLABORADOR 05', '2026-11-15'], ['COLABORADOR 06', '2026-11-29']
 ].map(([nome, primeiroDomingo], i) => ({
   id:'conflito' + i, nome, cargo:'FARMACÊUTICO', horario:['07:00', '11:00', '14:40'][i], ativo:true, ausencias:[], primeiroDomingo
 }));
@@ -281,14 +284,14 @@ const paramsDomingoAncorado = Object.assign({}, base, {
   inicio:'2026-12-11', fim:'2027-01-10', minCaixa:2, minBalcao:4,
   minFarma:2, minSubger:1, minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}
 });
-const farmaPriscila = equipe => equipe.find(c => c.nome === 'PRISCILA');
-const l330PriscilaAncorada = JSON.parse(JSON.stringify(L330));
-farmaPriscila(l330PriscilaAncorada).primeiroDomingo = '2026-11-22';
-const resDomingoAncorado = E.gerarEscala(l330PriscilaAncorada, paramsDomingoAncorado);
-conferir('âncora de Priscila reserva a fase antes das colegas automáticas',
-  maiorFolgaDeCargoNoDomingo(resDomingoAncorado, l330PriscilaAncorada, 'FARMACÊUTICO') <= 1 ? 1 : 0, 1);
-conferir('âncora de Priscila mantém o ciclo em dezembro/janeiro',
-  JSON.stringify(domingosDeFolga(resDomingoAncorado, farmaPriscila(l330PriscilaAncorada))) ===
+const farmaAncorada = equipe => equipe.find(c => c.nome === 'COLABORADOR 05');
+const l330FarmaAncorada = JSON.parse(JSON.stringify(L330));
+farmaAncorada(l330FarmaAncorada).primeiroDomingo = '2026-11-22';
+const resDomingoAncorado = E.gerarEscala(l330FarmaAncorada, paramsDomingoAncorado);
+conferir('âncora da farmacêutica reserva a fase antes das colegas automáticas',
+  maiorFolgaDeCargoNoDomingo(resDomingoAncorado, l330FarmaAncorada, 'FARMACÊUTICO') <= 1 ? 1 : 0, 1);
+conferir('âncora da farmacêutica mantém o ciclo em dezembro/janeiro',
+  JSON.stringify(domingosDeFolga(resDomingoAncorado, farmaAncorada(l330FarmaAncorada))) ===
   '["2026-12-13","2027-01-03"]' ? 1 : 0, 1);
 
 /* Estado transportado de uma grade só existe quando a linha cobre o período
@@ -375,7 +378,7 @@ const repetidos = Documento.nomesDuplicadosDocumento([
 conferir('detecta nome com acento/espaços', repetidos.length, 1);
 conferir('não remove nomes duplicados', repetidos[0].quantidade, 2);
 conferir('mantém nomes distintos', Documento.nomesDuplicadosDocumento([
-  {nome:'Lucas Araújo'}, {nome:'Lucas Hatewa'}
+  {nome:'Pessoa Teste 1'}, {nome:'Pessoa Teste 2'}
 ]).length, 0, '<=');
 
 const pdfMinimo = Documento.gerarPdfEscala({

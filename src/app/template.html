@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Quadro de Escala — Bauru</title>
+<title>Quadro de Escala — Exemplo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -467,7 +467,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
 <!-- ============ LOGIN ============ -->
 <section id="login">
   <div class="card-login">
-    <div class="marca">Drogaria &middot; Bauru</div>
+    <div class="marca">Rede Exemplo &middot; Demonstração</div>
     <h1>Quadro de escala</h1>
     <p class="sub">Monte a escala do mês seguindo as regras de folga da loja.</p>
     <label for="lg-user">Usuário</label>
@@ -753,52 +753,56 @@ async function sha256(txt){
 }
 
 /* ============================================================
-   DADOS INICIAIS (extraídos da planilha ESCALA_GERAL_BAURU)
+   DADOS INICIAIS — exemplos fictícios de demonstração.
+   Não representam pessoas, empresas ou unidades reais. Servem apenas
+   para a versão offline abrir com a tela preenchida; as versões
+   multiusuário nunca chamam seedLojas() e começam pelo cadastro
+   da própria empresa.
    ============================================================ */
 function seedLojas(){
   const mk = (l)=>l.map((r,i)=>({id:r[0].toLowerCase().replace(/[^a-z]/g,'')+i, nome:r[0], cargo:r[1], horario:r[2],
                                  gerente:!!r[3], ativo:true, domTrabConsec:null, diasDesdeFolga:0,
                                  folgaFixa:null, ausencias:[]}));
   return {
-    '330':{
-      nome:'Loja 330',
+    'demo-aurora':{
+      nome:'Unidade Aurora',
       colabs: mk([
-        ['GUILHERME','GERENTE','07:00 AS 16:20',true],
-        ['RENATA','SUBGERENTE','10:00 AS 18:20'],
-        ['QUESNEL','SUBGERENTE','14:40 AS 23:00'],
-        ['ROBERTA','FARMACÊUTICO','07:00 AS 15:20'],
-        ['PRISCILA','FARMACÊUTICO','11:00 AS 19:20'],
-        ['MIANGUE','FARMACÊUTICO','14:40 AS 23:00'],
-        ['JESSICA','BALCONISTA','08:00 AS 16:20'],
-        ['LUCAS ARAUJO','BALCONISTA','10:00 AS 18:20'],
-        ['MIRIÃ','CAIXA','07:00 AS 15:20'],
-        ['JULIA','CAIXA','11:00 AS 19:20'],
-        ['GIANE','CAIXA','13:00 AS 21:20'],
-        ['LUCAS HATEWA','CAIXA','14:40 AS 23:00'],
-        ['LORENZO','AX. LOJA','09:00 AS 18:00'],
+        ['COLABORADOR 01','GERENTE','07:00 AS 16:20',true],
+        ['COLABORADOR 02','SUBGERENTE','10:00 AS 18:20'],
+        ['COLABORADOR 03','SUBGERENTE','14:40 AS 23:00'],
+        ['COLABORADOR 04','FARMACÊUTICO','07:00 AS 15:20'],
+        ['COLABORADOR 05','FARMACÊUTICO','11:00 AS 19:20'],
+        ['COLABORADOR 06','FARMACÊUTICO','14:40 AS 23:00'],
+        ['COLABORADOR 07','BALCONISTA','08:00 AS 16:20'],
+        ['COLABORADOR 08','BALCONISTA','10:00 AS 18:20'],
+        ['COLABORADOR 09','CAIXA','07:00 AS 15:20'],
+        ['COLABORADOR 10','CAIXA','11:00 AS 19:20'],
+        ['COLABORADOR 11','CAIXA','13:00 AS 21:20'],
+        ['COLABORADOR 12','CAIXA','14:40 AS 23:00'],
+        ['COLABORADOR 13','AX. LOJA','09:00 AS 18:00'],
       ]),
       params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:'P', minCaixa:2, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
                minDia:{0:7, 1:7, 2:9, 3:9, 4:9, 5:9, 6:9}}
     },
-    '332':{
-      nome:'Loja 332',
+    'demo-horizonte':{
+      nome:'Unidade Horizonte',
       colabs: mk([
-        ['MAYARA','GERENTE','07:00 AS 16:20',true],
-        ['MIRIAN','SUB/FARMA','07:00 AS 15:20'],
-        ['VANDERLEIA','SUBGERENTE','14:40 AS 23:00'],
-        ['EDUARDA','SUBGERENTE','14:40 AS 23:00'],
-        ['LETICIA','FARMACÊUTICO','11:00 AS 19:20'],
-        ['ANA PAULA','FARMACÊUTICO','14:40 AS 23:00'],
-        ['MARIA','BALCONISTA','09:00 AS 18:00'],
-        ['ANNA','BALCONISTA','12:00 AS 20:20'],
-        ['RAQUEL','CAIXA','07:00 AS 15:20'],
-        ['NICOLE','CAIXA','07:00 AS 15:20'],
-        ['FELIPE','CAIXA','13:00 AS 21:20'],
-        ['ELOISA','CAIXA','14:40 AS 23:00'],
-        ['ESMERALDA','CAIXA','14:40 AS 23:00'],
-        ['ALINE','CAIXA','14:40 AS 23:00'],
-        ['LIVIA','REPOSITOR','08:00 AS 17:00'],
-        ['ROSA','AX. LOJA','08:00 AS 17:00'],
+        ['COLABORADOR 14','GERENTE','07:00 AS 16:20',true],
+        ['COLABORADOR 15','SUB/FARMA','07:00 AS 15:20'],
+        ['COLABORADOR 16','SUBGERENTE','14:40 AS 23:00'],
+        ['COLABORADOR 17','SUBGERENTE','14:40 AS 23:00'],
+        ['COLABORADOR 18','FARMACÊUTICO','11:00 AS 19:20'],
+        ['COLABORADOR 19','FARMACÊUTICO','14:40 AS 23:00'],
+        ['COLABORADOR 20','BALCONISTA','09:00 AS 18:00'],
+        ['COLABORADOR 21','BALCONISTA','12:00 AS 20:20'],
+        ['COLABORADOR 22','CAIXA','07:00 AS 15:20'],
+        ['COLABORADOR 23','CAIXA','07:00 AS 15:20'],
+        ['COLABORADOR 24','CAIXA','13:00 AS 21:20'],
+        ['COLABORADOR 25','CAIXA','14:40 AS 23:00'],
+        ['COLABORADOR 26','CAIXA','14:40 AS 23:00'],
+        ['COLABORADOR 27','CAIXA','14:40 AS 23:00'],
+        ['COLABORADOR 28','REPOSITOR','08:00 AS 17:00'],
+        ['COLABORADOR 29','AX. LOJA','08:00 AS 17:00'],
       ]),
       params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:'P', minCaixa:3, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
                minDia:{0:9, 1:9, 2:11, 3:9, 4:11, 5:9, 6:11}}
