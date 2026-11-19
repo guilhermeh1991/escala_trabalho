@@ -854,7 +854,7 @@ $$('nav.tabs button').forEach(b=>b.onclick=()=>{
 
 /* ---------- montagem ---------- */
 function podeTrocarLoja(){
-  return S.usuario && S.usuario.papel === 'admin';
+  return S.usuario && ['admin','gestor'].includes(S.usuario.papel);
 }
 function atualizarContextoLoja(){
   const atual = loja();

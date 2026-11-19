@@ -174,7 +174,7 @@ async function abrirApp(){
     }
   }
   if(!S.lojas || !Object.keys(S.lojas).length){ S.lojas = {}; }
-  S.loja = Object.keys(S.lojas)[0];
+  S.loja = Object.keys(S.lojas)[0] || null;
   montar();
   pintarAcessos();
 }

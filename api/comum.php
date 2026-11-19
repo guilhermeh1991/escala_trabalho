@@ -280,7 +280,7 @@ function exigirGestao(array $u): void
         falhar('Administrador da plataforma não acessa a operação por este fluxo.', 403);
     }
     exigirPapel($u, ['admin', 'gestor']);
-    if (($u['papel'] ?? '') === 'gestor' && empty($u['loja_id'])) {
+    if (($u['papel'] ?? '') === 'gestor' && count(lojasDoSupervisor($u)) === 0) {
         falhar('Supervisor sem loja autorizada.', 403);
     }
 }
@@ -383,25 +383,42 @@ function exigirPlataforma(): array
     return $u;
 }
 
-/** Gestor é o supervisor de loja: o vínculo explícito é obrigatório. */
+/** Gestor é o supervisor de loja: os vínculos explícitos são obrigatórios. */
 function ehSupervisor(array $u): bool
 {
     return ($u['papel'] ?? '') === 'gestor';
 }
 
+/** Lojas autorizadas por uma relação explícita, sem fallback em usuarios.loja_id. */
+function lojasDoSupervisor(array $u): array
+{
+    if (!ehSupervisor($u) || empty($u['empresa_id'])) return [];
+    $st = bd()->prepare(
+        'SELECT sl.loja_id
+           FROM supervisor_lojas sl
+           JOIN lojas l ON l.id = sl.loja_id
+          WHERE sl.usuario_id = ? AND l.empresa_id = ?
+          ORDER BY l.ordem, l.criado_em');
+    $st->execute([$u['id'], $u['empresa_id']]);
+    return $st->fetchAll(PDO::FETCH_COLUMN) ?: [];
+}
+
 function vePorLoja(array $u): bool
 {
     return !ehSuperAdmin($u)
-        && ($u['papel'] ?? '') !== 'admin'
-        && !empty($u['loja_id']);
+        && (($u['papel'] ?? '') === 'gestor'
+            || (($u['papel'] ?? '') !== 'admin' && !empty($u['loja_id'])));
 }
 
 /** Ids das lojas que este usuário pode enxergar. */
 function lojasDoUsuario(array $u): array
 {
-    if (ehSuperAdmin($u)) { $st = bd()->prepare('SELECT id FROM lojas ORDER BY empresa_id, ordem, criado_em'); $st->execute(); return $st->fetchAll(PDO::FETCH_COLUMN) ?: []; } if (vePorLoja($u)) {
-        return [$u['loja_id']];
+    if (ehSuperAdmin($u)) {
+        $st = bd()->query('SELECT id FROM lojas ORDER BY empresa_id, ordem, criado_em');
+        return $st->fetchAll(PDO::FETCH_COLUMN) ?: [];
     }
+    if (ehSupervisor($u)) return lojasDoSupervisor($u);
+    if (vePorLoja($u)) return [$u['loja_id']];
     $st = bd()->prepare('SELECT id FROM lojas WHERE empresa_id = ? ORDER BY ordem, criado_em');
     $st->execute([$u['empresa_id']]);
     return $st->fetchAll(PDO::FETCH_COLUMN) ?: [];
@@ -413,7 +430,15 @@ function exigirLojaDaEmpresa(string $lojaId, array $u): void
     if (!ehUuid($lojaId)) {
         falhar('Loja inválida.');
     }
-    // presa a uma loja: qualquer outra é como se não existisse
+    // Supervisor só alcança lojas presentes na relação explícita.
+    if (ehSupervisor($u)) {
+        $st = bd()->prepare(
+            'SELECT 1 FROM supervisor_lojas sl JOIN lojas l ON l.id = sl.loja_id
+              WHERE sl.usuario_id = ? AND sl.loja_id = ? AND l.empresa_id = ? LIMIT 1');
+        $st->execute([$u['id'], $lojaId, $u['empresa_id']]);
+        if (!$st->fetchColumn()) falhar('Loja não encontrada.', 404);
+        return;
+    }
     if (vePorLoja($u) && $lojaId !== $u['loja_id']) {
         falhar('Loja não encontrada.', 404);
     }
@@ -430,9 +455,17 @@ function exigirColaboradorDaEmpresa(string $colabId, array $u): void
     if (!ehUuid($colabId)) {
         falhar('Colaborador inválido.');
     }
-    $sqlLoja = vePorLoja($u) ? ' AND c.loja_id = ?' : '';
+    $sqlLoja = '';
     $args = [$colabId, $u['empresa_id']];
-    if (vePorLoja($u)) $args[] = $u['loja_id'];
+    if (ehSupervisor($u)) {
+        $permitidas = lojasDoSupervisor($u);
+        if (!$permitidas) falhar('Supervisor sem loja autorizada.', 403);
+        $sqlLoja = ' AND c.loja_id IN (' . implode(',', array_fill(0, count($permitidas), '?')) . ')';
+        $args = array_merge($args, $permitidas);
+    } elseif (vePorLoja($u)) {
+        $sqlLoja = ' AND c.loja_id = ?';
+        $args[] = $u['loja_id'];
+    }
     $st = bd()->prepare(
         'SELECT 1 FROM colaboradores c
            JOIN lojas l ON l.id = c.loja_id
@@ -458,6 +491,35 @@ function exigirUsuarioDaEmpresa(string $usuarioId, array $u): array
         falhar('Usuário não encontrado.', 404);
     }
     return $alvo;
+}
+
+function exigirSupervisorDaEmpresa(string $usuarioId, array $u): array
+{
+    $alvo = exigirUsuarioDaEmpresa($usuarioId, $u);
+    if ($alvo['papel'] !== 'gestor') {
+        falhar('Usuário não é supervisor.', 422);
+    }
+    return $alvo;
+}
+
+function exigirSupervisorDaPlataforma(string $usuarioId): array
+{
+    if (!ehUuid($usuarioId)) falhar('Usuário inválido.');
+    $st = bd()->prepare(
+        'SELECT id, email, papel, empresa_id, loja_id FROM usuarios
+          WHERE id = ? AND papel = \'gestor\' AND empresa_id IS NOT NULL LIMIT 1');
+    $st->execute([$usuarioId]);
+    $alvo = $st->fetch();
+    if (!$alvo) falhar('Usuário não encontrado.', 404);
+    return $alvo;
+}
+
+function exigirLojaDaEmpresaId(string $lojaId, string $empresaId): void
+{
+    if (!ehUuid($lojaId) || !ehUuid($empresaId)) falhar('Identificador inválido.');
+    $st = bd()->prepare('SELECT 1 FROM lojas WHERE id = ? AND empresa_id = ? LIMIT 1');
+    $st->execute([$lojaId, $empresaId]);
+    if (!$st->fetchColumn()) falhar('Loja não encontrada.', 404);
 }
 
 // -----------------------------------------------------------------------------

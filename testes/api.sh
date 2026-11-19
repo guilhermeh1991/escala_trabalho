@@ -91,6 +91,8 @@ mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-002-colaborador.sql 2>/
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-003-acesso-por-loja.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-004-resumo-escala.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-005-jornada-estruturada.sql 2>/dev/null
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-006-supervisor-multiloja.sql >/dev/null \
+  || falha "migracao-006-supervisor-multiloja.sql"
 mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
   || falha "verificar-e-migrar.sql após as migrações"
 mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
@@ -203,6 +205,7 @@ chamar "$COOKIES_B" auth.php "{\"acao\":\"confirmar\",\"token\":\"$TOKEN_B\"}" "
 CSRF_B=$(chamar "$COOKIES_B" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
 R=$(chamar "$COOKIES_B" auth.php '{"acao":"criar_empresa","nome":"Drogaria B","chave":"teste-ci-123"}' "$CSRF_B")
 EMPRESA_B=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4)
+LOJA_B=$(echo "$R" | grep -o '"loja_id":"[^"]*"' | cut -d'"' -f4)
 [ -n "$EMPRESA_B" ] && ok "segunda empresa criada por outro usuário" || falha "empresa B: $R"
 
 echo ""
@@ -210,6 +213,9 @@ echo "=== 8. Dados: criar loja e salvar equipe ==="
 R=$(chamar "$COOKIES_A" dados.php '{"acao":"criar_loja","nome":"Loja Teste B"}' "$CSRF_A")
 LOJA_A2=$(echo "$R" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
 echo "$R" | grep -q '"ok":true' && ok "admin da empresa cria segunda loja" || falha "criar_loja: $R"
+R=$(chamar "$COOKIES_A" dados.php '{"acao":"criar_loja","nome":"Loja Teste C"}' "$CSRF_A")
+LOJA_A3=$(echo "$R" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+echo "$R" | grep -q '"ok":true' && ok "admin da empresa cria terceira loja" || falha "criar terceira loja: $R"
 
 # supervisor sem vínculo explícito não pode consultar a empresa;
 # o administrador da empresa atribui somente a segunda loja.
@@ -227,16 +233,39 @@ CSRF_S=$(printf '%s' "$HTTP_BODY" | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
 R=$(chamar "$COOKIES_S" dados.php '{"acao":"carregar"}' "$CSRF_S")
 echo "$R" | grep -q "Supervisor sem loja" && ok "supervisor sem vínculo explícito é barrado" || falha "supervisor sem vínculo: $R"
 SUP_ID=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT id FROM usuarios WHERE email='supervisor@exemplo.test';")
-R=$(chamar "$COOKIES_A" auth.php "{\"acao\":\"definir_loja\",\"usuario_id\":\"$SUP_ID\",\"loja_id\":\"$LOJA_A2\"}" "$CSRF_A")
-echo "$R" | grep -q '"ok":true' && ok "admin vincula supervisor à loja autorizada" || falha "vínculo de supervisor: $R"
+R=$(chamar "$COOKIES_A" auth.php "{\"acao\":\"supervisor_atribuir_loja\",\"usuario_id\":\"$SUP_ID\",\"loja_id\":\"$LOJA_A\"}" "$CSRF_A")
+echo "$R" | grep -q '"ok":true' && ok "admin atribui primeiro vínculo do supervisor" || falha "primeiro vínculo: $R"
+R=$(chamar "$COOKIES_A" auth.php "{\"acao\":\"supervisor_atribuir_loja\",\"usuario_id\":\"$SUP_ID\",\"loja_id\":\"$LOJA_A2\"}" "$CSRF_A")
+echo "$R" | grep -q '"ok":true' && ok "admin atribui segundo vínculo do supervisor" || falha "segundo vínculo: $R"
 R=$(chamar "$COOKIES_S" dados.php '{"acao":"carregar"}' "$CSRF_S")
-echo "$R" | grep -q 'Loja Teste B' && ok "supervisor vê a loja vinculada" || falha "escopo do supervisor: $R"
-R=$(chamar "$COOKIES_S" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\"}" "$CSRF_S")
-echo "$R" | grep -q "não encontrada" && ok "supervisor não alcança outra loja por identificador" || falha "supervisor atravessou escopo: $R"
-R=$(chamar "$COOKIES_A" auth.php "{\"acao\":\"remover_acesso\",\"usuario_id\":\"$SUP_ID\"}" "$CSRF_A")
-echo "$R" | grep -q '"ok":true' && ok "admin revoga vínculo do supervisor" || falha "revogação: $R"
+echo "$R" | grep -q 'Loja Teste A' && echo "$R" | grep -q 'Loja Teste B' && ok "supervisor acessa duas lojas autorizadas" || falha "duas lojas autorizadas: $R"
+# Mesmo que o legado ainda carregue usuarios.loja_id, ele não pode restaurar
+# acesso fora da relação explícita.
+mysql -u root -h 127.0.0.1 teste_escala -e "UPDATE usuarios SET loja_id='$LOJA_A3' WHERE id='$SUP_ID';"
 R=$(chamar "$COOKIES_S" dados.php '{"acao":"carregar"}' "$CSRF_S")
-echo "$R" | grep -q "sem empresa\|Sessão" && ok "supervisor revogado perde acesso" || falha "vínculo revogado ainda acessa: $R"
+echo "$R" | grep -q 'Loja Teste C' && falha "fallback em usuarios.loja_id restaurou acesso" || ok "usuarios.loja_id não amplia vínculos"
+# Payload com uma loja autorizada e uma terceira não autorizada deve falhar
+# antes de gravar qualquer uma delas.
+PAYLOAD_MULTI="{\"acao\":\"salvar\",\"lojas\":{\"$LOJA_A2\":{\"nome\":\"NAO ALTERAR B\",\"colabs\":[]},\"$LOJA_A3\":{\"nome\":\"NAO ALTERAR C\",\"colabs\":[]}}}"
+R=$(chamar "$COOKIES_S" dados.php "$PAYLOAD_MULTI" "$CSRF_S")
+echo "$R" | grep -q "fora do seu acesso" && ok "payload múltiplo não autorizado é rejeitado" || falha "payload múltiplo aceito: $R"
+NOME_B=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT nome FROM lojas WHERE id='$LOJA_A2';")
+NOME_C=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT nome FROM lojas WHERE id='$LOJA_A3';")
+[ "$NOME_B" = "Loja Teste B" ] && [ "$NOME_C" = "Loja Teste C" ] && ok "payload rejeitado não gravou parcialmente" || falha "gravação parcial: $NOME_B / $NOME_C"
+R=$(chamar "$COOKIES_S" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A3\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\"}" "$CSRF_S")
+echo "$R" | grep -q "não encontrada" && ok "supervisor não alcança terceira loja da própria empresa" || falha "terceira loja: $R"
+R=$(chamar "$COOKIES_S" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_B\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\"}" "$CSRF_S")
+echo "$R" | grep -q "não encontrada" && ok "supervisor não alcança loja de outra empresa" || falha "loja de outra empresa: $R"
+R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_atribuir_supervisor_loja\",\"usuario_id\":\"$SUP_ID\",\"loja_id\":\"$LOJA_B\"}" "$CSRF_P")
+echo "$R" | grep -q "empresas diferentes" && ok "plataforma bloqueia vínculo entre empresas" || falha "vínculo cruzado: $R"
+R=$(chamar "$COOKIES_S" auth.php "{\"acao\":\"supervisor_atribuir_loja\",\"usuario_id\":\"$SUP_ID\",\"loja_id\":\"$LOJA_B\"}" "$CSRF_S")
+echo "$R" | grep -q "não permite\|perfil\|Acesso" && ok "supervisor não pode autoconceder acesso" || falha "autoconcessão: $R"
+R=$(chamar "$COOKIES_A" auth.php "{\"acao\":\"supervisor_revogar_loja\",\"usuario_id\":\"$SUP_ID\",\"loja_id\":\"$LOJA_A\"}" "$CSRF_A")
+echo "$R" | grep -q '"ok":true' && ok "admin revoga somente uma loja" || falha "revogação parcial: $R"
+R=$(chamar "$COOKIES_S" dados.php '{"acao":"carregar"}' "$CSRF_S")
+echo "$R" | grep -q 'Loja Teste B' && ok "revogação preserva outro vínculo" || falha "outro vínculo perdido: $R"
+R=$(chamar "$COOKIES_A" auth.php "{\"acao\":\"supervisor_listar_lojas_admin\",\"usuario_id\":\"$SUP_ID\"}" "$CSRF_A")
+echo "$R" | grep -q 'Loja Teste B' && ok "admin lista vínculos restantes" || falha "listar vínculos: $R"
 
 PAYLOAD=$(cat <<JSON
 {"acao":"salvar","lojas":{"$LOJA_A":{"nome":"Loja Teste A","_ordem":0,"params":{"modelo":"5x2"},

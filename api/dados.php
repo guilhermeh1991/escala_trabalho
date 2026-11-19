@@ -41,7 +41,16 @@ case 'carregar':
     // 'minha_escala', que devolve apenas a própria linha.
     exigirGestao($u);
     // presa a uma loja: as outras nem aparecem no seletor
-    if (ehSuperAdmin($u)) { $st = bd()->prepare('SELECT l.id, l.nome, l.codigo_convite, l.parametros, l.ordem, e.nome AS empresa_nome FROM lojas l JOIN empresas e ON e.id = l.empresa_id ORDER BY e.nome, l.ordem, l.criado_em'); $st->execute(); } elseif (vePorLoja($u)) {
+    if (ehSuperAdmin($u)) { $st = bd()->prepare('SELECT l.id, l.nome, l.codigo_convite, l.parametros, l.ordem, e.nome AS empresa_nome FROM lojas l JOIN empresas e ON e.id = l.empresa_id ORDER BY e.nome, l.ordem, l.criado_em'); $st->execute(); } elseif (ehSupervisor($u)) {
+        $idsPermitidos = lojasDoSupervisor($u);
+        if (!$idsPermitidos) falhar('Supervisor sem loja autorizada.', 403);
+        $marcadores = implode(',', array_fill(0, count($idsPermitidos), '?'));
+        $st = bd()->prepare(
+            "SELECT id, nome, codigo_convite, parametros, ordem FROM lojas
+              WHERE empresa_id = ? AND id IN ($marcadores)
+              ORDER BY ordem, criado_em");
+        $st->execute(array_merge([$u['empresa_id']], $idsPermitidos));
+    } elseif (vePorLoja($u)) {
         $st = bd()->prepare(
             'SELECT id, nome, codigo_convite, parametros, ordem FROM lojas
               WHERE empresa_id = ? AND id = ?');
@@ -120,7 +129,14 @@ case 'salvar':
     exigirGestao($u);
     $lojas = campo($dados, 'lojas', []);
     if (!is_array($lojas)) falhar('Dados inválidos.');
-    if (vePorLoja($u)) {
+    if (ehSupervisor($u)) {
+        $permitidas = array_flip(lojasDoSupervisor($u));
+        foreach ($lojas as $lojaId => $_loja) {
+            if (!isset($permitidas[(string)$lojaId])) {
+                falhar('Loja fora do seu acesso.', 403);
+            }
+        }
+    } elseif (vePorLoja($u)) {
         foreach ($lojas as $lojaId => $_loja) {
             if ((string)$lojaId !== $u['loja_id']) {
                 falhar('Loja fora do seu acesso.', 403);
@@ -135,7 +151,11 @@ case 'salvar':
             if (!ehUuid((string)$lojaId)) {
                 falhar('Identificador de loja inválido.');
             }
-            if (vePorLoja($u) && $lojaId !== $u['loja_id']) {
+            if (ehSupervisor($u)) {
+                if (!in_array((string)$lojaId, lojasDoSupervisor($u), true)) {
+                    falhar('Loja fora do seu acesso.', 403);
+                }
+            } elseif (vePorLoja($u) && $lojaId !== $u['loja_id']) {
                 falhar('Loja fora do seu acesso.', 403);
             }
             // a loja precisa ser desta empresa, ou ser nova desta empresa
@@ -455,9 +475,17 @@ case 'criar_loja':
 case 'historico':
 // -----------------------------------------------------------------------------
     exigirGestao($u);
-    $filtroHistorico = vePorLoja($u) ? ' AND (JSON_UNQUOTE(JSON_EXTRACT(r.detalhe, "$.loja")) = ? OR r.acao NOT IN (\'escala_salva\', \'escala_excluida\'))' : '';
+    $filtroHistorico = '';
     $argsHistorico = [$u['empresa_id']];
-    if (vePorLoja($u)) $argsHistorico[] = $u['loja_id'];
+    if (ehSupervisor($u)) {
+        $permitidas = lojasDoSupervisor($u);
+        if (!$permitidas) falhar('Supervisor sem loja autorizada.', 403);
+        $filtroHistorico = ' AND JSON_UNQUOTE(JSON_EXTRACT(r.detalhe, "$.loja")) IN (' . implode(',', array_fill(0, count($permitidas), '?')) . ')';
+        $argsHistorico = array_merge($argsHistorico, $permitidas);
+    } elseif (vePorLoja($u)) {
+        $filtroHistorico = ' AND JSON_UNQUOTE(JSON_EXTRACT(r.detalhe, "$.loja")) = ?';
+        $argsHistorico[] = $u['loja_id'];
+    }
     $st = bd()->prepare(
         'SELECT r.acao, r.detalhe, r.em, us.nome
            FROM registro_acoes r

@@ -171,6 +171,38 @@ UPDATE usuarios u
    SET u.loja_id = c.loja_id
  WHERE u.papel = 'colaborador' AND u.loja_id IS NULL;
 
+-- 4. Supervisores em várias lojas (migração 006) ------------------------------
+CREATE TABLE IF NOT EXISTS supervisor_lojas (
+  usuario_id CHAR(36) NOT NULL,
+  loja_id    CHAR(36) NOT NULL,
+  criado_em  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (usuario_id, loja_id),
+  KEY ix_supervisor_loja (loja_id, usuario_id),
+  CONSTRAINT fk_supervisor_loja_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuarios(id) ON DELETE CASCADE,
+  CONSTRAINT fk_supervisor_loja_loja FOREIGN KEY (loja_id)
+    REFERENCES lojas(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS migracoes_aplicadas (
+  nome       VARCHAR(100) NOT NULL PRIMARY KEY,
+  aplicada_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO supervisor_lojas (usuario_id, loja_id)
+SELECT u.id, u.loja_id
+  FROM usuarios u
+  JOIN lojas l ON l.id = u.loja_id AND l.empresa_id = u.empresa_id
+ WHERE u.papel = 'gestor'
+   AND u.loja_id IS NOT NULL
+   AND NOT EXISTS (
+     SELECT 1 FROM migracoes_aplicadas m
+      WHERE m.nome = '006-supervisor-multiloja'
+   );
+
+INSERT IGNORE INTO migracoes_aplicadas (nome)
+VALUES ('006-supervisor-multiloja');
+
 -- 3. Resumo da escala (migração 004) -----------------------------------------
 SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
              WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'escalas'

@@ -345,16 +345,27 @@ case 'listar_acessos':
 // -----------------------------------------------------------------------------
     $u = exigirEmpresa();
     exigirGestao($u);
-    $filtroLoja = vePorLoja($u) ? ' AND us.loja_id = ?' : '';
-    $argsAcessos = [$u['empresa_id']];
-    if (vePorLoja($u)) $argsAcessos[] = $u['loja_id'];
-    $st = bd()->prepare(
-        'SELECT us.id, us.nome, us.email, us.papel, us.ultimo_acesso, us.criado_em,
-                us.loja_id, l.nome AS loja
-           FROM usuarios us
-           LEFT JOIN lojas l ON l.id = us.loja_id
-          WHERE us.empresa_id = ?' . $filtroLoja . ' ORDER BY us.criado_em');
-    $st->execute($argsAcessos);
+    if (ehSupervisor($u)) {
+        $permitidas = lojasDoSupervisor($u);
+        if (!$permitidas) falhar('Supervisor sem loja autorizada.', 403);
+        $marcadores = implode(',', array_fill(0, count($permitidas), '?'));
+        $st = bd()->prepare(
+            "SELECT DISTINCT us.id, us.nome, us.email, us.papel, us.ultimo_acesso, us.criado_em,
+                    us.loja_id, l.nome AS loja
+               FROM usuarios us
+               LEFT JOIN lojas l ON l.id = us.loja_id
+              WHERE us.empresa_id = ? AND us.loja_id IN ($marcadores)
+              ORDER BY us.criado_em");
+        $st->execute(array_merge([$u['empresa_id']], $permitidas));
+    } else {
+        $st = bd()->prepare(
+            'SELECT us.id, us.nome, us.email, us.papel, us.ultimo_acesso, us.criado_em,
+                    us.loja_id, l.nome AS loja
+               FROM usuarios us
+               LEFT JOIN lojas l ON l.id = us.loja_id
+              WHERE us.empresa_id = ? ORDER BY us.criado_em');
+        $st->execute([$u['empresa_id']]);
+    }
     responder(['acessos' => $st->fetchAll()]);
 
 // -----------------------------------------------------------------------------
@@ -385,13 +396,19 @@ case 'definir_loja':
     $lojaId = (string)campo($dados, 'loja_id', '');
 
     $alvoUsuario = exigirUsuarioDaEmpresa($alvo, $u);
+    if ($alvoUsuario['papel'] === 'gestor') {
+        if ($lojaId === '') falhar('Supervisor precisa de uma loja autorizada.', 403);
+        exigirLojaDaEmpresa($lojaId, $u);
+        bd()->prepare('INSERT IGNORE INTO supervisor_lojas (usuario_id, loja_id) VALUES (?, ?)')
+            ->execute([$alvo, $lojaId]);
+        registrar($u['id'], $u['empresa_id'], 'supervisor_loja_atribuida',
+            ['pessoa' => $alvo, 'loja' => $lojaId]);
+        responder(['ok' => true, 'loja_id' => $lojaId]);
+    }
     if ($alvoUsuario['papel'] === 'colaborador') {
         falhar('Colaborador deve ser vinculado pela ficha da equipe.', 403);
     }
     if ($lojaId === '') {
-        if ($alvoUsuario['papel'] === 'gestor') {
-            falhar('Supervisor precisa de uma loja autorizada.', 403);
-        }
         // sem loja = administrador da empresa enxerga a rede inteira
         $st = bd()->prepare('UPDATE usuarios SET loja_id = NULL WHERE id = ? AND empresa_id = ?');
         $st->execute([$alvo, $u['empresa_id']]);
@@ -413,6 +430,10 @@ case 'remover_acesso':
 
     // Desvincula da empresa; a conta continua existindo sem acesso aos dados.
     $alvoUsuario = exigirUsuarioDaEmpresa($alvo, $u);
+    if ($alvoUsuario['papel'] === 'gestor') {
+        bd()->prepare('DELETE FROM supervisor_lojas WHERE usuario_id = ?')
+            ->execute([$alvo]);
+    }
     $st = bd()->prepare('UPDATE usuarios SET empresa_id = NULL, loja_id = NULL, colaborador_id = NULL WHERE id = ? AND empresa_id = ?');
     $st->execute([$alvo, $u['empresa_id']]);
     registrar($u['id'], $u['empresa_id'], 'removeu_acesso', ['alvo' => $alvoUsuario['id']]);
@@ -465,6 +486,109 @@ case 'plataforma_criar_empresa':
         ['nome' => $nome, 'loja' => $nomeLoja]);
     responder(['ok' => true, 'empresa_id' => $empresaId, 'loja_id' => $lojaId,
                'codigo_convite' => $codigo, 'codigo_loja' => $codigoLoja]);
+
+// -----------------------------------------------------------------------------
+case 'supervisor_listar_lojas':
+// -----------------------------------------------------------------------------
+    $u = exigirEmpresa();
+    exigirSupervisorDaEmpresa($u['id'], $u);
+    $lojasSupervisor = lojasDoSupervisor($u);
+    if (!$lojasSupervisor) falhar('Supervisor sem loja autorizada.', 403);
+    responder(['lojas' => $lojasSupervisor]);
+
+// -----------------------------------------------------------------------------
+case 'supervisor_atribuir_loja':
+// -----------------------------------------------------------------------------
+    $u = exigirEmpresa();
+    exigirAdminEmpresa($u);
+    $alvo = (string)campo($dados, 'usuario_id', '');
+    $lojaId = (string)campo($dados, 'loja_id', '');
+    $alvoUsuario = exigirSupervisorDaEmpresa($alvo, $u);
+    exigirLojaDaEmpresaId($lojaId, $u['empresa_id']);
+    bd()->prepare('INSERT IGNORE INTO supervisor_lojas (usuario_id, loja_id) VALUES (?, ?)')
+        ->execute([$alvoUsuario['id'], $lojaId]);
+    registrar($u['id'], $u['empresa_id'], 'supervisor_loja_atribuida',
+        ['pessoa' => $alvoUsuario['id'], 'loja' => $lojaId]);
+    responder(['ok' => true, 'usuario_id' => $alvoUsuario['id'], 'loja_id' => $lojaId]);
+
+// -----------------------------------------------------------------------------
+case 'supervisor_revogar_loja':
+// -----------------------------------------------------------------------------
+    $u = exigirEmpresa();
+    exigirAdminEmpresa($u);
+    $alvo = (string)campo($dados, 'usuario_id', '');
+    $lojaId = (string)campo($dados, 'loja_id', '');
+    $alvoUsuario = exigirSupervisorDaEmpresa($alvo, $u);
+    exigirLojaDaEmpresaId($lojaId, $u['empresa_id']);
+    $st = bd()->prepare('DELETE FROM supervisor_lojas WHERE usuario_id = ? AND loja_id = ?');
+    $st->execute([$alvoUsuario['id'], $lojaId]);
+    if ($st->rowCount() !== 1) falhar('Vínculo não encontrado.', 404);
+    registrar($u['id'], $u['empresa_id'], 'supervisor_loja_revogada',
+        ['pessoa' => $alvoUsuario['id'], 'loja' => $lojaId]);
+    responder(['ok' => true, 'usuario_id' => $alvoUsuario['id'], 'loja_id' => $lojaId]);
+
+// -----------------------------------------------------------------------------
+case 'supervisor_listar_lojas_admin':
+// -----------------------------------------------------------------------------
+    $u = exigirEmpresa();
+    exigirAdminEmpresa($u);
+    $alvo = (string)campo($dados, 'usuario_id', '');
+    $alvoUsuario = exigirSupervisorDaEmpresa($alvo, $u);
+    $st = bd()->prepare(
+        'SELECT l.id, l.nome FROM supervisor_lojas sl
+           JOIN lojas l ON l.id = sl.loja_id
+          WHERE sl.usuario_id = ? AND l.empresa_id = ?
+          ORDER BY l.ordem, l.criado_em');
+    $st->execute([$alvoUsuario['id'], $u['empresa_id']]);
+    responder(['lojas' => $st->fetchAll()]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_listar_supervisor_lojas':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $alvo = exigirSupervisorDaPlataforma((string)campo($dados, 'usuario_id', ''));
+    $st = bd()->prepare(
+        'SELECT l.id, l.empresa_id, l.nome FROM supervisor_lojas sl
+           JOIN lojas l ON l.id = sl.loja_id
+          WHERE sl.usuario_id = ? ORDER BY l.empresa_id, l.ordem, l.criado_em');
+    $st->execute([$alvo['id']]);
+    responder(['lojas' => $st->fetchAll()]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_atribuir_supervisor_loja':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $alvo = exigirSupervisorDaPlataforma((string)campo($dados, 'usuario_id', ''));
+    $lojaId = (string)campo($dados, 'loja_id', '');
+    $st = bd()->prepare('SELECT empresa_id FROM lojas WHERE id = ? LIMIT 1');
+    $st->execute([$lojaId]);
+    $empresaId = $st->fetchColumn();
+    if (!$empresaId) falhar('Loja não encontrada.', 404);
+    if (empty($alvo['empresa_id']) || $alvo['empresa_id'] !== $empresaId) {
+        falhar('Supervisor e loja pertencem a empresas diferentes.', 403);
+    }
+    bd()->prepare('INSERT IGNORE INTO supervisor_lojas (usuario_id, loja_id) VALUES (?, ?)')
+        ->execute([$alvo['id'], $lojaId]);
+    registrar($u['id'], $empresaId, 'supervisor_loja_atribuida',
+        ['pessoa' => $alvo['id'], 'loja' => $lojaId]);
+    responder(['ok' => true, 'usuario_id' => $alvo['id'], 'loja_id' => $lojaId]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_revogar_supervisor_loja':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $alvo = exigirSupervisorDaPlataforma((string)campo($dados, 'usuario_id', ''));
+    $lojaId = (string)campo($dados, 'loja_id', '');
+    $st = bd()->prepare(
+        'DELETE sl FROM supervisor_lojas sl JOIN lojas l ON l.id = sl.loja_id
+          WHERE sl.usuario_id = ? AND sl.loja_id = ?');
+    $st->execute([$alvo['id'], $lojaId]);
+    if ($st->rowCount() !== 1) falhar('Vínculo não encontrado.', 404);
+    $st = bd()->prepare('SELECT empresa_id FROM lojas WHERE id = ?');
+    $st->execute([$lojaId]);
+    registrar($u['id'], (string)$st->fetchColumn(), 'supervisor_loja_revogada',
+        ['pessoa' => $alvo['id'], 'loja' => $lojaId]);
+    responder(['ok' => true, 'usuario_id' => $alvo['id'], 'loja_id' => $lojaId]);
 
 // -----------------------------------------------------------------------------
 case 'plataforma_criar_loja':

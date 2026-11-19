@@ -5,6 +5,7 @@
 --    1º  este arquivo (mysql-schema.sql)
 --    2º  migracao-002-colaborador.sql
 --    3º  migracao-005-jornada-estruturada.sql
+--    4º  migracao-006-supervisor-multiloja.sql
 --
 --  Quem já rodou este arquivo antes só precisa rodar a migração.
 --

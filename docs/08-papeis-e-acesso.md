@@ -10,10 +10,11 @@ usam a sessão de administrador de uma empresa como atalho.
 
 A plataforma pode cadastrar empresas e lojas. A empresa nasce com uma loja
 vazia e o administrador da empresa passa a gerir sua própria rede. Supervisores
-(`gestor`) precisam ter `usuarios.loja_id` preenchido: sem vínculo explícito,
-não consultam nem alteram dados. Um administrador de empresa (`admin`) pode
-ver a rede inteira e atribuir um supervisor somente a uma loja da mesma
-empresa.
+(`gestor`) precisam ter um ou mais vínculos em `supervisor_lojas`: sem vínculo
+explícito, não consultam nem alteram dados. Um administrador de empresa
+(`admin`) pode ver a rede inteira e atribuir ou revogar cada loja somente na
+própria empresa. Uma revogação remove apenas aquela unidade; os demais vínculos
+permanecem ativos.
 
 ## Os quatro papéis
 

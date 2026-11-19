@@ -172,7 +172,7 @@ function aplicarPapel(){
     b.style.display = (soMinha && !paraTodos) ? 'none' : '';
   });
 
-  // colaborador não escolhe loja nem período de geração
+  // colaborador não escolhe loja; supervisor pode alternar entre suas lojas autorizadas
   const sel = $('#sel-loja');
   if(sel) sel.parentElement.style.display = soMinha ? 'none' : '';
 
