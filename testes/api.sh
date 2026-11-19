@@ -22,6 +22,68 @@ chamar() { # $1=cookies $2=arquivo $3=json $4=csrf
     ${4:+-H "X-CSRF: $4"} -d "$3"
 }
 
+# Mantém corpo e status separados para que testes de autorização não confundam
+# sessão ausente com proibição correta.
+chamar_com_status() { # define HTTP_STATUS e HTTP_BODY
+  local cookies="$1" arquivo="$2" payload="$3" csrf="${4:-}" tmp
+  tmp=$(mktemp)
+  HTTP_STATUS=$(curl -s -o "$tmp" -w '%{http_code}' -c "$cookies" -b "$cookies" \
+    -X POST "$BASE/api/$arquivo" -H 'Content-Type: application/json' \
+    -H "Origin: $BASE" ${csrf:+-H "X-CSRF: $csrf"} -d "$payload")
+  HTTP_BODY=$(<"$tmp")
+  rm -f "$tmp"
+}
+
+json_true() {
+  local campo="$1" corpo="$2"
+  printf '%s' "$corpo" | python3 -c 'import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.get(sys.argv[1]) is True else 1)' "$campo"
+}
+
+json_false() {
+  local campo="$1" corpo="$2"
+  printf '%s' "$corpo" | python3 -c 'import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.get(sys.argv[1]) is False else 1)' "$campo"
+}
+
+json_logado_false() {
+  json_false logado "$1"
+}
+
+json_loja_exata() {
+  local corpo="$1" nome="$2"
+  printf '%s' "$corpo" | python3 -c 'import json,sys; d=json.load(sys.stdin); lojas=d.get("lojas",{}); raise SystemExit(0 if any(x.get("nome")==sys.argv[1] for x in lojas.values()) else 1)' "$nome"
+}
+
+preparar_conta() { # cookies nome email senha csrf_destino
+  local cookies="$1" nome="$2" email="$3" senha="$4" csrf_destino="$5"
+  local csrf token
+  chamar_com_status "$cookies" auth.php '{"acao":"sessao"}'
+  [ "$HTTP_STATUS" = 200 ] && json_logado_false "$HTTP_BODY" || return 1
+  csrf=$(printf '%s' "$HTTP_BODY" | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+  [ -n "$csrf" ] || return 1
+
+  chamar_com_status "$cookies" auth.php "{\"acao\":\"cadastrar\",\"nome\":\"$nome\",\"email\":\"$email\",\"senha\":\"$senha\"}" "$csrf"
+  [ "$HTTP_STATUS" = 200 ] && json_true ok "$HTTP_BODY" || return 1
+  token=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='$email';")
+  [ -n "$token" ] || return 1
+
+  chamar_com_status "$cookies" auth.php "{\"acao\":\"confirmar\",\"token\":\"$token\"}" "$csrf"
+  [ "$HTTP_STATUS" = 200 ] && json_true ok "$HTTP_BODY" || return 1
+
+  chamar_com_status "$cookies" auth.php '{"acao":"sair"}' "$csrf"
+  [ "$HTTP_STATUS" = 200 ] && json_true ok "$HTTP_BODY" || return 1
+  chamar_com_status "$cookies" auth.php '{"acao":"sessao"}'
+  csrf=$(printf '%s' "$HTTP_BODY" | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+  [ "$HTTP_STATUS" = 200 ] && [ -n "$csrf" ] || return 1
+
+  chamar_com_status "$cookies" auth.php "{\"acao\":\"entrar\",\"email\":\"$email\",\"senha\":\"$senha\"}" "$csrf"
+  [ "$HTTP_STATUS" = 200 ] && json_true ok "$HTTP_BODY" || return 1
+  chamar_com_status "$cookies" auth.php '{"acao":"sessao"}'
+  [ "$HTTP_STATUS" = 200 ] && json_true logado "$HTTP_BODY" || return 1
+  csrf=$(printf '%s' "$HTTP_BODY" | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+  [ -n "$csrf" ] || return 1
+  printf -v "$csrf_destino" '%s' "$csrf"
+}
+
 # --- preparar banco ---------------------------------------------------------
 mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS teste_escala; CREATE DATABASE teste_escala CHARACTER SET utf8mb4;" 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/mysql-schema.sql 2>/dev/null
@@ -98,12 +160,12 @@ R2=$(chamar "$COOKIES_B" auth.php '{"acao":"recuperar","email":"naoexiste@teste.
 
 echo ""
 echo "=== 6. Plataforma: autoridade separada e gestão autorizada ==="
-CSRF_A=$(chamar "$COOKIES_A" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
-CSRF_P=$(chamar "$COOKIES_P" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
-chamar "$COOKIES_P" auth.php '{"acao":"cadastrar","nome":"Plataforma","email":"plataforma@exemplo.test","senha":"plataforma teste segura 26"}' "$CSRF_P" >/dev/null
-TOKEN_P=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='plataforma@exemplo.test';")
-chamar "$COOKIES_P" auth.php "{\"acao\":\"confirmar\",\"token\":\"$TOKEN_P\"}" "$CSRF_P" >/dev/null
-CSRF_P=$(chamar "$COOKIES_P" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+if preparar_conta "$COOKIES_P" "Plataforma" "plataforma@exemplo.test" "acesso corporativo nove maio" CSRF_P; then
+  ok "preparação da conta de plataforma: cadastro, confirmação, login e sessão"
+else
+  falha "preparação da conta de plataforma"
+  exit 1
+fi
 R=$(chamar "$COOKIES_P" auth.php '{"acao":"plataforma_listar_empresas"}' "$CSRF_P")
 echo "$R" | grep -q '"empresas"' && ok "plataforma lista empresas sem papel vindo do cliente" || falha "plataforma: $R"
 R=$(chamar "$COOKIES_P" auth.php '{"acao":"plataforma_criar_empresa","nome":"Empresa Plataforma","loja":"Loja Plataforma"}' "$CSRF_P")
@@ -116,8 +178,8 @@ R=$(chamar "$COOKIES_P" auth.php '{"acao":"plataforma_listar_lojas"}' "$CSRF_P")
 echo "$R" | grep -q 'Loja Plataforma 2' && ok "plataforma lista lojas de empresas" || falha "listar lojas plataforma: $R"
 R=$(chamar "$COOKIES_P" auth.php '{"acao":"criar_empresa","nome":"Forjada","papel":"admin"}' "$CSRF_P")
 echo "$R" | grep -q "não pode\|plataforma\|empresa" && ok "fluxo comum não concede privilégio de plataforma" || falha "elevação por payload: $R"
-R=$(chamar "$COOKIES_A" auth.php '{"acao":"plataforma_listar_empresas"}' "$CSRF_A")
-echo "$R" | grep -q "plataforma" && falha "admin de empresa acessou plataforma" || ok "admin de empresa não acessa plataforma"
+chamar_com_status "$COOKIES_A" auth.php '{"acao":"plataforma_listar_empresas"}' "$CSRF_A"
+[ "$HTTP_STATUS" = 403 ] && ok "admin de empresa não acessa plataforma" || falha "admin de empresa acessou plataforma: HTTP $HTTP_STATUS $HTTP_BODY"
 
 echo ""
 echo "=== 7. Empresa e convite ==="
@@ -151,11 +213,12 @@ echo "$R" | grep -q '"ok":true' && ok "admin da empresa cria segunda loja" || fa
 
 # supervisor sem vínculo explícito não pode consultar a empresa;
 # o administrador da empresa atribui somente a segunda loja.
-CSRF_S=$(chamar "$COOKIES_S" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
-chamar "$COOKIES_S" auth.php '{"acao":"cadastrar","nome":"Supervisor Teste","email":"supervisor@exemplo.test","senha":"supervisor teste seguro 26"}' "$CSRF_S" >/dev/null
-TOKEN_S=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='supervisor@exemplo.test';")
-chamar "$COOKIES_S" auth.php "{\"acao\":\"confirmar\",\"token\":\"$TOKEN_S\"}" "$CSRF_S" >/dev/null
-CSRF_S=$(chamar "$COOKIES_S" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+if preparar_conta "$COOKIES_S" "Supervisor Teste" "supervisor@exemplo.test" "loja autorizada doze junho" CSRF_S; then
+  ok "preparação da conta de supervisor: cadastro, confirmação, login e sessão"
+else
+  falha "preparação da conta de supervisor"
+  exit 1
+fi
 R=$(chamar "$COOKIES_S" dados.php '{"acao":"carregar"}' "$CSRF_S")
 echo "$R" | grep -q "Supervisor sem loja" && ok "supervisor sem vínculo explícito é barrado" || falha "supervisor sem vínculo: $R"
 SUP_ID=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT id FROM usuarios WHERE email='supervisor@exemplo.test';")
