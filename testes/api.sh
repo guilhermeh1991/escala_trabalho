@@ -219,6 +219,11 @@ else
   falha "preparação da conta de supervisor"
   exit 1
 fi
+chamar_com_status "$COOKIES_S" auth.php "{\"acao\":\"entrar_por_convite\",\"codigo\":\"$CONVITE_A\"}" "$CSRF_S"
+[ "$HTTP_STATUS" = 200 ] && json_true ok "$HTTP_BODY" && ok "supervisor entra na empresa por convite" || { falha "convite do supervisor: HTTP $HTTP_STATUS $HTTP_BODY"; exit 1; }
+chamar_com_status "$COOKIES_S" auth.php '{"acao":"sessao"}'
+CSRF_S=$(printf '%s' "$HTTP_BODY" | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+[ "$HTTP_STATUS" = 200 ] && json_true logado "$HTTP_BODY" || { falha "sessão do supervisor após convite"; exit 1; }
 R=$(chamar "$COOKIES_S" dados.php '{"acao":"carregar"}' "$CSRF_S")
 echo "$R" | grep -q "Supervisor sem loja" && ok "supervisor sem vínculo explícito é barrado" || falha "supervisor sem vínculo: $R"
 SUP_ID=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT id FROM usuarios WHERE email='supervisor@exemplo.test';")
