@@ -1,13 +1,32 @@
 # Papéis e acesso
 
+## Autoridade da plataforma e da empresa
+
+O administrador da plataforma é uma autoridade separada dos papéis de cada
+empresa. Ele é identificado apenas pela lista privada `super_admins` do
+`api/config.php`; nenhum campo enviado pelo navegador, convite ou cadastro
+comum pode criar essa autoridade. As ações de plataforma são auditadas e não
+usam a sessão de administrador de uma empresa como atalho.
+
+A plataforma pode cadastrar empresas e lojas. A empresa nasce com uma loja
+vazia e o administrador da empresa passa a gerir sua própria rede. Supervisores
+(`gestor`) precisam ter `usuarios.loja_id` preenchido: sem vínculo explícito,
+não consultam nem alteram dados. Um administrador de empresa (`admin`) pode
+ver a rede inteira e atribuir um supervisor somente a uma loja da mesma
+empresa.
+
 ## Os quatro papéis
 
 | Papel | Enxerga | Pode alterar |
 |---|---|---|
 | `admin` | tudo da empresa | tudo, incluindo papéis e acessos |
-| `gestor` | tudo da empresa | equipe, parâmetros e escalas |
-| `leitor` | escalas prontas | nada |
+| `gestor` | a loja explicitamente vinculada | equipe, parâmetros e escalas dessa loja |
+| `leitor` | escalas prontas da empresa | nada |
 | `colaborador` | **apenas a própria escala** | nada |
+
+O administrador da plataforma não é um quinto valor de `usuarios.papel`: a
+autoridade vem exclusivamente da configuração do servidor e permanece distinta
+do administrador de qualquer empresa.
 
 Quem cria a empresa vira `admin`. Quem entra por código de convite vira
 `gestor`. Quem se cadastra com um e-mail que consta na equipe vira

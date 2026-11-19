@@ -264,10 +264,25 @@ function exigirPapel(array $u, array $papeis): void
     }
 }
 
-/** Quem monta escala: administrador e gestor. */
+/** Administrador de empresa: distinto da autoridade da plataforma. */
+function exigirAdminEmpresa(array $u): void
+{
+    if (ehSuperAdmin($u)) {
+        falhar('Use o fluxo administrativo da plataforma.', 403);
+    }
+    exigirPapel($u, ['admin']);
+}
+
+/** Quem monta escala: administrador e supervisor com loja explícita. */
 function exigirGestao(array $u): void
 {
+    if (ehSuperAdmin($u)) {
+        falhar('Administrador da plataforma não acessa a operação por este fluxo.', 403);
+    }
     exigirPapel($u, ['admin', 'gestor']);
+    if (($u['papel'] ?? '') === 'gestor' && empty($u['loja_id'])) {
+        falhar('Supervisor sem loja autorizada.', 403);
+    }
 }
 
 /**
@@ -284,7 +299,7 @@ function exigirGestao(array $u): void
  */
 function vincularColaborador(array $u): array
 {
-    if (!empty($u['empresa_id']) || !empty($u['colaborador_id'])) {
+    if (ehSuperAdmin($u) || !empty($u['empresa_id']) || !empty($u['colaborador_id'])) {
         return $u;
     }
     try {
@@ -349,9 +364,36 @@ function vincularColaboradorInterno(array $u): array
  * O administrador ignora a restrição por desenho: é ele quem precisa da visão
  * da rede inteira para comparar as lojas.
  */
-function ehSuperAdmin(array $u): bool { global $config; $lista = $config['super_admins'] ?? []; return in_array(mb_strtolower((string)$u['email']), array_map('mb_strtolower', $lista), true); } function vePorLoja(array $u): bool
+function ehSuperAdmin(array $u): bool
 {
-    return !ehSuperAdmin($u) && !empty($u['loja_id']);
+    global $config;
+    $lista = $config['super_admins'] ?? [];
+    $lista = array_map('mb_strtolower', array_map('strval', is_array($lista) ? $lista : []));
+    return empty($u['empresa_id'])
+        && in_array(mb_strtolower((string)$u['email']), $lista, true);
+}
+
+/** Autoridade da plataforma: vem apenas da configuração do servidor. */
+function exigirPlataforma(): array
+{
+    $u = exigirLogin();
+    if (!ehSuperAdmin($u)) {
+        falhar('Acesso restrito ao administrador da plataforma.', 403);
+    }
+    return $u;
+}
+
+/** Gestor é o supervisor de loja: o vínculo explícito é obrigatório. */
+function ehSupervisor(array $u): bool
+{
+    return ($u['papel'] ?? '') === 'gestor';
+}
+
+function vePorLoja(array $u): bool
+{
+    return !ehSuperAdmin($u)
+        && ($u['papel'] ?? '') !== 'admin'
+        && !empty($u['loja_id']);
 }
 
 /** Ids das lojas que este usuário pode enxergar. */
@@ -399,6 +441,23 @@ function exigirColaboradorDaEmpresa(string $colabId, array $u): void
     if (!$st->fetchColumn()) {
         falhar('Colaborador não encontrado.', 404);
     }
+}
+
+/** Conta administrativa da mesma empresa, sem aceitar ids de outra rede. */
+function exigirUsuarioDaEmpresa(string $usuarioId, array $u): array
+{
+    if (!ehUuid($usuarioId)) {
+        falhar('Usuário inválido.');
+    }
+    $st = bd()->prepare(
+        'SELECT id, email, papel, empresa_id, loja_id FROM usuarios
+          WHERE id = ? AND empresa_id = ? LIMIT 1');
+    $st->execute([$usuarioId, $u['empresa_id']]);
+    $alvo = $st->fetch();
+    if (!$alvo || ehSuperAdmin($alvo)) {
+        falhar('Usuário não encontrado.', 404);
+    }
+    return $alvo;
 }
 
 // -----------------------------------------------------------------------------

@@ -120,6 +120,13 @@ case 'salvar':
     exigirGestao($u);
     $lojas = campo($dados, 'lojas', []);
     if (!is_array($lojas)) falhar('Dados inválidos.');
+    if (vePorLoja($u)) {
+        foreach ($lojas as $lojaId => $_loja) {
+            if ((string)$lojaId !== $u['loja_id']) {
+                falhar('Loja fora do seu acesso.', 403);
+            }
+        }
+    }
 
     bd()->beginTransaction();
     try {
@@ -157,7 +164,17 @@ case 'salvar':
             $idsColab = [];
             $temJornada = jornadaEstruturadaDisponivel();
             foreach ($colabs as $i => $c) {
-                $cid = ehUuid((string)($c['id'] ?? '')) ? $c['id'] : uuid();
+                $cidRecebido = (string)($c['id'] ?? '');
+                $cid = ehUuid($cidRecebido) ? $cidRecebido : uuid();
+                if ($cidRecebido !== '') {
+                    if (!ehUuid($cidRecebido)) falhar('Identificador de colaborador inválido.');
+                    $stExistente = bd()->prepare('SELECT loja_id FROM colaboradores WHERE id = ? LIMIT 1');
+                    $stExistente->execute([$cidRecebido]);
+                    $lojaExistente = $stExistente->fetchColumn();
+                    if ($lojaExistente !== false && $lojaExistente !== $lojaId) {
+                        falhar('Colaborador fora da loja informada.', 403);
+                    }
+                }
                 $sqlColaborador = $temJornada
                     ? 'INSERT INTO colaboradores
                         (id, loja_id, nome, email, cargo, horario, jornada, gerente, ativo,
@@ -438,12 +455,15 @@ case 'criar_loja':
 case 'historico':
 // -----------------------------------------------------------------------------
     exigirGestao($u);
+    $filtroHistorico = vePorLoja($u) ? ' AND (JSON_UNQUOTE(JSON_EXTRACT(r.detalhe, "$.loja")) = ? OR r.acao NOT IN (\'escala_salva\', \'escala_excluida\'))' : '';
+    $argsHistorico = [$u['empresa_id']];
+    if (vePorLoja($u)) $argsHistorico[] = $u['loja_id'];
     $st = bd()->prepare(
         'SELECT r.acao, r.detalhe, r.em, us.nome
            FROM registro_acoes r
            LEFT JOIN usuarios us ON us.id = r.usuario_id
-          WHERE r.empresa_id = ? ORDER BY r.em DESC LIMIT 100');
-    $st->execute([$u['empresa_id']]);
+          WHERE r.empresa_id = ?' . $filtroHistorico . ' ORDER BY r.em DESC LIMIT 100');
+    $st->execute($argsHistorico);
     responder(['registros' => $st->fetchAll()]);
 
 // -----------------------------------------------------------------------------

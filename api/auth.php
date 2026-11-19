@@ -249,6 +249,7 @@ case 'redefinir':
 case 'criar_empresa':
 // -----------------------------------------------------------------------------
     $u = exigirLogin();
+    if (ehSuperAdmin($u)) falhar('Administrador da plataforma não pode criar empresa por este fluxo.', 403);
     if ($u['empresa_id']) falhar('Este usuário já pertence a uma empresa.');
     if ($u['papel'] === 'colaborador') falhar('Seu acesso é de colaborador.', 403);
 
@@ -315,6 +316,7 @@ case 'entrar_por_convite':
         falhar('Código de convite inválido.');
     }
 
+    if (ehSuperAdmin($u)) falhar('Administrador da plataforma não entra por convite.', 403);
     bd()->prepare('UPDATE usuarios SET empresa_id = ?, loja_id = ?, papel = \'gestor\' WHERE id = ?')
         ->execute([$e['id'], $idLoja, $u['id']]);
     registrar($u['id'], $e['id'], 'entrou_por_convite', ['loja' => $idLoja]);
@@ -343,25 +345,32 @@ case 'listar_acessos':
 // -----------------------------------------------------------------------------
     $u = exigirEmpresa();
     exigirGestao($u);
+    $filtroLoja = vePorLoja($u) ? ' AND us.loja_id = ?' : '';
+    $argsAcessos = [$u['empresa_id']];
+    if (vePorLoja($u)) $argsAcessos[] = $u['loja_id'];
     $st = bd()->prepare(
         'SELECT us.id, us.nome, us.email, us.papel, us.ultimo_acesso, us.criado_em,
                 us.loja_id, l.nome AS loja
            FROM usuarios us
            LEFT JOIN lojas l ON l.id = us.loja_id
-          WHERE us.empresa_id = ? ORDER BY us.criado_em');
-    $st->execute([$u['empresa_id']]);
+          WHERE us.empresa_id = ?' . $filtroLoja . ' ORDER BY us.criado_em');
+    $st->execute($argsAcessos);
     responder(['acessos' => $st->fetchAll()]);
 
 // -----------------------------------------------------------------------------
 case 'mudar_papel':
 // -----------------------------------------------------------------------------
     $u = exigirEmpresa();
-    exigirPapel($u, ['admin']);
+    exigirAdminEmpresa($u);
     $alvo  = (string)campo($dados, 'usuario_id', '');
     $papel = (string)campo($dados, 'papel', '');
     if (!in_array($papel, ['admin', 'gestor', 'leitor', 'colaborador'], true)) falhar('Perfil inválido.');
     if ($alvo === $u['id']) falhar('Você não pode mudar o próprio perfil.');
 
+    $alvoUsuario = exigirUsuarioDaEmpresa($alvo, $u);
+    if ($alvoUsuario['papel'] === 'admin' && $papel !== 'admin') {
+        falhar('Não é possível rebaixar outro administrador por este fluxo.', 403);
+    }
     $st = bd()->prepare('UPDATE usuarios SET papel = ? WHERE id = ? AND empresa_id = ?');
     $st->execute([$papel, $alvo, $u['empresa_id']]);
     registrar($u['id'], $u['empresa_id'], 'mudou_papel', ['alvo' => $alvo, 'papel' => $papel]);
@@ -371,18 +380,25 @@ case 'mudar_papel':
 case 'definir_loja':
 // -----------------------------------------------------------------------------
     $u = exigirEmpresa();
-    exigirPapel($u, ['admin']);
+    exigirAdminEmpresa($u);
     $alvo   = (string)campo($dados, 'usuario_id', '');
     $lojaId = (string)campo($dados, 'loja_id', '');
 
+    $alvoUsuario = exigirUsuarioDaEmpresa($alvo, $u);
+    if ($alvoUsuario['papel'] === 'colaborador') {
+        falhar('Colaborador deve ser vinculado pela ficha da equipe.', 403);
+    }
     if ($lojaId === '') {
-        // sem loja = enxerga a rede inteira
-        bd()->prepare('UPDATE usuarios SET loja_id = NULL WHERE id = ? AND empresa_id = ?')
-            ->execute([$alvo, $u['empresa_id']]);
+        if ($alvoUsuario['papel'] === 'gestor') {
+            falhar('Supervisor precisa de uma loja autorizada.', 403);
+        }
+        // sem loja = administrador da empresa enxerga a rede inteira
+        $st = bd()->prepare('UPDATE usuarios SET loja_id = NULL WHERE id = ? AND empresa_id = ?');
+        $st->execute([$alvo, $u['empresa_id']]);
     } else {
         exigirLojaDaEmpresa($lojaId, $u);
-        bd()->prepare('UPDATE usuarios SET loja_id = ? WHERE id = ? AND empresa_id = ?')
-            ->execute([$lojaId, $alvo, $u['empresa_id']]);
+        $st = bd()->prepare('UPDATE usuarios SET loja_id = ? WHERE id = ? AND empresa_id = ?');
+        $st->execute([$lojaId, $alvo, $u['empresa_id']]);
     }
     registrar($u['id'], $u['empresa_id'], 'definiu_loja', ['alvo' => $alvo, 'loja' => $lojaId]);
     responder(['ok' => true]);
@@ -391,15 +407,86 @@ case 'definir_loja':
 case 'remover_acesso':
 // -----------------------------------------------------------------------------
     $u = exigirEmpresa();
-    exigirPapel($u, ['admin']);
+    exigirAdminEmpresa($u);
     $alvo = (string)campo($dados, 'usuario_id', '');
     if ($alvo === $u['id']) falhar('Você não pode remover o próprio acesso.');
 
     // Desvincula da empresa; a conta continua existindo sem acesso aos dados.
-    $st = bd()->prepare('UPDATE usuarios SET empresa_id = NULL WHERE id = ? AND empresa_id = ?');
+    $alvoUsuario = exigirUsuarioDaEmpresa($alvo, $u);
+    $st = bd()->prepare('UPDATE usuarios SET empresa_id = NULL, loja_id = NULL, colaborador_id = NULL WHERE id = ? AND empresa_id = ?');
     $st->execute([$alvo, $u['empresa_id']]);
-    registrar($u['id'], $u['empresa_id'], 'removeu_acesso', ['alvo' => $alvo]);
+    registrar($u['id'], $u['empresa_id'], 'removeu_acesso', ['alvo' => $alvoUsuario['id']]);
     responder(['ok' => true]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_listar_empresas':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $st = bd()->query(
+        'SELECT id, nome, criado_em FROM empresas ORDER BY criado_em, id');
+    responder(['empresas' => $st->fetchAll()]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_listar_lojas':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $st = bd()->query(
+        'SELECT l.id, l.empresa_id, l.nome, l.ordem, l.criado_em, e.nome AS empresa_nome
+           FROM lojas l JOIN empresas e ON e.id = l.empresa_id
+          ORDER BY e.nome, l.ordem, l.criado_em');
+    responder(['lojas' => $st->fetchAll()]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_criar_empresa':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $nome = trim((string)campo($dados, 'nome', ''));
+    if (mb_strlen($nome) < 2) falhar('Informe o nome da empresa.');
+    $nomeLoja = trim((string)campo($dados, 'loja', ''));
+    if ($nomeLoja === '') $nomeLoja = $nome;
+    $empresaId = uuid();
+    $lojaId = uuid();
+    $codigo = codigoConvite();
+    $codigoLoja = codigoConvite();
+    bd()->beginTransaction();
+    try {
+        bd()->prepare('INSERT INTO empresas (id, nome, codigo_convite) VALUES (?, ?, ?)')
+            ->execute([$empresaId, $nome, $codigo]);
+        bd()->prepare('INSERT INTO lojas (id, empresa_id, nome, codigo_convite, parametros, ordem)
+                       VALUES (?, ?, ?, ?, ?, 0)')
+            ->execute([$lojaId, $empresaId, mb_substr($nomeLoja, 0, 80), $codigoLoja, '{}']);
+        bd()->commit();
+    } catch (Throwable $e) {
+        bd()->rollBack();
+        error_log('plataforma criar empresa: ' . $e->getMessage());
+        falhar('Não foi possível criar a empresa.', 500);
+    }
+    registrar($u['id'], $empresaId, 'plataforma_empresa_criada',
+        ['nome' => $nome, 'loja' => $nomeLoja]);
+    responder(['ok' => true, 'empresa_id' => $empresaId, 'loja_id' => $lojaId,
+               'codigo_convite' => $codigo, 'codigo_loja' => $codigoLoja]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_criar_loja':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $empresaId = (string)campo($dados, 'empresa_id', '');
+    if (!ehUuid($empresaId)) falhar('Empresa inválida.');
+    $nome = mb_substr(trim((string)campo($dados, 'nome', '')), 0, 80);
+    if ($nome === '') falhar('Informe o nome da loja.');
+    $st = bd()->prepare('SELECT 1 FROM empresas WHERE id = ? LIMIT 1');
+    $st->execute([$empresaId]);
+    if (!$st->fetchColumn()) falhar('Empresa não encontrada.', 404);
+    $st = bd()->prepare('SELECT COALESCE(MAX(ordem), -1) + 1 FROM lojas WHERE empresa_id = ?');
+    $st->execute([$empresaId]);
+    $ordem = (int)$st->fetchColumn();
+    $lojaId = uuid();
+    $codigoLoja = codigoConvite();
+    bd()->prepare('INSERT INTO lojas (id, empresa_id, nome, codigo_convite, parametros, ordem)
+                   VALUES (?, ?, ?, ?, ?, ?)')
+        ->execute([$lojaId, $empresaId, $nome, $codigoLoja, '{}', $ordem]);
+    registrar($u['id'], $empresaId, 'plataforma_loja_criada', ['nome' => $nome]);
+    responder(['ok' => true, 'id' => $lojaId, 'codigo' => $codigoLoja]);
 
 // -----------------------------------------------------------------------------
 default:

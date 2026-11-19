@@ -9,7 +9,7 @@ set -u
 cd "$(dirname "$0")/.."
 
 BASE="http://127.0.0.1:8877"
-COOKIES_A=$(mktemp); COOKIES_B=$(mktemp)
+COOKIES_A=$(mktemp); COOKIES_B=$(mktemp); COOKIES_P=$(mktemp); COOKIES_S=$(mktemp)
 falhas=0
 
 ok()    { echo "  ok     $1"; }
@@ -39,7 +39,7 @@ cat > api/config.php <<'PHP'
   'bd_host'=>'127.0.0.1', 'bd_nome'=>'teste_escala',
   'bd_usuario'=>'root', 'bd_senha'=>'',
   'endereco_site'=>'http://127.0.0.1:8877', 'chave_criacao_empresa'=>'teste-ci-123',
-  'email_remetente'=>'teste@local',
+  'email_remetente'=>'teste@local', 'super_admins'=>['plataforma@exemplo.test'],
 ];
 PHP
 
@@ -97,7 +97,30 @@ R2=$(chamar "$COOKIES_B" auth.php '{"acao":"recuperar","email":"naoexiste@teste.
 [ "$R1" = "$R2" ] && ok "recuperação responde igual para e-mail existente e inexistente" || falha "respostas diferentes revelam cadastro"
 
 echo ""
-echo "=== 6. Empresa e convite ==="
+echo "=== 6. Plataforma: autoridade separada e gestão autorizada ==="
+CSRF_A=$(chamar "$COOKIES_A" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+CSRF_P=$(chamar "$COOKIES_P" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+chamar "$COOKIES_P" auth.php '{"acao":"cadastrar","nome":"Plataforma","email":"plataforma@exemplo.test","senha":"plataforma teste segura 26"}' "$CSRF_P" >/dev/null
+TOKEN_P=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='plataforma@exemplo.test';")
+chamar "$COOKIES_P" auth.php "{\"acao\":\"confirmar\",\"token\":\"$TOKEN_P\"}" "$CSRF_P" >/dev/null
+CSRF_P=$(chamar "$COOKIES_P" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+R=$(chamar "$COOKIES_P" auth.php '{"acao":"plataforma_listar_empresas"}' "$CSRF_P")
+echo "$R" | grep -q '"empresas"' && ok "plataforma lista empresas sem papel vindo do cliente" || falha "plataforma: $R"
+R=$(chamar "$COOKIES_P" auth.php '{"acao":"plataforma_criar_empresa","nome":"Empresa Plataforma","loja":"Loja Plataforma"}' "$CSRF_P")
+echo "$R" | grep -q '"ok":true' && ok "plataforma cria empresa e loja" || falha "criar empresa plataforma: $R"
+EMPRESA_P=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4)
+LOJA_P=$(echo "$R" | grep -o '"loja_id":"[^"]*"' | cut -d'"' -f4)
+R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_criar_loja\",\"empresa_id\":\"$EMPRESA_P\",\"nome\":\"Loja Plataforma 2\"}" "$CSRF_P")
+echo "$R" | grep -q '"ok":true' && ok "plataforma cria loja em empresa autorizada" || falha "criar loja plataforma: $R"
+R=$(chamar "$COOKIES_P" auth.php '{"acao":"plataforma_listar_lojas"}' "$CSRF_P")
+echo "$R" | grep -q 'Loja Plataforma 2' && ok "plataforma lista lojas de empresas" || falha "listar lojas plataforma: $R"
+R=$(chamar "$COOKIES_P" auth.php '{"acao":"criar_empresa","nome":"Forjada","papel":"admin"}' "$CSRF_P")
+echo "$R" | grep -q "não pode\|plataforma\|empresa" && ok "fluxo comum não concede privilégio de plataforma" || falha "elevação por payload: $R"
+R=$(chamar "$COOKIES_A" auth.php '{"acao":"plataforma_listar_empresas"}' "$CSRF_A")
+echo "$R" | grep -q "plataforma" && falha "admin de empresa acessou plataforma" || ok "admin de empresa não acessa plataforma"
+
+echo ""
+echo "=== 7. Empresa e convite ==="
 CSRF_A=$(chamar "$COOKIES_A" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
 R=$(chamar "$COOKIES_A" auth.php '{"acao":"criar_empresa","nome":"Drogaria A","chave":"teste-ci-123","loja":"Loja Teste A"}' "$CSRF_A")
 echo "$R" | grep -q '"ok":true' && ok "empresa criada" || falha "criar empresa: $R"
@@ -122,9 +145,30 @@ EMPRESA_B=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4)
 
 echo ""
 echo "=== 8. Dados: criar loja e salvar equipe ==="
-R=$(chamar "$COOKIES_A" dados.php '{"acao":"criar_loja","nome":"Loja Teste A"}' "$CSRF_A")
+R=$(chamar "$COOKIES_A" dados.php '{"acao":"criar_loja","nome":"Loja Teste B"}' "$CSRF_A")
 LOJA_A2=$(echo "$R" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
-echo "$R" | grep -q "uma loja s" && ok "criar_loja bloqueado: conta presa a uma loja" || falha "criar_loja nao foi bloqueado: $R"
+echo "$R" | grep -q '"ok":true' && ok "admin da empresa cria segunda loja" || falha "criar_loja: $R"
+
+# supervisor sem vínculo explícito não pode consultar a empresa;
+# o administrador da empresa atribui somente a segunda loja.
+CSRF_S=$(chamar "$COOKIES_S" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+chamar "$COOKIES_S" auth.php '{"acao":"cadastrar","nome":"Supervisor Teste","email":"supervisor@exemplo.test","senha":"supervisor teste seguro 26"}' "$CSRF_S" >/dev/null
+TOKEN_S=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT token_confirmacao FROM usuarios WHERE email='supervisor@exemplo.test';")
+chamar "$COOKIES_S" auth.php "{\"acao\":\"confirmar\",\"token\":\"$TOKEN_S\"}" "$CSRF_S" >/dev/null
+CSRF_S=$(chamar "$COOKIES_S" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+R=$(chamar "$COOKIES_S" dados.php '{"acao":"carregar"}' "$CSRF_S")
+echo "$R" | grep -q "Supervisor sem loja" && ok "supervisor sem vínculo explícito é barrado" || falha "supervisor sem vínculo: $R"
+SUP_ID=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT id FROM usuarios WHERE email='supervisor@exemplo.test';")
+R=$(chamar "$COOKIES_A" auth.php "{\"acao\":\"definir_loja\",\"usuario_id\":\"$SUP_ID\",\"loja_id\":\"$LOJA_A2\"}" "$CSRF_A")
+echo "$R" | grep -q '"ok":true' && ok "admin vincula supervisor à loja autorizada" || falha "vínculo de supervisor: $R"
+R=$(chamar "$COOKIES_S" dados.php '{"acao":"carregar"}' "$CSRF_S")
+echo "$R" | grep -q 'Loja Teste B' && ok "supervisor vê a loja vinculada" || falha "escopo do supervisor: $R"
+R=$(chamar "$COOKIES_S" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\"}" "$CSRF_S")
+echo "$R" | grep -q "não encontrada" && ok "supervisor não alcança outra loja por identificador" || falha "supervisor atravessou escopo: $R"
+R=$(chamar "$COOKIES_A" auth.php "{\"acao\":\"remover_acesso\",\"usuario_id\":\"$SUP_ID\"}" "$CSRF_A")
+echo "$R" | grep -q '"ok":true' && ok "admin revoga vínculo do supervisor" || falha "revogação: $R"
+R=$(chamar "$COOKIES_S" dados.php '{"acao":"carregar"}' "$CSRF_S")
+echo "$R" | grep -q "sem empresa\|Sessão" && ok "supervisor revogado perde acesso" || falha "vínculo revogado ainda acessa: $R"
 
 PAYLOAD=$(cat <<JSON
 {"acao":"salvar","lojas":{"$LOJA_A":{"nome":"Loja Teste A","_ordem":0,"params":{"modelo":"5x2"},
