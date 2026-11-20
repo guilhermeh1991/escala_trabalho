@@ -75,6 +75,7 @@ request "$COOKIE_A" auth.php "{\"acao\":\"supervisor_atribuir_loja\",\"usuario_i
   echo "PLATFORM_PASSWORD=$PLATFORM_PASSWORD"
   echo "OPERADOR_EMAIL=$ADMIN_EMAIL"
   echo "OPERADOR_PASSWORD=$ADMIN_PASSWORD"
+  echo "SUPERVISOR_EMAIL=$SUP_EMAIL"
   echo "STORE_A=$LOJA_A"
   echo "STORE_B=$LOJA_B"
 } >> "$GITHUB_ENV"

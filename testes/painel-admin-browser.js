@@ -7,6 +7,7 @@ const PLATFORM_EMAIL = process.env.PLATFORM_EMAIL;
 const PLATFORM_PASSWORD = process.env.PLATFORM_PASSWORD;
 const OPERADOR_EMAIL = process.env.OPERADOR_EMAIL;
 const OPERADOR_PASSWORD = process.env.OPERADOR_PASSWORD;
+const SUPERVISOR_EMAIL = process.env.SUPERVISOR_EMAIL;
 const STORE_A = process.env.STORE_A;
 const STORE_B = process.env.STORE_B;
 const OUT = process.env.SCREENSHOT_DIR || 'artifacts/painel-admin';
@@ -33,7 +34,7 @@ async function selectCompany(page, name) {
 }
 
 async function main() {
-  assert(PLATFORM_EMAIL && PLATFORM_PASSWORD && OPERADOR_EMAIL && OPERADOR_PASSWORD);
+  assert(PLATFORM_EMAIL && PLATFORM_PASSWORD && OPERADOR_EMAIL && OPERADOR_PASSWORD && SUPERVISOR_EMAIL);
   assert(STORE_A && STORE_B);
   const browser = await chromium.launch({headless:true});
   const errors = [];
@@ -68,14 +69,14 @@ async function main() {
   await page.screenshot({path:`${OUT}/desktop-lojas.png`, fullPage:true});
 
   await selectCompany(page, 'Empresa Operacional Teste');
-  await page.locator('#admin-busca-supervisor').fill('supervisor@exemplo.test');
-  await page.locator('.admin-supervisor').filter({hasText:'supervisor@exemplo.test'}).waitFor({state:'visible'});
-  const assign = () => page.locator('.admin-supervisor').filter({hasText:'supervisor@exemplo.test'}).locator('select').first();
+  await page.locator('#admin-busca-supervisor').fill(SUPERVISOR_EMAIL);
+  await page.locator('.admin-supervisor').filter({hasText:SUPERVISOR_EMAIL}).waitFor({state:'visible'});
+  const assign = () => page.locator('.admin-supervisor').filter({hasText:SUPERVISOR_EMAIL}).locator('select').first();
   await assign().selectOption(STORE_A);
   await waitText(page, '#admin-status', 'Alteração confirmada');
   await assign().selectOption(STORE_B);
   await waitText(page, '#admin-status', 'Alteração confirmada');
-  let supervisor = page.locator('.admin-supervisor').filter({hasText:'supervisor@exemplo.test'});
+  let supervisor = page.locator('.admin-supervisor').filter({hasText:SUPERVISOR_EMAIL});
   await supervisor.locator('.admin-chip').filter({hasText:'Loja Operacional A'}).waitFor({state:'visible'});
   await supervisor.locator('.admin-chip').filter({hasText:'Loja Operacional B'}).waitFor({state:'visible'});
   await page.screenshot({path:`${OUT}/desktop-supervisores.png`, fullPage:true});
@@ -83,7 +84,7 @@ async function main() {
   page.once('dialog', dialog => dialog.accept());
   await supervisor.locator('.admin-chip').filter({hasText:'Loja Operacional A'}).locator('button').click();
   await waitText(page, '#admin-status', 'Alteração confirmada');
-  supervisor = page.locator('.admin-supervisor').filter({hasText:'supervisor@exemplo.test'});
+  supervisor = page.locator('.admin-supervisor').filter({hasText:SUPERVISOR_EMAIL});
   assert.equal(await supervisor.locator('.admin-chip').filter({hasText:'Loja Operacional A'}).count(), 0);
   assert.equal(await supervisor.locator('.admin-chip').filter({hasText:'Loja Operacional B'}).count(), 1);
 
