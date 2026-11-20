@@ -17,7 +17,8 @@ async function waitText(page, selector, text) {
 }
 
 async function login(page, email, password) {
-  await page.goto(BASE, {waitUntil:'networkidle'});
+  page.setDefaultTimeout(15000);
+  await page.goto(BASE, {waitUntil:'domcontentloaded', timeout:30000});
   await page.locator('#in-email').fill(email);
   await page.locator('#in-senha').fill(password);
   await page.locator('#btn-entrar').click();
@@ -86,7 +87,7 @@ async function main() {
   assert.equal(await supervisor.locator('.admin-chip').filter({hasText:'Loja Operacional A'}).count(), 0);
   assert.equal(await supervisor.locator('.admin-chip').filter({hasText:'Loja Operacional B'}).count(), 1);
 
-  await page.reload({waitUntil:'networkidle'});
+  await page.reload({waitUntil:'domcontentloaded', timeout:30000});
   await page.locator('#tab-administracao').waitFor({state:'visible'});
   await selectCompany(page, 'Empresa Browser Ficticia');
   await waitText(page, '#admin-lojas', 'Loja Browser Editada');
