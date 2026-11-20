@@ -308,7 +308,7 @@ function adminRenderLojas(){
 function adminEditarLoja(loja){const f=document.getElementById('admin-form-loja');f.hidden=false;f.dataset.id=loja?.id||'';document.getElementById('admin-loja-nome').value=loja?.nome||'';document.getElementById('admin-loja-descricao').value=loja?.descricao||'';}
 async function adminCarregarSupervisores(){
   if(!ADMIN.empresa)return; const box=document.getElementById('admin-supervisores');if(box)box.textContent='Carregando supervisores…';
-  try{const r=await auth({acao:'plataforma_listar_supervisores',empresa_id:ADMIN.empresa.id,q:(document.getElementById('admin-busca-supervisor')?.value||'').trim());ADMIN.supervisores=r.supervisores||[];const dados=await Promise.all(ADMIN.supervisores.map(async s=>({p:s,r:await auth({acao:'plataforma_listar_supervisor_lojas',usuario_id:s.id})})));ADMIN.supervisores=dados;adminRenderSupervisores();}
+  try{const r=await auth({acao:'plataforma_listar_supervisores',empresa_id:ADMIN.empresa.id,q:(document.getElementById('admin-busca-supervisor')?.value||'').trim()});ADMIN.supervisores=r.supervisores||[];const dados=await Promise.all(ADMIN.supervisores.map(async s=>({p:s,r:await auth({acao:'plataforma_listar_supervisor_lojas',usuario_id:s.id})})));ADMIN.supervisores=dados;adminRenderSupervisores();}
   catch(e){adminStatus(erroAmigavel(e),'erro');}
 }
 function adminRenderSupervisores(){
