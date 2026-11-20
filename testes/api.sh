@@ -97,8 +97,10 @@ mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/nul
   || falha "verificar-e-migrar.sql após as migrações"
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-007-historico-versoes.sql >/dev/null \
   || falha "migracao-007-historico-versoes.sql"
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-008-descricao-cadastros.sql >/dev/null \
+  || falha "migracao-008-descricao-cadastros.sql"
 mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
-  || falha "verificar-e-migrar.sql não foi idempotente"
+  || falha "verificar-e-migrar.sql após as migrações"
 
 cat > api/config.php <<'PHP'
 <?php return [
@@ -180,6 +182,14 @@ R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_criar_loja\",\"empresa_
 echo "$R" | grep -q '"ok":true' && ok "plataforma cria loja em empresa autorizada" || falha "criar loja plataforma: $R"
 R=$(chamar "$COOKIES_P" auth.php '{"acao":"plataforma_listar_lojas"}' "$CSRF_P")
 echo "$R" | grep -q 'Loja Plataforma 2' && ok "plataforma lista lojas de empresas" || falha "listar lojas plataforma: $R"
+R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_editar_empresa\",\"empresa_id\":\"$EMPRESA_P\",\"nome\":\"Empresa <Teste>\",\"descricao\":\"Descrição & segura\"}" "$CSRF_P")
+echo "$R" | grep -q '"ok":true' && ok "plataforma edita cadastro da empresa" || falha "editar empresa: $R"
+R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_editar_loja\",\"loja_id\":\"$LOJA_P\",\"nome\":\"Loja <Texto>\",\"descricao\":\"Descrição sem HTML\"}" "$CSRF_P")
+echo "$R" | grep -q '"ok":true' && ok "plataforma edita cadastro da loja" || falha "editar loja: $R"
+R=$(chamar "$COOKIES_P" auth.php '{"acao":"plataforma_listar_empresas","q":"Empresa <Teste>"}' "$CSRF_P")
+echo "$R" | grep -q 'Empresa <Teste>' && ok "texto cadastral preservado como dado" || falha "texto cadastral: $R"
+R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_listar_lojas\",\"empresa_id\":\"$EMPRESA_P\",\"q\":\"Loja <Texto>\"}" "$CSRF_P")
+echo "$R" | grep -q 'Loja <Texto>' && ok "texto da loja preservado como dado" || falha "texto da loja: $R"
 R=$(chamar "$COOKIES_P" auth.php '{"acao":"criar_empresa","nome":"Forjada","papel":"admin"}' "$CSRF_P")
 echo "$R" | grep -q "não pode\|plataforma\|empresa" && ok "fluxo comum não concede privilégio de plataforma" || falha "elevação por payload: $R"
 chamar_com_status "$COOKIES_A" auth.php '{"acao":"plataforma_listar_empresas"}' "$CSRF_A"

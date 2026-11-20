@@ -224,6 +224,22 @@ header.top .quem:focus{outline:2px solid #9DD7CD;outline-offset:2px}
 nav.tabs{background:var(--tinta2);display:flex;gap:4px;padding:0 24px;overflow-x:auto;box-shadow:0 3px 10px rgba(18,38,45,.10)}
 nav.tabs button{position:relative;background:transparent;border:0;color:#BBD0CB;padding:12px 15px;font-size:13.5px;font-weight:500;
   border-bottom:3px solid transparent;white-space:nowrap}
+#admin-status{min-height:22px;margin:0 0 12px}
+.admin-toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:16px}
+.admin-toolbar label{min-width:220px;flex:1}
+.admin-toolbar .inp{margin-top:5px}
+.admin-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr);gap:18px}
+.admin-list{max-height:420px;overflow:auto;border:1px solid var(--linha);border-radius:var(--radius);background:#fff}
+.admin-row{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid var(--linha-suave);cursor:pointer;text-align:left;width:100%;background:#fff;color:var(--texto)}
+.admin-row:last-child{border-bottom:0}.admin-row:hover,.admin-row[aria-current="true"]{background:var(--teal-suave)}
+.admin-row strong{display:block;font-size:14px}.admin-row small{display:block;color:var(--fraco);margin-top:2px}
+.admin-form{display:grid;gap:12px}.admin-form label{display:grid;gap:5px}.admin-form textarea{min-height:86px;resize:vertical}
+.admin-subhead{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:12px}.admin-subhead h3{margin:0;font-size:16px}.admin-subhead p{margin:3px 0 0;color:var(--fraco);font-size:12.5px}
+.admin-supervisores{margin-top:18px}.admin-supervisor{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--linha-suave)}
+.admin-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.admin-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid var(--linha);border-radius:999px;background:var(--superficie);font-size:12px}.admin-chip button{border:0;background:transparent;color:var(--alerta);padding:0 2px;line-height:1}
+.admin-empty{padding:22px;color:var(--fraco);font-size:13px}.admin-loading{color:var(--fraco);font-size:13px}
+@media(max-width:800px){.admin-grid{grid-template-columns:1fr}.admin-list{max-height:300px}}
+@media(max-width:560px){.admin-toolbar{display:grid;grid-template-columns:1fr}.admin-toolbar label{min-width:0}.admin-subhead{display:block}.admin-supervisor{grid-template-columns:1fr}.admin-form .barra{align-items:stretch;flex-direction:column}.admin-form .btn{width:100%}}
 nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.04)}
 nav.tabs button[aria-current="true"]{color:#fff;border-bottom-color:#91D4C9;font-weight:600}
 main{padding:24px;max-width:1900px;margin:0 auto}
@@ -406,6 +422,7 @@ th.domingo{color:var(--texto);background:#F8F3E3!important}
 .chip{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#E7EDE9;color:var(--fraco);white-space:nowrap}
 .chip.ok{background:var(--v-bg);color:var(--v-fg)}
 .chip.mal{background:var(--r-bg);color:var(--r-fg)}
+.chip.info{background:var(--info-bg);color:var(--info-fg)}
 ul.alertas{list-style:none;margin:0;padding:0;max-height:230px;overflow:auto}
 ul.alertas li{padding:8px 0;border-bottom:1px solid var(--linha-suave);font-size:13px;display:flex;gap:8px}
 ul.alertas li b{min-width:120px;font-weight:600}
@@ -497,6 +514,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
     <button data-view="equipe">Equipe</button>
     <button data-view="params">Parâmetros</button>
     <button data-view="usuarios">Usuários</button>
+    <button data-view="administracao" id="tab-administracao" hidden>Administração da plataforma</button>
   </nav>
   <main>
 
@@ -717,6 +735,17 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <div class="barra" style="margin-top:14px"><button class="btn" id="btn-add-user">Criar acesso</button><span class="chip" id="status-user"></span></div>
         <table class="simples" id="tab-users" style="margin-top:10px"></table>
       </div>
+    </section>
+
+    <section class="view" data-view="administracao">
+      <div class="painel">
+        <div class="admin-subhead"><div><h2>Administração da plataforma</h2><p class="desc">Cadastros e vínculos operacionais. Alterações aqui não reescrevem equipes, regras ou escalas.</p></div><span class="chip info" id="admin-status" aria-live="polite"></span></div>
+        <div class="admin-toolbar"><label>Localizar empresa<input class="inp" id="admin-busca-empresa" type="search" autocomplete="off"></label><button class="btn" id="admin-nova-empresa">Nova empresa</button></div>
+        <div class="admin-grid"><div class="admin-list" id="admin-empresas" aria-label="Empresas"><div class="admin-loading">Carregando empresas…</div></div>
+          <form class="admin-form" id="admin-form-empresa" hidden><div class="admin-subhead"><div><h3>Dados da empresa</h3><p>Somente nome e descrição cadastral.</p></div></div><label>Nome<input class="inp" id="admin-empresa-nome" required maxlength="120"></label><label>Descrição<textarea class="inp" id="admin-empresa-descricao" maxlength="500"></textarea></label><div class="barra"><button class="btn primary" type="submit">Salvar empresa</button><button class="btn ghost" type="button" id="admin-cancelar-empresa">Cancelar</button></div></form></div>
+      </div>
+      <div class="painel" id="admin-painel-lojas" hidden><div class="admin-subhead"><div><h2 id="admin-lojas-titulo">Lojas</h2><p class="desc">Nome e descrição da unidade. Equipe, parâmetros e escalas ficam preservados.</p></div><button class="btn" id="admin-nova-loja">Nova loja</button></div><div class="admin-grid"><div class="admin-list" id="admin-lojas"></div><form class="admin-form" id="admin-form-loja" hidden><label>Nome<input class="inp" id="admin-loja-nome" required maxlength="80"></label><label>Descrição<textarea class="inp" id="admin-loja-descricao" maxlength="500"></textarea></label><div class="barra"><button class="btn primary" type="submit">Salvar loja</button><button class="btn ghost" type="button" id="admin-cancelar-loja">Cancelar</button></div></form></div></div>
+      <div class="painel" id="admin-painel-supervisores" hidden><div class="admin-subhead"><div><h2>Supervisores autorizados</h2><p class="desc">Busque por nome ou e-mail e atribua apenas lojas desta empresa.</p></div></div><div class="admin-toolbar"><label>Localizar supervisor<input class="inp" id="admin-busca-supervisor" type="search" autocomplete="off"></label></div><div id="admin-supervisores" class="admin-supervisores"></div></div>
     </section>
 
   </main>

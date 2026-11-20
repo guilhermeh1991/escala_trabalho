@@ -99,6 +99,7 @@ const DB = {
     const r = await auth({acao:'sessao'});
     SESSAO.usuario = r.usuario || null;
     SESSAO.empresa = r.empresa || null;
+    SESSAO.plataforma = r.plataforma === true;
     SESSAO.perfil  = r.usuario || null;     // nome usado pela tela
     return r;
   },
@@ -107,7 +108,10 @@ const DB = {
     return r.lojas || {};
   },
   async salvarLojas(lojas){
-    await dadosApi({acao:'salvar', lojas});
+    const envio = Object.fromEntries(Object.entries(lojas).map(([id,l])=>[id,Object.assign({},l,{_versao:l.versao})]));
+    const r = await dadosApi({acao:'salvar', lojas:envio, expected_versions:Object.fromEntries(Object.entries(lojas).map(([id,l])=>[id,l.versao||1]))});
+    Object.entries(r.versoes || {}).forEach(([id,versao])=>{ if(lojas[id]) lojas[id].versao = versao; });
+    return r;
   },
   async carregarEscala(lojaId, inicio, fim){
     const r = await dadosApi({acao:'carregar_escala', loja_id:lojaId, inicio, fim});

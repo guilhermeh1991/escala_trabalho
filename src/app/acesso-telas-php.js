@@ -150,19 +150,29 @@ async function aposLogin(){
   try{ r = await DB.carregarEmpresa(); }
   catch(e){ erroEm('#erro-entrar', erroAmigavel(e)); mostrarTela('entrar'); return; }
   if(!r.logado){ mostrarTela('entrar'); return; }
+  if(r.plataforma){ await abrirApp(true); return; }
   if(!SESSAO.usuario || !SESSAO.usuario.empresa_id){ mostrarTela('vinculo'); return; }
-  await abrirApp();
+  await abrirApp(false);
 }
 
-async function abrirApp(){
+function abrirAdministracao(){
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current', 'false'));
+  document.querySelectorAll('.view').forEach(v=>v.dataset.ativa = String(v.dataset.view==='administracao'));
+  carregarAdministracao();
+}
+
+async function abrirApp(plataforma=false){
   mostrarTela('app');
-  S.usuario = {papel: SESSAO.usuario.papel, nome: SESSAO.usuario.nome};
+  S.usuario = {papel: SESSAO.usuario.papel, nome: SESSAO.usuario.nome, plataforma};
+  if(plataforma){ S.lojas = {}; S.loja = null; montarAdministracao(); abrirAdministracao(); return; }
   pintarIdentidade({
     nome:    SESSAO.usuario.nome,
     email:   SESSAO.usuario.email,
     papel:   SESSAO.usuario.papel,
     empresa: SESSAO.empresa ? SESSAO.empresa.nome : ''
   });
+  const adminTab = document.getElementById('tab-administracao');
+  if(adminTab) adminTab.hidden = !SESSAO.plataforma;
   S.lojas = await store.get('escala:lojas');
   if(!S.lojas || !Object.keys(S.lojas).length){
     // Empresa sem loja: acontece se a criação falhou pela metade. Em vez de
@@ -238,6 +248,87 @@ async function pintarAcessos(){
       };
     });
   }catch(e){ cx.innerHTML = `<p class="vazio">${esc(erroAmigavel(e))}</p>`; }
+}
+
+/* ---------- administração da plataforma ---------- */
+const ADMIN = {empresa:null, empresas:[], lojas:[], supervisores:[], carregando:false};
+function adminStatus(txt, tipo='info'){
+  const el = document.getElementById('admin-status');
+  if(!el) return;
+  el.textContent = txt || '';
+  el.className = 'chip ' + (tipo==='erro'?'mal':tipo==='ok'?'ok':'info');
+}
+function adminTexto(el, txt){ if(el) el.textContent = txt == null ? '' : String(txt); }
+function adminBotao(txt, acao, dados={}){
+  const b=document.createElement('button'); b.type='button'; b.className='btn ghost small'; b.textContent=txt;
+  Object.entries(dados).forEach(([k,v])=>b.dataset[k]=v);
+  b.addEventListener('click', acao); return b;
+}
+async function adminRequisicao(dados){
+  adminStatus('Salvando…');
+  try{ const r=await auth(dados); adminStatus('Alteração confirmada','ok'); return r; }
+  catch(e){ adminStatus(erroAmigavel(e),'erro'); throw e; }
+}
+function adminRenderEmpresas(){
+  const box=document.getElementById('admin-empresas'); if(!box) return; box.replaceChildren();
+  if(!ADMIN.empresas.length){ const p=document.createElement('div'); p.className='admin-empty'; p.textContent='Nenhuma empresa encontrada.'; box.appendChild(p); return; }
+  ADMIN.empresas.forEach(e=>{
+    const b=adminBotao('',()=>adminSelecionarEmpresa(e)); b.className='admin-row';
+    b.setAttribute('aria-current', ADMIN.empresa && ADMIN.empresa.id===e.id ? 'true':'false');
+    const wrap=document.createElement('span'), strong=document.createElement('strong'), small=document.createElement('small');
+    strong.textContent=e.nome; small.textContent=e.descricao || 'Sem descrição cadastral'; wrap.append(strong,small); b.appendChild(wrap); box.appendChild(b);
+  });
+}
+async function adminCarregarEmpresas(){
+  const q=(document.getElementById('admin-busca-empresa')?.value||'').trim();
+  const box=document.getElementById('admin-empresas'); if(box){box.replaceChildren(); const p=document.createElement('div');p.className='admin-empty';p.textContent='Carregando empresas…';box.appendChild(p);}
+  try{ const r=await auth({acao:'plataforma_listar_empresas',q}); ADMIN.empresas=r.empresas||[]; adminRenderEmpresas(); }
+  catch(e){ adminStatus(erroAmigavel(e),'erro'); }
+}
+function adminPreencherEmpresa(empresa){
+  const form=document.getElementById('admin-form-empresa'); if(!form)return;
+  form.hidden=false; document.getElementById('admin-empresa-nome').value=empresa?.nome||''; document.getElementById('admin-empresa-descricao').value=empresa?.descricao||'';
+}
+async function adminSelecionarEmpresa(empresa){
+  ADMIN.empresa=empresa; adminRenderEmpresas(); adminPreencherEmpresa(empresa);
+  document.getElementById('admin-painel-lojas').hidden=false; document.getElementById('admin-painel-supervisores').hidden=false;
+  adminTexto(document.getElementById('admin-lojas-titulo'),'Lojas · '+empresa.nome);
+  await Promise.all([adminCarregarLojas(),adminCarregarSupervisores()]);
+}
+async function adminCarregarLojas(){
+  if(!ADMIN.empresa)return; const box=document.getElementById('admin-lojas'); if(box){box.replaceChildren();const p=document.createElement('div');p.className='admin-empty';p.textContent='Carregando lojas…';box.appendChild(p);}
+  try{const r=await auth({acao:'plataforma_listar_lojas',empresa_id:ADMIN.empresa.id});ADMIN.lojas=r.lojas||[];adminRenderLojas();}
+  catch(e){adminStatus(erroAmigavel(e),'erro');}
+}
+function adminRenderLojas(){
+  const box=document.getElementById('admin-lojas');if(!box)return;box.replaceChildren();
+  if(!ADMIN.lojas.length){const p=document.createElement('div');p.className='admin-empty';p.textContent='Nenhuma loja cadastrada.';box.appendChild(p);return;}
+  ADMIN.lojas.forEach(l=>{const b=adminBotao('',()=>adminEditarLoja(l));b.className='admin-row';const w=document.createElement('span'),s=document.createElement('strong'),p=document.createElement('small');s.textContent=l.nome;p.textContent=l.descricao||'Sem descrição cadastral';w.append(s,p);b.appendChild(w);box.appendChild(b);});
+}
+function adminEditarLoja(loja){const f=document.getElementById('admin-form-loja');f.hidden=false;f.dataset.id=loja?.id||'';document.getElementById('admin-loja-nome').value=loja?.nome||'';document.getElementById('admin-loja-descricao').value=loja?.descricao||'';}
+async function adminCarregarSupervisores(){
+  if(!ADMIN.empresa)return; const box=document.getElementById('admin-supervisores');if(box)box.textContent='Carregando supervisores…';
+  try{const r=await auth({acao:'plataforma_listar_supervisores',empresa_id:ADMIN.empresa.id,q:(document.getElementById('admin-busca-supervisor')?.value||'').trim());ADMIN.supervisores=r.supervisores||[];const dados=await Promise.all(ADMIN.supervisores.map(async s=>({p:s,r:await auth({acao:'plataforma_listar_supervisor_lojas',usuario_id:s.id})})));ADMIN.supervisores=dados;adminRenderSupervisores();}
+  catch(e){adminStatus(erroAmigavel(e),'erro');}
+}
+function adminRenderSupervisores(){
+  const box=document.getElementById('admin-supervisores');if(!box)return;box.replaceChildren();if(!ADMIN.supervisores.length){const p=document.createElement('div');p.className='admin-empty';p.textContent='Nenhum supervisor encontrado.';box.appendChild(p);return;}
+  ADMIN.supervisores.forEach(({p, r})=>{const row=document.createElement('div');row.className='admin-supervisor';const main=document.createElement('div'),strong=document.createElement('strong'),small=document.createElement('small'),chips=document.createElement('div');strong.textContent=p.nome;small.textContent=p.email;chips.className='admin-chips';(r.lojas||[]).forEach(l=>{const chip=document.createElement('span');chip.className='admin-chip';chip.append(document.createTextNode(l.nome),adminBotao('×',()=>adminRevogar(p,l),'revogar'));chips.appendChild(chip);});main.append(strong,small,chips);const select=document.createElement('select');select.className='inp';select.setAttribute('aria-label','Atribuir loja a '+p.nome);select.innerHTML='<option value="">Atribuir loja…</option>';ADMIN.lojas.filter(l=>!(r.lojas||[]).some(x=>x.id===l.id)).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.nome;select.appendChild(o);});select.addEventListener('change',async()=>{if(!select.value)return;try{await adminRequisicao({acao:'plataforma_atribuir_supervisor_loja',usuario_id:p.id,loja_id:select.value});await adminCarregarSupervisores();}catch(e){} });row.append(main,select);box.appendChild(row);});
+}
+async function adminRevogar(p,l){if(!confirm('Revogar o acesso de '+p.nome+' à loja '+l.nome+'?'))return;try{await adminRequisicao({acao:'plataforma_revogar_supervisor_loja',usuario_id:p.id,loja_id:l.id});await adminCarregarSupervisores();}catch(e){}}
+async function carregarAdministracao(){
+  if(!SESSAO.plataforma){mostrarTela('entrar');return;} adminStatus('Carregando…'); await adminCarregarEmpresas(); adminStatus('Pronto','ok');
+}
+function montarAdministracao(){
+  const tab=document.getElementById('tab-administracao');if(tab){tab.hidden=!SESSAO.plataforma;tab.onclick=e=>{e.preventDefault();abrirAdministracao();};}
+  const busca=document.getElementById('admin-busca-empresa');if(busca)busca.addEventListener('input',()=>adminCarregarEmpresas());
+  const buscaS=document.getElementById('admin-busca-supervisor');if(buscaS)buscaS.addEventListener('input',()=>adminCarregarSupervisores());
+  document.getElementById('admin-nova-empresa')?.addEventListener('click',()=>{ADMIN.empresa=null;adminRenderEmpresas();adminPreencherEmpresa({});document.getElementById('admin-painel-lojas').hidden=true;document.getElementById('admin-painel-supervisores').hidden=true;});
+  document.getElementById('admin-cancelar-empresa')?.addEventListener('click',()=>document.getElementById('admin-form-empresa').hidden=true);
+  document.getElementById('admin-form-empresa')?.addEventListener('submit',async e=>{e.preventDefault();const nome=document.getElementById('admin-empresa-nome').value.trim(),descricao=document.getElementById('admin-empresa-descricao').value.trim();try{if(ADMIN.empresa)await adminRequisicao({acao:'plataforma_editar_empresa',empresa_id:ADMIN.empresa.id,nome,descricao});else await adminRequisicao({acao:'plataforma_criar_empresa',nome,descricao});e.target.hidden=true;await adminCarregarEmpresas();}catch(x){}});
+  document.getElementById('admin-nova-loja')?.addEventListener('click',()=>adminEditarLoja({}));
+  document.getElementById('admin-cancelar-loja')?.addEventListener('click',()=>document.getElementById('admin-form-loja').hidden=true);
+  document.getElementById('admin-form-loja')?.addEventListener('submit',async e=>{e.preventDefault();const nome=document.getElementById('admin-loja-nome').value.trim(),descricao=document.getElementById('admin-loja-descricao').value.trim(),id=e.target.dataset.id;try{if(id)await adminRequisicao({acao:'plataforma_editar_loja',loja_id:id,nome,descricao});else await adminRequisicao({acao:'plataforma_criar_loja',empresa_id:ADMIN.empresa.id,nome,descricao});e.target.hidden=true;await adminCarregarLojas();}catch(x){}});
 }
 
 /* ---------- ligação dos botões ---------- */

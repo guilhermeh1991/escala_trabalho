@@ -46,18 +46,18 @@ case 'carregar':
         if (!$idsPermitidos) falhar('Supervisor sem loja autorizada.', 403);
         $marcadores = implode(',', array_fill(0, count($idsPermitidos), '?'));
         $st = bd()->prepare(
-            "SELECT id, nome, codigo_convite, parametros, ordem FROM lojas
+            "SELECT id, nome, codigo_convite, parametros, ordem, versao FROM lojas
               WHERE empresa_id = ? AND id IN ($marcadores)
               ORDER BY ordem, criado_em");
         $st->execute(array_merge([$u['empresa_id']], $idsPermitidos));
     } elseif (vePorLoja($u)) {
         $st = bd()->prepare(
-            'SELECT id, nome, codigo_convite, parametros, ordem FROM lojas
+            'SELECT id, nome, codigo_convite, parametros, ordem, versao FROM lojas
               WHERE empresa_id = ? AND id = ?');
         $st->execute([$u['empresa_id'], $u['loja_id']]);
     } else {
         $st = bd()->prepare(
-            'SELECT id, nome, codigo_convite, parametros, ordem FROM lojas
+            'SELECT id, nome, codigo_convite, parametros, ordem, versao FROM lojas
               WHERE empresa_id = ? ORDER BY ordem, criado_em');
         $st->execute([$u['empresa_id']]);
     }
@@ -117,6 +117,7 @@ case 'carregar':
             'nome'   => $l['nome'],
             'codigo' => $l['codigo_convite'],
             'params' => $l['parametros'] ? json_decode($l['parametros'], true) : new stdClass(),
+            'versao' => (int)($l['versao'] ?? 1),
             'colabs' => $porLoja[$l['id']] ?? [],
             '_ordem' => (int)$l['ordem'],
         ];
@@ -144,6 +145,11 @@ case 'salvar':
         }
     }
 
+    $expectedVersions = campo($dados, 'expected_versions', []);
+    if (!$expectedVersions && is_array($lojas)) {
+        foreach ($lojas as $id => $loja) if (isset($loja['_versao'])) $expectedVersions[(string)$id] = (int)$loja['_versao'];
+    }
+    if (!is_array($expectedVersions)) $expectedVersions = [];
     bd()->beginTransaction();
     try {
         $idsLojas = [];
@@ -158,25 +164,31 @@ case 'salvar':
             } elseif (vePorLoja($u) && $lojaId !== $u['loja_id']) {
                 falhar('Loja fora do seu acesso.', 403);
             }
-            // a loja precisa ser desta empresa, ou ser nova desta empresa
-            $st = bd()->prepare('SELECT empresa_id FROM lojas WHERE id = ?');
+            // A versão é checada antes de qualquer upsert para impedir
+            // sobrescrita silenciosa em duas sessões concorrentes.
+            $st = bd()->prepare('SELECT empresa_id, versao FROM lojas WHERE id = ? FOR UPDATE');
             $st->execute([$lojaId]);
-            $dona = $st->fetchColumn();
+            $lojaAtual = $st->fetch();
+            $dona = $lojaAtual['empresa_id'] ?? false;
+            if ($dona !== false && array_key_exists((string)$lojaId, $expectedVersions)
+                && (int)$lojaAtual['versao'] !== (int)$expectedVersions[(string)$lojaId]) {
+                bd()->rollBack();
+                falhar('Conflito: a equipe ou os parâmetros foram alterados por outra pessoa. Recarregue antes de salvar.', 409);
+            }
             if ($dona !== false && $dona !== $u['empresa_id']) {
                 falhar('Loja de outra empresa.', 403);
             }
 
-            $st = bd()->prepare(
-                'INSERT INTO lojas (id, empresa_id, nome, parametros, ordem)
-                 VALUES (?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE nome = VALUES(nome),
-                     parametros = VALUES(parametros), ordem = VALUES(ordem)');
-            $st->execute([
-                $lojaId, $u['empresa_id'],
-                mb_substr((string)($loja['nome'] ?? 'Loja'), 0, 80),
-                json_encode($loja['params'] ?? new stdClass(), JSON_UNESCAPED_UNICODE),
-                (int)($loja['_ordem'] ?? 0),
-            ]);
+            if ($dona === false) {
+                $st = bd()->prepare('INSERT INTO lojas (id, empresa_id, nome, parametros, ordem, versao)
+                                     VALUES (?, ?, ?, ?, ?, 1)');
+                $st->execute([$lojaId, $u['empresa_id'], mb_substr((string)($loja['nome'] ?? 'Loja'), 0, 80),
+                    json_encode($loja['params'] ?? new stdClass(), JSON_UNESCAPED_UNICODE), (int)($loja['_ordem'] ?? 0)]);
+            } else {
+                $st = bd()->prepare('UPDATE lojas SET nome=?, parametros=?, ordem=?, versao=versao+1 WHERE id=?');
+                $st->execute([mb_substr((string)($loja['nome'] ?? 'Loja'), 0, 80),
+                    json_encode($loja['params'] ?? new stdClass(), JSON_UNESCAPED_UNICODE), (int)($loja['_ordem'] ?? 0), $lojaId]);
+            }
             $idsLojas[] = $lojaId;
 
             // ---- colaboradores ----
@@ -285,7 +297,13 @@ case 'salvar':
         error_log('salvar dados: ' . $e->getMessage());
         falhar(mensagemErroBanco($e, 'Não foi possível salvar. Tente de novo.'), 500);
     }
-    responder(['ok' => true]);
+    $novasVersoes = [];
+    foreach ($idsLojas as $idLoja) {
+        $st = bd()->prepare('SELECT versao FROM lojas WHERE id=?');
+        $st->execute([$idLoja]);
+        $novasVersoes[$idLoja] = (int)$st->fetchColumn();
+    }
+    responder(['ok' => true, 'versoes' => $novasVersoes]);
 
 // -----------------------------------------------------------------------------
 case 'carregar_escala':

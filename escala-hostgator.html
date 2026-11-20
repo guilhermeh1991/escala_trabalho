@@ -263,6 +263,22 @@ header.top .quem:focus{outline:2px solid #9DD7CD;outline-offset:2px}
 nav.tabs{background:var(--tinta2);display:flex;gap:4px;padding:0 24px;overflow-x:auto;box-shadow:0 3px 10px rgba(18,38,45,.10)}
 nav.tabs button{position:relative;background:transparent;border:0;color:#BBD0CB;padding:12px 15px;font-size:13.5px;font-weight:500;
   border-bottom:3px solid transparent;white-space:nowrap}
+#admin-status{min-height:22px;margin:0 0 12px}
+.admin-toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:16px}
+.admin-toolbar label{min-width:220px;flex:1}
+.admin-toolbar .inp{margin-top:5px}
+.admin-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr);gap:18px}
+.admin-list{max-height:420px;overflow:auto;border:1px solid var(--linha);border-radius:var(--radius);background:#fff}
+.admin-row{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid var(--linha-suave);cursor:pointer;text-align:left;width:100%;background:#fff;color:var(--texto)}
+.admin-row:last-child{border-bottom:0}.admin-row:hover,.admin-row[aria-current="true"]{background:var(--teal-suave)}
+.admin-row strong{display:block;font-size:14px}.admin-row small{display:block;color:var(--fraco);margin-top:2px}
+.admin-form{display:grid;gap:12px}.admin-form label{display:grid;gap:5px}.admin-form textarea{min-height:86px;resize:vertical}
+.admin-subhead{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:12px}.admin-subhead h3{margin:0;font-size:16px}.admin-subhead p{margin:3px 0 0;color:var(--fraco);font-size:12.5px}
+.admin-supervisores{margin-top:18px}.admin-supervisor{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--linha-suave)}
+.admin-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.admin-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid var(--linha);border-radius:999px;background:var(--superficie);font-size:12px}.admin-chip button{border:0;background:transparent;color:var(--alerta);padding:0 2px;line-height:1}
+.admin-empty{padding:22px;color:var(--fraco);font-size:13px}.admin-loading{color:var(--fraco);font-size:13px}
+@media(max-width:800px){.admin-grid{grid-template-columns:1fr}.admin-list{max-height:300px}}
+@media(max-width:560px){.admin-toolbar{display:grid;grid-template-columns:1fr}.admin-toolbar label{min-width:0}.admin-subhead{display:block}.admin-supervisor{grid-template-columns:1fr}.admin-form .barra{align-items:stretch;flex-direction:column}.admin-form .btn{width:100%}}
 nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.04)}
 nav.tabs button[aria-current="true"]{color:#fff;border-bottom-color:#91D4C9;font-weight:600}
 main{padding:24px;max-width:1900px;margin:0 auto}
@@ -445,6 +461,7 @@ th.domingo{color:var(--texto);background:#F8F3E3!important}
 .chip{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#E7EDE9;color:var(--fraco);white-space:nowrap}
 .chip.ok{background:var(--v-bg);color:var(--v-fg)}
 .chip.mal{background:var(--r-bg);color:var(--r-fg)}
+.chip.info{background:var(--info-bg);color:var(--info-fg)}
 ul.alertas{list-style:none;margin:0;padding:0;max-height:230px;overflow:auto}
 ul.alertas li{padding:8px 0;border-bottom:1px solid var(--linha-suave);font-size:13px;display:flex;gap:8px}
 ul.alertas li b{min-width:120px;font-weight:600}
@@ -624,6 +641,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
     <button data-view="equipe">Equipe</button>
     <button data-view="params">Parâmetros</button>
     <button data-view="usuarios">Acessos</button>
+    <button data-view="administracao" id="tab-administracao" hidden>Administração da plataforma</button>
   </nav>
   <main>
 
@@ -860,6 +878,17 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         </div>
         <div id="lista-acessos" style="margin-top:14px"></div>
       </div>
+    </section>
+
+    <section class="view" data-view="administracao">
+      <div class="painel">
+        <div class="admin-subhead"><div><h2>Administração da plataforma</h2><p class="desc">Cadastros e vínculos operacionais. Alterações aqui não reescrevem equipes, regras ou escalas.</p></div><span class="chip info" id="admin-status" aria-live="polite"></span></div>
+        <div class="admin-toolbar"><label>Localizar empresa<input class="inp" id="admin-busca-empresa" type="search" autocomplete="off"></label><button class="btn" id="admin-nova-empresa">Nova empresa</button></div>
+        <div class="admin-grid"><div class="admin-list" id="admin-empresas" aria-label="Empresas"><div class="admin-loading">Carregando empresas…</div></div>
+          <form class="admin-form" id="admin-form-empresa" hidden><div class="admin-subhead"><div><h3>Dados da empresa</h3><p>Somente nome e descrição cadastral.</p></div></div><label>Nome<input class="inp" id="admin-empresa-nome" required maxlength="120"></label><label>Descrição<textarea class="inp" id="admin-empresa-descricao" maxlength="500"></textarea></label><div class="barra"><button class="btn primary" type="submit">Salvar empresa</button><button class="btn ghost" type="button" id="admin-cancelar-empresa">Cancelar</button></div></form></div>
+      </div>
+      <div class="painel" id="admin-painel-lojas" hidden><div class="admin-subhead"><div><h2 id="admin-lojas-titulo">Lojas</h2><p class="desc">Nome e descrição da unidade. Equipe, parâmetros e escalas ficam preservados.</p></div><button class="btn" id="admin-nova-loja">Nova loja</button></div><div class="admin-grid"><div class="admin-list" id="admin-lojas"></div><form class="admin-form" id="admin-form-loja" hidden><label>Nome<input class="inp" id="admin-loja-nome" required maxlength="80"></label><label>Descrição<textarea class="inp" id="admin-loja-descricao" maxlength="500"></textarea></label><div class="barra"><button class="btn primary" type="submit">Salvar loja</button><button class="btn ghost" type="button" id="admin-cancelar-loja">Cancelar</button></div></form></div></div>
+      <div class="painel" id="admin-painel-supervisores" hidden><div class="admin-subhead"><div><h2>Supervisores autorizados</h2><p class="desc">Busque por nome ou e-mail e atribua apenas lojas desta empresa.</p></div></div><div class="admin-toolbar"><label>Localizar supervisor<input class="inp" id="admin-busca-supervisor" type="search" autocomplete="off"></label></div><div id="admin-supervisores" class="admin-supervisores"></div></div>
     </section>
 
   </main>
@@ -2770,6 +2799,7 @@ const DB = {
     const r = await auth({acao:'sessao'});
     SESSAO.usuario = r.usuario || null;
     SESSAO.empresa = r.empresa || null;
+    SESSAO.plataforma = r.plataforma === true;
     SESSAO.perfil  = r.usuario || null;     // nome usado pela tela
     return r;
   },
@@ -2778,7 +2808,10 @@ const DB = {
     return r.lojas || {};
   },
   async salvarLojas(lojas){
-    await dadosApi({acao:'salvar', lojas});
+    const envio = Object.fromEntries(Object.entries(lojas).map(([id,l])=>[id,Object.assign({},l,{_versao:l.versao})]));
+    const r = await dadosApi({acao:'salvar', lojas:envio, expected_versions:Object.fromEntries(Object.entries(lojas).map(([id,l])=>[id,l.versao||1]))});
+    Object.entries(r.versoes || {}).forEach(([id,versao])=>{ if(lojas[id]) lojas[id].versao = versao; });
+    return r;
   },
   async carregarEscala(lojaId, inicio, fim){
     const r = await dadosApi({acao:'carregar_escala', loja_id:lojaId, inicio, fim});
@@ -3099,19 +3132,29 @@ async function aposLogin(){
   try{ r = await DB.carregarEmpresa(); }
   catch(e){ erroEm('#erro-entrar', erroAmigavel(e)); mostrarTela('entrar'); return; }
   if(!r.logado){ mostrarTela('entrar'); return; }
+  if(r.plataforma){ await abrirApp(true); return; }
   if(!SESSAO.usuario || !SESSAO.usuario.empresa_id){ mostrarTela('vinculo'); return; }
-  await abrirApp();
+  await abrirApp(false);
 }
 
-async function abrirApp(){
+function abrirAdministracao(){
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current', 'false'));
+  document.querySelectorAll('.view').forEach(v=>v.dataset.ativa = String(v.dataset.view==='administracao'));
+  carregarAdministracao();
+}
+
+async function abrirApp(plataforma=false){
   mostrarTela('app');
-  S.usuario = {papel: SESSAO.usuario.papel, nome: SESSAO.usuario.nome};
+  S.usuario = {papel: SESSAO.usuario.papel, nome: SESSAO.usuario.nome, plataforma};
+  if(plataforma){ S.lojas = {}; S.loja = null; montarAdministracao(); abrirAdministracao(); return; }
   pintarIdentidade({
     nome:    SESSAO.usuario.nome,
     email:   SESSAO.usuario.email,
     papel:   SESSAO.usuario.papel,
     empresa: SESSAO.empresa ? SESSAO.empresa.nome : ''
   });
+  const adminTab = document.getElementById('tab-administracao');
+  if(adminTab) adminTab.hidden = !SESSAO.plataforma;
   S.lojas = await store.get('escala:lojas');
   if(!S.lojas || !Object.keys(S.lojas).length){
     // Empresa sem loja: acontece se a criação falhou pela metade. Em vez de
@@ -3188,6 +3231,87 @@ async function pintarAcessos(){
       };
     });
   }catch(e){ cx.innerHTML = `<p class="vazio">${esc(erroAmigavel(e))}</p>`; }
+}
+
+/* ---------- administração da plataforma ---------- */
+const ADMIN = {empresa:null, empresas:[], lojas:[], supervisores:[], carregando:false};
+function adminStatus(txt, tipo='info'){
+  const el = document.getElementById('admin-status');
+  if(!el) return;
+  el.textContent = txt || '';
+  el.className = 'chip ' + (tipo==='erro'?'mal':tipo==='ok'?'ok':'info');
+}
+function adminTexto(el, txt){ if(el) el.textContent = txt == null ? '' : String(txt); }
+function adminBotao(txt, acao, dados={}){
+  const b=document.createElement('button'); b.type='button'; b.className='btn ghost small'; b.textContent=txt;
+  Object.entries(dados).forEach(([k,v])=>b.dataset[k]=v);
+  b.addEventListener('click', acao); return b;
+}
+async function adminRequisicao(dados){
+  adminStatus('Salvando…');
+  try{ const r=await auth(dados); adminStatus('Alteração confirmada','ok'); return r; }
+  catch(e){ adminStatus(erroAmigavel(e),'erro'); throw e; }
+}
+function adminRenderEmpresas(){
+  const box=document.getElementById('admin-empresas'); if(!box) return; box.replaceChildren();
+  if(!ADMIN.empresas.length){ const p=document.createElement('div'); p.className='admin-empty'; p.textContent='Nenhuma empresa encontrada.'; box.appendChild(p); return; }
+  ADMIN.empresas.forEach(e=>{
+    const b=adminBotao('',()=>adminSelecionarEmpresa(e)); b.className='admin-row';
+    b.setAttribute('aria-current', ADMIN.empresa && ADMIN.empresa.id===e.id ? 'true':'false');
+    const wrap=document.createElement('span'), strong=document.createElement('strong'), small=document.createElement('small');
+    strong.textContent=e.nome; small.textContent=e.descricao || 'Sem descrição cadastral'; wrap.append(strong,small); b.appendChild(wrap); box.appendChild(b);
+  });
+}
+async function adminCarregarEmpresas(){
+  const q=(document.getElementById('admin-busca-empresa')?.value||'').trim();
+  const box=document.getElementById('admin-empresas'); if(box){box.replaceChildren(); const p=document.createElement('div');p.className='admin-empty';p.textContent='Carregando empresas…';box.appendChild(p);}
+  try{ const r=await auth({acao:'plataforma_listar_empresas',q}); ADMIN.empresas=r.empresas||[]; adminRenderEmpresas(); }
+  catch(e){ adminStatus(erroAmigavel(e),'erro'); }
+}
+function adminPreencherEmpresa(empresa){
+  const form=document.getElementById('admin-form-empresa'); if(!form)return;
+  form.hidden=false; document.getElementById('admin-empresa-nome').value=empresa?.nome||''; document.getElementById('admin-empresa-descricao').value=empresa?.descricao||'';
+}
+async function adminSelecionarEmpresa(empresa){
+  ADMIN.empresa=empresa; adminRenderEmpresas(); adminPreencherEmpresa(empresa);
+  document.getElementById('admin-painel-lojas').hidden=false; document.getElementById('admin-painel-supervisores').hidden=false;
+  adminTexto(document.getElementById('admin-lojas-titulo'),'Lojas · '+empresa.nome);
+  await Promise.all([adminCarregarLojas(),adminCarregarSupervisores()]);
+}
+async function adminCarregarLojas(){
+  if(!ADMIN.empresa)return; const box=document.getElementById('admin-lojas'); if(box){box.replaceChildren();const p=document.createElement('div');p.className='admin-empty';p.textContent='Carregando lojas…';box.appendChild(p);}
+  try{const r=await auth({acao:'plataforma_listar_lojas',empresa_id:ADMIN.empresa.id});ADMIN.lojas=r.lojas||[];adminRenderLojas();}
+  catch(e){adminStatus(erroAmigavel(e),'erro');}
+}
+function adminRenderLojas(){
+  const box=document.getElementById('admin-lojas');if(!box)return;box.replaceChildren();
+  if(!ADMIN.lojas.length){const p=document.createElement('div');p.className='admin-empty';p.textContent='Nenhuma loja cadastrada.';box.appendChild(p);return;}
+  ADMIN.lojas.forEach(l=>{const b=adminBotao('',()=>adminEditarLoja(l));b.className='admin-row';const w=document.createElement('span'),s=document.createElement('strong'),p=document.createElement('small');s.textContent=l.nome;p.textContent=l.descricao||'Sem descrição cadastral';w.append(s,p);b.appendChild(w);box.appendChild(b);});
+}
+function adminEditarLoja(loja){const f=document.getElementById('admin-form-loja');f.hidden=false;f.dataset.id=loja?.id||'';document.getElementById('admin-loja-nome').value=loja?.nome||'';document.getElementById('admin-loja-descricao').value=loja?.descricao||'';}
+async function adminCarregarSupervisores(){
+  if(!ADMIN.empresa)return; const box=document.getElementById('admin-supervisores');if(box)box.textContent='Carregando supervisores…';
+  try{const r=await auth({acao:'plataforma_listar_supervisores',empresa_id:ADMIN.empresa.id,q:(document.getElementById('admin-busca-supervisor')?.value||'').trim());ADMIN.supervisores=r.supervisores||[];const dados=await Promise.all(ADMIN.supervisores.map(async s=>({p:s,r:await auth({acao:'plataforma_listar_supervisor_lojas',usuario_id:s.id})})));ADMIN.supervisores=dados;adminRenderSupervisores();}
+  catch(e){adminStatus(erroAmigavel(e),'erro');}
+}
+function adminRenderSupervisores(){
+  const box=document.getElementById('admin-supervisores');if(!box)return;box.replaceChildren();if(!ADMIN.supervisores.length){const p=document.createElement('div');p.className='admin-empty';p.textContent='Nenhum supervisor encontrado.';box.appendChild(p);return;}
+  ADMIN.supervisores.forEach(({p, r})=>{const row=document.createElement('div');row.className='admin-supervisor';const main=document.createElement('div'),strong=document.createElement('strong'),small=document.createElement('small'),chips=document.createElement('div');strong.textContent=p.nome;small.textContent=p.email;chips.className='admin-chips';(r.lojas||[]).forEach(l=>{const chip=document.createElement('span');chip.className='admin-chip';chip.append(document.createTextNode(l.nome),adminBotao('×',()=>adminRevogar(p,l),'revogar'));chips.appendChild(chip);});main.append(strong,small,chips);const select=document.createElement('select');select.className='inp';select.setAttribute('aria-label','Atribuir loja a '+p.nome);select.innerHTML='<option value="">Atribuir loja…</option>';ADMIN.lojas.filter(l=>!(r.lojas||[]).some(x=>x.id===l.id)).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.nome;select.appendChild(o);});select.addEventListener('change',async()=>{if(!select.value)return;try{await adminRequisicao({acao:'plataforma_atribuir_supervisor_loja',usuario_id:p.id,loja_id:select.value});await adminCarregarSupervisores();}catch(e){} });row.append(main,select);box.appendChild(row);});
+}
+async function adminRevogar(p,l){if(!confirm('Revogar o acesso de '+p.nome+' à loja '+l.nome+'?'))return;try{await adminRequisicao({acao:'plataforma_revogar_supervisor_loja',usuario_id:p.id,loja_id:l.id});await adminCarregarSupervisores();}catch(e){}}
+async function carregarAdministracao(){
+  if(!SESSAO.plataforma){mostrarTela('entrar');return;} adminStatus('Carregando…'); await adminCarregarEmpresas(); adminStatus('Pronto','ok');
+}
+function montarAdministracao(){
+  const tab=document.getElementById('tab-administracao');if(tab){tab.hidden=!SESSAO.plataforma;tab.onclick=e=>{e.preventDefault();abrirAdministracao();};}
+  const busca=document.getElementById('admin-busca-empresa');if(busca)busca.addEventListener('input',()=>adminCarregarEmpresas());
+  const buscaS=document.getElementById('admin-busca-supervisor');if(buscaS)buscaS.addEventListener('input',()=>adminCarregarSupervisores());
+  document.getElementById('admin-nova-empresa')?.addEventListener('click',()=>{ADMIN.empresa=null;adminRenderEmpresas();adminPreencherEmpresa({});document.getElementById('admin-painel-lojas').hidden=true;document.getElementById('admin-painel-supervisores').hidden=true;});
+  document.getElementById('admin-cancelar-empresa')?.addEventListener('click',()=>document.getElementById('admin-form-empresa').hidden=true);
+  document.getElementById('admin-form-empresa')?.addEventListener('submit',async e=>{e.preventDefault();const nome=document.getElementById('admin-empresa-nome').value.trim(),descricao=document.getElementById('admin-empresa-descricao').value.trim();try{if(ADMIN.empresa)await adminRequisicao({acao:'plataforma_editar_empresa',empresa_id:ADMIN.empresa.id,nome,descricao});else await adminRequisicao({acao:'plataforma_criar_empresa',nome,descricao});e.target.hidden=true;await adminCarregarEmpresas();}catch(x){}});
+  document.getElementById('admin-nova-loja')?.addEventListener('click',()=>adminEditarLoja({}));
+  document.getElementById('admin-cancelar-loja')?.addEventListener('click',()=>document.getElementById('admin-form-loja').hidden=true);
+  document.getElementById('admin-form-loja')?.addEventListener('submit',async e=>{e.preventDefault();const nome=document.getElementById('admin-loja-nome').value.trim(),descricao=document.getElementById('admin-loja-descricao').value.trim(),id=e.target.dataset.id;try{if(id)await adminRequisicao({acao:'plataforma_editar_loja',loja_id:id,nome,descricao});else await adminRequisicao({acao:'plataforma_criar_loja',empresa_id:ADMIN.empresa.id,nome,descricao});e.target.hidden=true;await adminCarregarLojas();}catch(x){}});
 }
 
 /* ---------- ligação dos botões ---------- */

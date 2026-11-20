@@ -212,6 +212,17 @@ SET @sql := IF(@ja = 0,
   'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- 5. Descrições dos cadastros administrativos (migração 008) ------------------
+SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA=@banco AND TABLE_NAME='empresas' AND COLUMN_NAME='descricao');
+SET @sql := IF(@ja=0, 'ALTER TABLE empresas ADD COLUMN descricao VARCHAR(500) NULL AFTER nome', 'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA=@banco AND TABLE_NAME='lojas' AND COLUMN_NAME='descricao');
+SET @sql := IF(@ja=0, 'ALTER TABLE lojas ADD COLUMN descricao VARCHAR(500) NULL AFTER nome', 'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =============================================================================
 --  CONFERÊNCIA FINAL
 --  Todas as colunas abaixo devem mostrar 1. Se alguma mostrar 0, rode este

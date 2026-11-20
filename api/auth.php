@@ -57,6 +57,7 @@ case 'sessao':
         ],
         'empresa'     => $empresa,
         'colaborador' => $colaborador,
+        'plataforma' => ehSuperAdmin($u),
     ]);
 
 // -----------------------------------------------------------------------------
@@ -443,18 +444,43 @@ case 'remover_acesso':
 case 'plataforma_listar_empresas':
 // -----------------------------------------------------------------------------
     $u = exigirPlataforma();
-    $st = bd()->query(
-        'SELECT id, nome, criado_em FROM empresas ORDER BY criado_em, id');
+    $q = trim((string)campo($dados, 'q', ''));
+    $st = bd()->prepare(
+        'SELECT id, nome, descricao, criado_em FROM empresas
+          WHERE (? = \'\' OR nome LIKE CONCAT(\'%\', ?, \'%\') OR descricao LIKE CONCAT(\'%\', ?, \'%\'))
+          ORDER BY nome, id');
+    $st->execute([$q, $q, $q]);
     responder(['empresas' => $st->fetchAll()]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_listar_supervisores':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $empresaId = (string)campo($dados, 'empresa_id', '');
+    if (!ehUuid($empresaId)) falhar('Empresa inválida.');
+    $q = trim((string)campo($dados, 'q', ''));
+    $st = bd()->prepare(
+        'SELECT id, nome, email, papel FROM usuarios
+          WHERE empresa_id = ? AND papel = \'gestor\'
+            AND (? = \'\' OR nome LIKE CONCAT(\'%\', ?, \'%\') OR email LIKE CONCAT(\'%\', ?, \'%\'))
+          ORDER BY nome, email');
+    $st->execute([$empresaId, $q, $q, $q]);
+    responder(['supervisores' => $st->fetchAll()]);
 
 // -----------------------------------------------------------------------------
 case 'plataforma_listar_lojas':
 // -----------------------------------------------------------------------------
     $u = exigirPlataforma();
-    $st = bd()->query(
-        'SELECT l.id, l.empresa_id, l.nome, l.ordem, l.criado_em, e.nome AS empresa_nome
+    $empresaId = trim((string)campo($dados, 'empresa_id', ''));
+    if ($empresaId !== '' && !ehUuid($empresaId)) falhar('Empresa inválida.');
+    $q = trim((string)campo($dados, 'q', ''));
+    $st = bd()->prepare(
+        'SELECT l.id, l.empresa_id, l.nome, l.descricao, l.ordem, l.criado_em, e.nome AS empresa_nome
            FROM lojas l JOIN empresas e ON e.id = l.empresa_id
+          WHERE (? = \'\' OR l.empresa_id = ?)
+            AND (? = \'\' OR l.nome LIKE CONCAT(\'%\', ?, \'%\') OR l.descricao LIKE CONCAT(\'%\', ?, \'%\'))
           ORDER BY e.nome, l.ordem, l.criado_em');
+    $st->execute([$empresaId, $empresaId, $q, $q, $q]);
     responder(['lojas' => $st->fetchAll()]);
 
 // -----------------------------------------------------------------------------
@@ -462,6 +488,7 @@ case 'plataforma_criar_empresa':
 // -----------------------------------------------------------------------------
     $u = exigirPlataforma();
     $nome = trim((string)campo($dados, 'nome', ''));
+    $descricao = mb_substr(trim((string)campo($dados, 'descricao', '')), 0, 500);
     if (mb_strlen($nome) < 2) falhar('Informe o nome da empresa.');
     $nomeLoja = trim((string)campo($dados, 'loja', ''));
     if ($nomeLoja === '') $nomeLoja = $nome;
@@ -471,11 +498,11 @@ case 'plataforma_criar_empresa':
     $codigoLoja = codigoConvite();
     bd()->beginTransaction();
     try {
-        bd()->prepare('INSERT INTO empresas (id, nome, codigo_convite) VALUES (?, ?, ?)')
-            ->execute([$empresaId, $nome, $codigo]);
-        bd()->prepare('INSERT INTO lojas (id, empresa_id, nome, codigo_convite, parametros, ordem)
-                       VALUES (?, ?, ?, ?, ?, 0)')
-            ->execute([$lojaId, $empresaId, mb_substr($nomeLoja, 0, 80), $codigoLoja, '{}']);
+        bd()->prepare('INSERT INTO empresas (id, nome, descricao, codigo_convite) VALUES (?, ?, ?, ?)')
+            ->execute([$empresaId, $nome, $descricao !== '' ? $descricao : null, $codigo]);
+        bd()->prepare('INSERT INTO lojas (id, empresa_id, nome, descricao, codigo_convite, parametros, ordem)
+                       VALUES (?, ?, ?, ?, ?, ?, 0)')
+            ->execute([$lojaId, $empresaId, mb_substr($nomeLoja, 0, 80), null, $codigoLoja, '{}']);
         bd()->commit();
     } catch (Throwable $e) {
         bd()->rollBack();
@@ -486,6 +513,41 @@ case 'plataforma_criar_empresa':
         ['nome' => $nome, 'loja' => $nomeLoja]);
     responder(['ok' => true, 'empresa_id' => $empresaId, 'loja_id' => $lojaId,
                'codigo_convite' => $codigo, 'codigo_loja' => $codigoLoja]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_editar_empresa':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $empresaId = (string)campo($dados, 'empresa_id', '');
+    if (!ehUuid($empresaId)) falhar('Empresa inválida.');
+    $nome = trim((string)campo($dados, 'nome', ''));
+    $descricao = mb_substr(trim((string)campo($dados, 'descricao', '')), 0, 500);
+    if (mb_strlen($nome) < 2) falhar('Informe o nome da empresa.');
+    $st = bd()->prepare('SELECT 1 FROM empresas WHERE id=? LIMIT 1');
+    $st->execute([$empresaId]);
+    if (!$st->fetchColumn()) falhar('Empresa não encontrada.', 404);
+    bd()->prepare('UPDATE empresas SET nome=?, descricao=? WHERE id=?')
+        ->execute([$nome, $descricao !== '' ? $descricao : null, $empresaId]);
+    registrar($u['id'], $empresaId, 'plataforma_empresa_editada', ['nome' => $nome, 'descricao' => $descricao]);
+    responder(['ok' => true]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_editar_loja':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $lojaId = (string)campo($dados, 'loja_id', '');
+    if (!ehUuid($lojaId)) falhar('Loja inválida.');
+    $nome = mb_substr(trim((string)campo($dados, 'nome', '')), 0, 80);
+    $descricao = mb_substr(trim((string)campo($dados, 'descricao', '')), 0, 500);
+    if ($nome === '') falhar('Informe o nome da loja.');
+    $st = bd()->prepare('SELECT empresa_id FROM lojas WHERE id=? LIMIT 1');
+    $st->execute([$lojaId]);
+    $empresaId = $st->fetchColumn();
+    if (!$empresaId) falhar('Loja não encontrada.', 404);
+    bd()->prepare('UPDATE lojas SET nome=?, descricao=? WHERE id=?')
+        ->execute([$nome, $descricao !== '' ? $descricao : null, $lojaId]);
+    registrar($u['id'], $empresaId, 'plataforma_loja_editada', ['loja' => $lojaId, 'nome' => $nome, 'descricao' => $descricao]);
+    responder(['ok' => true]);
 
 // -----------------------------------------------------------------------------
 case 'supervisor_listar_lojas':
@@ -605,10 +667,11 @@ case 'plataforma_criar_loja':
     $st->execute([$empresaId]);
     $ordem = (int)$st->fetchColumn();
     $lojaId = uuid();
+    $descricao = mb_substr(trim((string)campo($dados, 'descricao', '')), 0, 500);
     $codigoLoja = codigoConvite();
-    bd()->prepare('INSERT INTO lojas (id, empresa_id, nome, codigo_convite, parametros, ordem)
-                   VALUES (?, ?, ?, ?, ?, ?)')
-        ->execute([$lojaId, $empresaId, $nome, $codigoLoja, '{}', $ordem]);
+    bd()->prepare('INSERT INTO lojas (id, empresa_id, nome, descricao, codigo_convite, parametros, ordem)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)')
+        ->execute([$lojaId, $empresaId, $nome, $descricao !== '' ? $descricao : null, $codigoLoja, '{}', $ordem]);
     registrar($u['id'], $empresaId, 'plataforma_loja_criada', ['nome' => $nome]);
     responder(['ok' => true, 'id' => $lojaId, 'codigo' => $codigoLoja]);
 
