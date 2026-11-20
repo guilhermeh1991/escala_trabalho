@@ -10,11 +10,12 @@ mysql -u root -h 127.0.0.1 "$DB" < banco/mysql-schema.sql
 E=$(cat /proc/sys/kernel/random/uuid); L=$(cat /proc/sys/kernel/random/uuid); U=$(cat /proc/sys/kernel/random/uuid); S=$(cat /proc/sys/kernel/random/uuid)
 mysql -u root -h 127.0.0.1 "$DB" <<SQL
 INSERT INTO empresas (id,nome,codigo_convite) VALUES ('$E','Empresa Legada','LEGADA01');
-INSERT INTO lojas (id,empresa_id,nome,codigo_convite,parametros,ordem) VALUES ('$L','$E','Loja Legada','LOJA0001','{}',0);
-INSERT INTO usuarios (id,empresa_id,email,senha_hash,nome,papel,email_confirmado,loja_id) VALUES ('$U','$E','gestor.legado@exemplo.test','hash','Gestor Legado','gestor',1,'$L');
-INSERT INTO escalas (id,loja_id,inicio,fim,grade,parametros,publicada,publicada_em,atualizado_por) VALUES ('$S','$L','2026-01-01','2026-01-31','{"c1":["X"]}','{"modelo":"5x2"}',1,'2026-01-01 10:00:00','$U');
+INSERT INTO lojas (id,empresa_id,nome,parametros,ordem) VALUES ('$L','$E','Loja Legada','{}',0);
+INSERT INTO usuarios (id,empresa_id,email,senha_hash,nome,papel,email_confirmado) VALUES ('$U','$E','gestor.legado@exemplo.test','hash','Gestor Legado','gestor',1);
+INSERT INTO escalas (id,loja_id,inicio,fim,grade,parametros,atualizado_por) VALUES ('$S','$L','2026-01-01','2026-01-31','{"c1":["X"]}','{"modelo":"5x2"}','$U');
 SQL
 mysql -u root -h 127.0.0.1 "$DB" < banco/verificar-e-migrar.sql >/dev/null
+mysql -u root -h 127.0.0.1 "$DB" -e "UPDATE usuarios SET loja_id='$L' WHERE id='$U';"
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-006-supervisor-multiloja.sql >/dev/null
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-007-historico-versoes.sql >/dev/null
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-008-descricao-cadastros.sql >/dev/null
