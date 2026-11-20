@@ -16,10 +16,6 @@ trap cleanup EXIT
 
 mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS $DB; CREATE DATABASE $DB CHARACTER SET utf8mb4;"
 mysql -u root -h 127.0.0.1 "$DB" < banco/mysql-schema.sql
-mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-002-colaborador.sql
-mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-003-acesso-por-loja.sql
-mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-004-resumo-escala.sql
-mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-005-jornada-estruturada.sql
 mysql -u root -h 127.0.0.1 "$DB" < banco/verificar-e-migrar.sql >/dev/null
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-006-supervisor-multiloja.sql >/dev/null
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-007-historico-versoes.sql >/dev/null
