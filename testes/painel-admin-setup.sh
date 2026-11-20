@@ -11,8 +11,22 @@ ADMIN_PASSWORD="gestao operacional onze junho"
 SUP_EMAIL="supervisor.browser@exemplo.test"
 SUP_PASSWORD="loja autorizada doze junho"
 COOKIE_P=$(mktemp); COOKIE_A=$(mktemp); COOKIE_S=$(mktemp)
-cleanup(){ rm -f "$COOKIE_P" "$COOKIE_A" "$COOKIE_S"; }
+PID_FILE="/tmp/shiftflow-browser-php.pid"
+LOG_FILE="/tmp/shiftflow-browser-php.log"
+cleanup(){
+  local code=$?
+  rm -f "$COOKIE_P" "$COOKIE_A" "$COOKIE_S"
+  if [[ $code -ne 0 ]]; then
+    if [[ -f "$PID_FILE" ]]; then kill "$(cat "$PID_FILE")" 2>/dev/null || true; rm -f "$PID_FILE"; fi
+    rm -f api/config.php
+  fi
+}
 trap cleanup EXIT
+
+if [[ -f "$PID_FILE" ]]; then
+  kill "$(cat "$PID_FILE")" 2>/dev/null || true
+  rm -f "$PID_FILE"
+fi
 
 mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS $DB; CREATE DATABASE $DB CHARACTER SET utf8mb4;"
 mysql -u root -h 127.0.0.1 "$DB" < banco/mysql-schema.sql
@@ -29,9 +43,20 @@ cat > api/config.php <<PHP
   'super_admins'=>['$PLATFORM_EMAIL'],
 ];
 PHP
-nohup php -S 127.0.0.1:8877 -t . >/tmp/shiftflow-browser-php.log 2>&1 &
-echo $! >/tmp/shiftflow-browser-php.pid
-sleep 2
+nohup php -S 127.0.0.1:8877 -t . >"$LOG_FILE" 2>&1 &
+PHP_PID=$!
+echo "$PHP_PID" >"$PID_FILE"
+for _ in $(seq 1 30); do
+  if ! kill -0 "$PHP_PID" 2>/dev/null; then
+    echo "Servidor PHP encerrou prematuramente. Log:" >&2
+    cat "$LOG_FILE" >&2 || true
+    exit 1
+  fi
+  if curl -sS -X POST "$BASE/api/auth.php" -H 'Content-Type: application/json' -d '{"acao":"sessao"}' >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+done
 
 json(){ python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"; }
 request(){
@@ -66,9 +91,16 @@ R=$(request "$COOKIE_A" dados.php '{"acao":"criar_loja","nome":"Loja Operacional
 LOJA_B=$(printf '%s' "$R" | json id)
 CSRF_S=$(prepare "$COOKIE_S" 'Supervisor Browser' "$SUP_EMAIL" "$SUP_PASSWORD")
 request "$COOKIE_S" auth.php "{\"acao\":\"entrar_por_convite\",\"codigo\":\"$CONVITE\"}" "$CSRF_S" >/dev/null
-# A operação de vínculo da empresa é preparada para o painel.
+# A operação de vínculo da empresa é validada e deixada sem lojas pré-atribuídas
+# para que o painel administrativo atribua STORE_A e STORE_B pelo seletor no navegador.
 SUP_ID=$(mysql -u root -h 127.0.0.1 "$DB" -sN -e "SELECT id FROM usuarios WHERE email='$SUP_EMAIL';")
 request "$COOKIE_A" auth.php "{\"acao\":\"supervisor_atribuir_loja\",\"usuario_id\":\"$SUP_ID\",\"loja_id\":\"$LOJA_A\"}" "$CSRF_A" >/dev/null
+request "$COOKIE_A" auth.php "{\"acao\":\"supervisor_revogar_loja\",\"usuario_id\":\"$SUP_ID\",\"loja_id\":\"$LOJA_A\"}" "$CSRF_A" >/dev/null
+VINCULOS_INICIAIS=$(mysql -u root -h 127.0.0.1 "$DB" -sN -e "SELECT COUNT(*) FROM supervisor_lojas WHERE usuario_id='$SUP_ID';")
+if [[ "$VINCULOS_INICIAIS" != "0" ]]; then
+  echo "Erro de fixture: supervisor iniciou com $VINCULOS_INICIAIS vínculo(s) em supervisor_lojas" >&2
+  exit 1
+fi
 
 {
   echo "PLATFORM_EMAIL=$PLATFORM_EMAIL"
