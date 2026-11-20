@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -x
 cd "$(dirname "$0")/.."
 DB=teste_migracoes_legadas
+mysqladmin -u root -h 127.0.0.1 ping
 mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS $DB; CREATE DATABASE $DB CHARACTER SET utf8mb4;"
 mysql -u root -h 127.0.0.1 "$DB" < banco/mysql-schema.sql
 
@@ -21,12 +23,14 @@ mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-007-historico-versoes.sql >/de
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-008-descricao-cadastros.sql >/dev/null
 COUNT1=$(mysql -u root -h 127.0.0.1 "$DB" -sN -e "SELECT COUNT(*) FROM escala_versoes WHERE escala_id='$S';")
 LINK1=$(mysql -u root -h 127.0.0.1 "$DB" -sN -e "SELECT COUNT(*) FROM supervisor_lojas WHERE usuario_id='$U' AND loja_id='$L';")
-[[ "$COUNT1" = 1 && "$LINK1" = 1 ]]
+echo "after-first: versions=$COUNT1 supervisor_links=$LINK1"
+[[ "$COUNT1" = 1 && "$LINK1" = 1 ]] || { echo "legacy backfill assertion failed" >&2; exit 1; }
 mysql -u root -h 127.0.0.1 "$DB" -e "DELETE FROM supervisor_lojas WHERE usuario_id='$U' AND loja_id='$L';"
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-007-historico-versoes.sql >/dev/null
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-008-descricao-cadastros.sql >/dev/null
 COUNT2=$(mysql -u root -h 127.0.0.1 "$DB" -sN -e "SELECT COUNT(*) FROM escala_versoes WHERE escala_id='$S';")
 LINK2=$(mysql -u root -h 127.0.0.1 "$DB" -sN -e "SELECT COUNT(*) FROM supervisor_lojas WHERE usuario_id='$U' AND loja_id='$L';")
 COLS=$(mysql -u root -h 127.0.0.1 "$DB" -sN -e "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='$DB' AND ((table_name='lojas' AND column_name='versao') OR (table_name='empresas' AND column_name='descricao') OR (table_name='lojas' AND column_name='descricao') OR (table_name='escalas' AND column_name='versao_publicada')); ")
-[[ "$COUNT2" = 1 && "$LINK2" = 0 && "$COLS" = 4 ]]
+echo "after-second: versions=$COUNT2 supervisor_links=$LINK2 fields=$COLS"
+[[ "$COUNT2" = 1 && "$LINK2" = 0 && "$COLS" = 4 ]] || { echo "legacy rerun assertion failed" >&2; exit 1; }
 echo "migrações legadas: ok (escala_versoes=$COUNT2, vínculo revogado preservado=$LINK2, campos=$COLS)"
