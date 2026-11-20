@@ -3276,7 +3276,8 @@ async function adminSelecionarEmpresa(empresa){
   ADMIN.empresa=empresa; adminRenderEmpresas(); adminPreencherEmpresa(empresa);
   document.getElementById('admin-painel-lojas').hidden=false; document.getElementById('admin-painel-supervisores').hidden=false;
   adminTexto(document.getElementById('admin-lojas-titulo'),'Lojas · '+empresa.nome);
-  await Promise.all([adminCarregarLojas(),adminCarregarSupervisores()]);
+  await adminCarregarLojas();
+  await adminCarregarSupervisores();
 }
 async function adminCarregarLojas(){
   if(!ADMIN.empresa)return; const box=document.getElementById('admin-lojas'); if(box){box.replaceChildren();const p=document.createElement('div');p.className='admin-empty';p.textContent='Carregando lojas…';box.appendChild(p);}

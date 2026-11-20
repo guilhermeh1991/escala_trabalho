@@ -31,6 +31,14 @@ async function selectCompany(page, name) {
   const row = page.locator('#admin-empresas .admin-row').filter({hasText:name}).first();
   await row.click();
   await waitText(page, '#admin-lojas-titulo', 'Lojas');
+  await page.locator('#admin-lojas .admin-row').first().waitFor({state:'visible'});
+}
+
+async function selectAuthorizedStore(page, supervisorEmail, storeId) {
+  const row = page.locator('.admin-supervisor').filter({hasText:supervisorEmail});
+  const select = row.locator('select').first();
+  await select.locator(`option[value="${storeId}"]`).waitFor({state:'attached'});
+  await select.selectOption(storeId);
 }
 
 async function main() {
@@ -71,10 +79,9 @@ async function main() {
   await selectCompany(page, 'Empresa Operacional Teste');
   await page.locator('#admin-busca-supervisor').fill(SUPERVISOR_EMAIL);
   await page.locator('.admin-supervisor').filter({hasText:SUPERVISOR_EMAIL}).waitFor({state:'visible'});
-  const assign = () => page.locator('.admin-supervisor').filter({hasText:SUPERVISOR_EMAIL}).locator('select').first();
-  await assign().selectOption(STORE_A);
+  await selectAuthorizedStore(page, SUPERVISOR_EMAIL, STORE_A);
   await waitText(page, '#admin-status', 'Alteração confirmada');
-  await assign().selectOption(STORE_B);
+  await selectAuthorizedStore(page, SUPERVISOR_EMAIL, STORE_B);
   await waitText(page, '#admin-status', 'Alteração confirmada');
   let supervisor = page.locator('.admin-supervisor').filter({hasText:SUPERVISOR_EMAIL});
   await supervisor.locator('.admin-chip').filter({hasText:'Loja Operacional A'}).waitFor({state:'visible'});
