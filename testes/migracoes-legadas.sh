@@ -17,7 +17,8 @@ INSERT INTO usuarios (id,empresa_id,email,senha_hash,nome,papel,email_confirmado
 INSERT INTO escalas (id,loja_id,inicio,fim,grade,parametros,atualizado_por) VALUES ('$S','$L','2026-01-01','2026-01-31','{"c1":["X"]}','{"modelo":"5x2"}','$U');
 SQL
 mysql -u root -h 127.0.0.1 "$DB" < banco/verificar-e-migrar.sql >/dev/null
-mysql -u root -h 127.0.0.1 "$DB" -e "UPDATE usuarios SET loja_id='$L' WHERE id='$U';"
+# Simula uma base que ainda não registrou a 006, mas já tem o vínculo único.
+mysql -u root -h 127.0.0.1 "$DB" -e "DELETE FROM migracoes_aplicadas WHERE nome='006-supervisor-multiloja'; UPDATE usuarios SET loja_id='$L' WHERE id='$U';"
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-006-supervisor-multiloja.sql >/dev/null
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-007-historico-versoes.sql >/dev/null
 mysql -u root -h 127.0.0.1 "$DB" < banco/migracao-008-descricao-cadastros.sql >/dev/null
