@@ -301,14 +301,33 @@ case 'carregar_escala':
     }
 
     $st = bd()->prepare(
-        'SELECT grade, parametros, publicada, atualizado_em FROM escalas
-          WHERE loja_id = ? AND inicio = ? AND fim = ? LIMIT 1');
+        'SELECT e.id, e.grade, e.parametros, e.resumo, e.publicada, e.versao,
+                e.versao_publicada, e.atualizado_em, v.snapshot
+           FROM escalas e
+           LEFT JOIN escala_versoes v
+             ON v.escala_id = e.id AND v.versao = e.versao
+          WHERE e.loja_id = ? AND e.inicio = ? AND e.fim = ? LIMIT 1');
     $st->execute([$lojaId, $inicio, $fim]);
     $e = $st->fetch();
+    $versaoSolicitada = campo($dados, 'versao');
+    if ($e && $versaoSolicitada !== null && $versaoSolicitada !== '') {
+        $st = bd()->prepare('SELECT grade, parametros, resumo, publicada, versao, publicada_em, snapshot
+                               FROM escala_versoes WHERE escala_id = ? AND versao = ? LIMIT 1');
+        $st->execute([$e['id'], (int)$versaoSolicitada]);
+        $v = $st->fetch();
+        if (!$v) falhar('Versão da escala não encontrada.', 404);
+        $e['grade'] = $v['grade']; $e['parametros'] = $v['parametros']; $e['resumo'] = $v['resumo'];
+        $e['publicada'] = $v['publicada']; $e['versao'] = $v['versao'];
+        $e['snapshot'] = $v['snapshot']; $e['atualizado_em'] = $v['publicada_em'];
+    }
     responder(['escala' => $e ? [
-        'grid'   => json_decode($e['grade'], true),
+        'grid' => json_decode($e['grade'], true),
         'params' => $e['parametros'] ? json_decode($e['parametros'], true) : null,
+        'resumo' => $e['resumo'] ? json_decode($e['resumo'], true) : null,
         'publicada' => (bool)$e['publicada'],
+        'versao' => (int)$e['versao'],
+        'versao_publicada' => $e['versao_publicada'] === null ? null : (int)$e['versao_publicada'],
+        'snapshot' => $e['snapshot'] ? json_decode($e['snapshot'], true) : null,
         'atualizado_em' => $e['atualizado_em'],
     ] : null]);
 
@@ -325,9 +344,10 @@ case 'escala_anterior':
     }
 
     $st = bd()->prepare(
-        'SELECT inicio, fim, grade FROM escalas
-         WHERE loja_id = ? AND fim < ?
-         ORDER BY fim DESC LIMIT 1');
+        'SELECT v.inicio, v.fim, v.grade
+           FROM escalas e JOIN escala_versoes v ON v.escala_id=e.id AND v.versao=e.versao
+          WHERE e.loja_id = ? AND e.fim < ?
+          ORDER BY e.fim DESC LIMIT 1');
     $st->execute([$lojaId, $inicio]);
     $e = $st->fetch();
     responder(['escala' => $e ? [
@@ -353,40 +373,100 @@ case 'salvar_escala':
 
     $paramsRecebidos = campo($dados, 'parametros');
     $resumo = normalizarResumo(campo($dados, 'resumo'), $grade, is_array($paramsRecebidos) ? $paramsRecebidos : []);
-
+    if (!is_array($paramsRecebidos)) $paramsRecebidos = [];
+    $snapshot = campo($dados, 'snapshot');
+    if (!is_array($snapshot)) {
+        $snapshot = [
+            'schema' => 1, 'incompleto' => true,
+            'motivo' => 'Snapshot não enviado pelo cliente legado',
+            'participantes' => [], 'grade' => $grade, 'params' => $paramsRecebidos
+        ];
+    }
+    $snapshot['schema'] = (int)($snapshot['schema'] ?? 1);
+    $snapshot['loja_id'] = $lojaId;
+    $snapshot['inicio'] = $inicio;
+    $snapshot['fim'] = $fim;
     $publicar = !empty($dados['publicar']) ? 1 : 0;
+    $esperada = campo($dados, 'expected_version');
+    $esperada = ($esperada === null || $esperada === '') ? null : (int)$esperada;
+    $idempotencia = (string)campo($dados, 'idempotency_key', '');
+    if ($idempotencia !== '' && !ehUuid($idempotencia)) falhar('Chave de idempotência inválida.');
 
-    // Concorrência e integridade: executa dentro de transação para evitar sobrescrita fantasma
     bd()->beginTransaction();
     try {
-        $st = bd()->prepare(
-            'INSERT INTO escalas (id, loja_id, inicio, fim, grade, parametros, resumo,
-            publicada, publicada_em, atualizado_por)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
-            ON DUPLICATE KEY UPDATE grade = VALUES(grade),
-            parametros = VALUES(parametros),
-            resumo = VALUES(resumo),
-            publicada = GREATEST(publicada, VALUES(publicada)),
-            publicada_em = IF(VALUES(publicada) = 1 AND publicada_em IS NULL,
-            NOW(), publicada_em),
-            atualizado_por = VALUES(atualizado_por)');
-        $st->execute([
-                     uuid(), $lojaId, $inicio, $fim,
-                     json_encode($grade, JSON_UNESCAPED_UNICODE),
-                     json_encode(campo($dados, 'parametros'), JSON_UNESCAPED_UNICODE),
-                     json_encode($resumo, JSON_UNESCAPED_UNICODE),
-                     $publicar, $publicar ? date('Y-m-d H:i:s') : null,
-                     $u['id'],
-                     ]);
-        registrar($u['id'], $u['empresa_id'], 'escala_salva',
-                  ['loja' => $lojaId, 'inicio' => $inicio, 'fim' => $fim]);
+        $st = bd()->prepare('SELECT id, versao, publicada, publicada_em, versao_publicada
+                               FROM escalas WHERE loja_id = ? AND inicio = ? AND fim = ? FOR UPDATE');
+        $st->execute([$lojaId, $inicio, $fim]);
+        $existente = $st->fetch();
+        if ($existente && $idempotencia !== '') {
+            $st = bd()->prepare('SELECT versao, publicada FROM escala_versoes WHERE escala_id = ? AND idempotencia = ?');
+            $st->execute([$existente['id'], $idempotencia]);
+            if ($ja = $st->fetch()) {
+                bd()->commit();
+                responder(['ok' => true, 'versao' => (int)$ja['versao'], 'publicada' => (bool)$ja['publicada'], 'repetida' => true]);
+            }
+        }
+        if ($existente && $esperada !== null && (int)$existente['versao'] !== $esperada) {
+            bd()->rollBack();
+            falhar('Conflito: a escala foi alterada por outra pessoa. Recarregue ou compare as versões.', 409);
+        }
+        $escalaId = $existente['id'] ?? uuid();
+        $versao = $existente ? (int)$existente['versao'] + 1 : 1;
+        $publicadaAtual = $existente ? (int)$existente['publicada'] : 0;
+        $publicadaEm = ($publicar && !$publicadaAtual) ? date('Y-m-d H:i:s') : null;
+        if ($existente) {
+            $st = bd()->prepare('UPDATE escalas SET grade=?, parametros=?, resumo=?, versao=?,
+                    publicada=GREATEST(publicada, ?), publicada_em=COALESCE(publicada_em, ?),
+                    versao_publicada=IF(?=1, ?, versao_publicada), atualizado_por=?
+                    WHERE id=?');
+            $st->execute([
+                json_encode($grade, JSON_UNESCAPED_UNICODE), json_encode($paramsRecebidos, JSON_UNESCAPED_UNICODE),
+                json_encode($resumo, JSON_UNESCAPED_UNICODE), $versao, $publicar, $publicadaEm,
+                $publicar, $versao, $u['id'], $escalaId
+            ]);
+        } else {
+            $st = bd()->prepare('INSERT INTO escalas
+                (id, loja_id, inicio, fim, grade, parametros, resumo, versao, publicada, publicada_em, versao_publicada, atualizado_por)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
+            $st->execute([$escalaId, $lojaId, $inicio, $fim, json_encode($grade, JSON_UNESCAPED_UNICODE),
+                json_encode($paramsRecebidos, JSON_UNESCAPED_UNICODE), json_encode($resumo, JSON_UNESCAPED_UNICODE),
+                $versao, $publicar, $publicar ? date('Y-m-d H:i:s') : null,
+                $publicar ? $versao : null, $u['id']]);
+        }
+        $st = bd()->prepare('INSERT INTO escala_versoes
+            (id, escala_id, versao, loja_id, inicio, fim, grade, parametros, resumo, snapshot, publicada, publicada_em, idempotencia, criado_por)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $st->execute([uuid(), $escalaId, $versao, $lojaId, $inicio, $fim,
+            json_encode($grade, JSON_UNESCAPED_UNICODE), json_encode($paramsRecebidos, JSON_UNESCAPED_UNICODE),
+            json_encode($resumo, JSON_UNESCAPED_UNICODE), json_encode($snapshot, JSON_UNESCAPED_UNICODE),
+            $publicar, $publicar ? date('Y-m-d H:i:s') : null, $idempotencia !== '' ? $idempotencia : null, $u['id']]);
+        registrar($u['id'], $u['empresa_id'], $publicar ? 'escala_publicada' : 'escala_salva',
+            ['loja' => $lojaId, 'inicio' => $inicio, 'fim' => $fim, 'versao' => $versao]);
         bd()->commit();
     } catch (Throwable $e) {
-        bd()->rollBack();
+        if (bd()->inTransaction()) bd()->rollBack();
         error_log('salvar escala: ' . $e->getMessage());
         falhar(mensagemErroBanco($e, 'Erro ao salvar escala. Tente novamente.'), 500);
     }
-    responder(['ok' => true]);
+    responder(['ok' => true, 'versao' => $versao, 'publicada' => (bool)$publicar]);
+
+    // -----------------------------------------------------------------------------
+    case 'listar_versoes_escala':
+    // -----------------------------------------------------------------------------
+    exigirGestao($u);
+    $lojaId = (string)campo($dados, 'loja_id', '');
+    exigirLojaDaEmpresa($lojaId, $u);
+    $inicio = (string)campo($dados, 'inicio', '');
+    $fim = (string)campo($dados, 'fim', '');
+    if (!ehDataValida($inicio) || !ehDataValida($fim)) falhar('Período inválido.');
+    $st = bd()->prepare('SELECT versao, publicada, publicada_em, criado_em, criado_por, snapshot
+                           FROM escala_versoes WHERE loja_id=? AND inicio=? AND fim=? ORDER BY versao DESC');
+    $st->execute([$lojaId, $inicio, $fim]);
+    responder(['versoes' => array_map(function($v){
+        $s = json_decode($v['snapshot'], true) ?: [];
+        return ['versao'=>(int)$v['versao'], 'publicada'=>(bool)$v['publicada'],
+          'incompleto'=>(bool)($s['incompleto'] ?? false), 'criado_em'=>$v['criado_em'], 'criado_por'=>$v['criado_por']];
+    }, $st->fetchAll())]);
 
     // -----------------------------------------------------------------------------
     case 'listar_escalas':
@@ -396,13 +476,14 @@ $lojaId = (string)campo($dados, 'loja_id', '');
 exigirLojaDaEmpresa($lojaId, $u);
 
 $st = bd()->prepare(
-    'SELECT e.inicio, e.fim, e.grade, e.parametros, e.resumo, e.publicada,
-    e.publicada_em, e.atualizado_em, us.nome AS por
-    FROM escalas e
-    LEFT JOIN usuarios us ON us.id = e.atualizado_por
-    WHERE e.loja_id = ?
-    ORDER BY e.inicio DESC
-    LIMIT 36');
+    'SELECT v.inicio, v.fim, v.grade, v.parametros, v.resumo, v.publicada,
+    v.publicada_em AS atualizado_em, v.criado_em, v.versao, v.snapshot,
+    us.nome AS por
+    FROM escala_versoes v
+    LEFT JOIN usuarios us ON us.id = v.criado_por
+    WHERE v.loja_id = ?
+    ORDER BY v.inicio DESC, v.versao DESC
+    LIMIT 100');
 $st->execute([$lojaId]);
 $linhas = $st->fetchAll();
 
@@ -423,7 +504,9 @@ $escalas = array_map(function ($e) {
         'ajustes' => $resumo['ajustes'] ?? null,
         'feridas' => $resumo['feridas'] ?? null,
         'notas' => $resumo['notas'] ?? null,
-        'em' => str_replace(' ', 'T', (string)$e['atualizado_em']),
+        'em' => str_replace(' ', 'T', (string)($e['atualizado_em'] ?: $e['criado_em'])),
+        'versao' => (int)$e['versao'],
+        'incompleto' => (bool)((json_decode($e['snapshot'], true)['incompleto'] ?? false)),
         'publicada' => (bool)$e['publicada'],
         'por' => $e['por'],
         ];

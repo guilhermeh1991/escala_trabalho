@@ -166,7 +166,8 @@ const DB = {
     const params = Object.assign({}, data.parametros || {});
     const horas = params._horas || {};
     delete params._horas;
-    return {grid: data.grade, params, horas, inicio, fim};
+    return {grid: data.grade, params, horas, inicio, fim,
+      snapshot:{incompleto:true, motivo:'Versão Supabase sem snapshot histórico nesta etapa'}};
   },
 
   async escalaAnterior(lojaId, inicio){
@@ -236,14 +237,15 @@ const store = {
       _pendente = valor;
       marcarSync('salvando');
       clearTimeout(_timerSync);
-      _timerSync = setTimeout(async ()=>{
-        if(_sincronizando) { _timerSync = setTimeout(()=>store.set(chave, _pendente), 600); return; }
-        _sincronizando = true;
-        try{ await DB.salvarLojas(_pendente); marcarSync('salvo'); }
-        catch(e){ marcarSync('erro', erroAmigavel(e)); }
-        finally{ _sincronizando = false; }
-      }, 700);
-      return;
+      return await new Promise((resolve,reject)=>{
+        _timerSync = setTimeout(async ()=>{
+          if(_sincronizando){ reject(new Error('Já existe um salvamento em andamento. Tente novamente.')); return; }
+          _sincronizando = true;
+          try{ await DB.salvarLojas(_pendente); marcarSync('salvo'); resolve({ok:true}); }
+          catch(e){ marcarSync('erro', erroAmigavel(e)); reject(e); }
+          finally{ _sincronizando = false; }
+        }, 700);
+      });
     }
     if(chave.startsWith('escala:grade:')){
       const [, , lojaId, periodo] = chave.split(':');
@@ -251,7 +253,7 @@ const store = {
       try{
         await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas);
         await DB.registrar('escala_salva', {loja: lojaId, inicio, fim});
-        marcarSync('salvo');
+        marcarSync('salvo'); return {ok:true};
       }catch(e){ marcarSync('erro', erroAmigavel(e)); throw e; }
     }
   }

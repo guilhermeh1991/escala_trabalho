@@ -95,8 +95,11 @@ case 'minha_escala':
 
     // Somente escala publicada. Rascunho não vaza.
     $st = bd()->prepare(
-        'SELECT grade, parametros, inicio, fim, publicada_em FROM escalas
-          WHERE loja_id = ? AND inicio = ? AND fim = ? AND publicada = 1 LIMIT 1');
+        'SELECT v.grade, v.parametros, v.inicio, v.fim, v.publicada_em
+           FROM escalas e
+           JOIN escala_versoes v ON v.escala_id = e.id AND v.versao = e.versao_publicada
+          WHERE e.loja_id = ? AND e.inicio = ? AND e.fim = ?
+            AND e.publicada = 1 AND e.versao_publicada IS NOT NULL LIMIT 1');
     $st->execute([$ficha['loja_id'], $inicio, $fim]);
     $esc = $st->fetch();
 

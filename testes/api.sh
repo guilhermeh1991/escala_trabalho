@@ -95,6 +95,8 @@ mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-006-supervisor-multiloj
   || falha "migracao-006-supervisor-multiloja.sql"
 mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
   || falha "verificar-e-migrar.sql após as migrações"
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-007-historico-versoes.sql >/dev/null \
+  || falha "migracao-007-historico-versoes.sql"
 mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
   || falha "verificar-e-migrar.sql não foi idempotente"
 
@@ -310,13 +312,28 @@ NOME=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT nome FROM lojas WH
 
 echo ""
 echo "=== 10. Escala ==="
-R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"}}" "$CSRF_A")
-echo "$R" | grep -q '"ok":true' && ok "escala salva" || falha "salvar escala: $R"
+IDEMP='11111111-1111-4111-8111-111111111111'
+SNAP='{"schema":1,"incompleto":false,"participantes":[{"id":"c1","nome":"Pessoa Historica","cargo":"CAIXA","horario":"08:00 AS 16:20","jornada":{"entrada":"08:00","saida":"16:20","intervalos":[{"ini":"12:00","fim":"13:00"}]},"ausencias":[],"ordem":0}],"grade":{"c1":["","X"]},"params":{"modelo":"5x2"}}'
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"idempotency_key\":\"$IDEMP\"}" "$CSRF_A")
+echo "$R" | grep -q '"ok":true' && ok "escala salva com snapshot" || falha "salvar escala: $R"
+VERSAO=$(echo "$R" | grep -o '"versao":[0-9]*' | cut -d: -f2)
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO,\"idempotency_key\":\"22222222-2222-4222-8222-222222222222\",\"publicar\":true}" "$CSRF_A")
+echo "$R" | grep -q '"publicada":true' && ok "publicação cria versão publicada" || falha "publicação: $R"
+VERSAO_PUBLICADA=$(echo "$R" | grep -o '"versao":[0-9]*' | cut -d: -f2)
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO_PUBLICADA,\"idempotency_key\":\"33333333-3333-4333-8333-333333333333\"}" "$CSRF_A")
+echo "$R" | grep -q '"ok":true' && ok "novo rascunho salvo após publicação" || falha "rascunho após publicação: $R"
+PUB=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT versao_publicada FROM escalas WHERE loja_id='$LOJA_A' AND inicio='2026-08-11';")
+[ "$PUB" = "$VERSAO_PUBLICADA" ] && ok "rascunho não altera versão publicada" || falha "versão publicada alterada: $PUB"
 R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\"}" "$CSRF_A")
-echo "$R" | grep -q '"X"' && ok "escala recuperada igual" || falha "carregar escala: $R"
+echo "$R" | grep -q 'Pessoa Historica' && ok "snapshot recupera participante histórico" || falha "snapshot não recuperado: $R"
+R2=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO,\"idempotency_key\":\"$IDEMP\"}" "$CSRF_A")
+echo "$R2" | grep -q '"repetida":true' && ok "retentativa idempotente não cria versão" || falha "idempotência: $R2"
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":999}" "$CSRF_A")
+echo "$R" | grep -q 'Conflito' && ok "edição simultânea gera conflito explícito" || falha "conflito: $R"
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"listar_versoes_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\"}" "$CSRF_A")
+echo "$R" | grep -q '"versao":' && ok "versões históricas listadas" || falha "listar versões: $R"
 R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"listar_escalas\",\"loja_id\":\"$LOJA_A\"}" "$CSRF_A")
-echo "$R" | grep -q '"inicio":"2026-08-11"' && ok "listar_escalas devolve o período salvo" || falha "listar_escalas: $R"
-echo "$R" | grep -q '"publicada":false' && ok "listar_escalas identifica o rascunho" || falha "status do rascunho: $R"
+echo "$R" | grep -q '"inicio":"2026-08-11"' && ok "listar_escalas devolve versões" || falha "listar_escalas: $R"
 
 echo ""
 echo "=== 11. Sem sessão não passa ==="

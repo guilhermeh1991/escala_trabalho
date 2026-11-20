@@ -813,7 +813,7 @@ function seedLojas(){
 /* ============================================================
    ESTADO
    ============================================================ */
-const S = {usuario:null, lojas:null, loja:'330', res:null, val:null, salvo:true, equipeEscala:null};
+const S = {usuario:null, lojas:null, loja:'330', res:null, val:null, salvo:true, equipeEscala:null, versao:null, historicoIncompleto:null, historicoCarregado:false, salvamentoIdempotencia:null};
 const $  = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 const CODES = ['','X','FC','F','AT','LC'];
@@ -933,6 +933,7 @@ function validarEscalaAtual(){
     const colabsAtuais = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)) ? loja().colabs : [];
     S.res.ativos.forEach(c=>{
       const ref = colabsAtuais.find(x=>x.id===c.id) || c;
+      if(S.historicoCarregado) return;
       c.jornada = jornadaDe(ref);
       c.horario = ref.horario || c.horario || textoJornada(c.jornada);
     });
@@ -1246,6 +1247,7 @@ $('#btn-gerar').onclick = async ()=>{
   const p = Object.assign({}, loja().params, {inicio:$('#p-inicio').value, fim:$('#p-fim').value});
   if(!p.inicio || !p.fim || p.inicio>=p.fim){ alert('Confira o período: a data final precisa ser depois da inicial.'); return; }
   S.equipeEscala = await equipeComHistoricoAnterior(p.inicio);
+  S.versao = null; S.historicoCarregado = false; S.historicoIncompleto = null;
   S.res = gerarEscala(S.equipeEscala, p);
   S.res.horas = {};
   validarEscalaAtual();
@@ -1262,16 +1264,20 @@ function dadosDaGrade(){
 }
 
 $('#btn-salvar').onclick = async ()=>{
-  if(!S.res) return;
+  if(!S.res || S.historicoIncompleto) return;
+  const id = crypto.randomUUID();
+  const snapshot = snapshotDaEscala();
+  snapshot.idempotency_key = id;
+  const dados = Object.assign(dadosDaGrade(), {snapshot, versao:S.versao, idempotency_key:id});
   try{
-    await store.set(chaveGrade(), dadosDaGrade());
+    const retorno = await store.set(chaveGrade(), dados);
+    if(retorno && retorno.versao != null) S.versao = retorno.versao;
   }catch(e){
+    S.salvo = false; marcarSalvo();
     alert('Não foi possível salvar no servidor: ' + (e && e.message ? e.message : e));
     return;
   }
-  S.salvo = true; marcarSalvo();
-  registrarSalva();
-  await pintarSalvas();
+  S.salvo = true; marcarSalvo(); registrarSalva(); await pintarSalvas();
 };
 
 if(typeof store.publicar === 'function'){
@@ -1281,7 +1287,10 @@ if(typeof store.publicar === 'function'){
     if(!S.salvo){ alert('Salve a escala antes de publicar.'); return; }
     if(!confirm('Publicar esta escala? A partir de agora ela fica visível para a equipe.')) return;
     try{
-      await store.publicar(chaveGrade(), dadosDaGrade());
+      const snapshot = snapshotDaEscala();
+      snapshot.idempotency_key = crypto.randomUUID();
+      const retorno = await store.publicar(chaveGrade(), Object.assign(dadosDaGrade(), {snapshot, versao:S.versao}));
+      if(retorno && retorno.versao != null) S.versao = retorno.versao;
     }catch(e){
       alert('Não foi possível publicar: ' + (e && e.message ? e.message : e));
       return;
@@ -1481,26 +1490,56 @@ function baixarPdf(){
     alert('Não foi possível gerar o PDF: ' + (err && err.message ? err.message : err));
   }
 }
+function snapshotDaEscala(){
+  const participantes = (S.res?.ativos || []).map(c=>({
+    id:c.id, nome:c.nome, cargo:c.cargo, gerente:!!c.gerente, ativo:c.ativo !== false,
+    horario:c.horario || null, jornada:c.jornada ? JSON.parse(JSON.stringify(c.jornada)) : null,
+    ausencias:Array.isArray(c.ausencias) ? JSON.parse(JSON.stringify(c.ausencias)) : [],
+    ordem:(S.res.ativos||[]).findIndex(x=>x.id===c.id)
+  }));
+  return {schema:1, incompleto:false, loja_id:S.loja, inicio:$('#p-inicio').value, fim:$('#p-fim').value,
+    params:JSON.parse(JSON.stringify(S.res.params||{})), grade:JSON.parse(JSON.stringify(S.res.grid||{})),
+    horas:JSON.parse(JSON.stringify(S.res.horas||{})), participantes};
+}
+
+function resultadoDaVersao(d){
+  const snap = d && d.snapshot;
+  if(!snap || !Array.isArray(snap.participantes) || snap.incompleto){
+    return {incompleto:true, motivo:(snap&&snap.motivo)||'Registro legado sem snapshot histórico completo'};
+  }
+  const ativos = snap.participantes.map(c=>Object.assign({}, c, {ausencias:c.ausencias||[]}));
+  const params = Object.assign({}, snap.params||{}, {inicio:d.inicio, fim:d.fim});
+  const days = typeof listDays === 'function' ? listDays(d.inicio, d.fim) : [];
+  const res = {days, grid:JSON.parse(JSON.stringify(snap.grade||d.grid||{})), params, ativos,
+    semanas:[], desdeFolga:{}, horas:JSON.parse(JSON.stringify(snap.horas||d.horas||{}))};
+  // Versões históricas não são regeneradas. Apenas a grade gravada é validada.
+  return {res, incompleto:false};
+}
+
 async function carregarPeriodoSalvo(){
-  S.res=null; S.val=null; S.equipeEscala=null;
+  S.res=null; S.val=null; S.equipeEscala=null; S.historicoCarregado=false; S.historicoIncompleto=null;
   let d;
-  try{
-    d = await store.get(chaveGrade());
-  }catch(e){
+  try{ d = await store.get(chaveGrade()); }
+  catch(e){
     alert('Não foi possível carregar a escala salva do servidor: ' + (e && e.message ? e.message : e));
-    pintarGrade();
-    return false;
+    pintarGrade(); return false;
   }
   if(d){
-    const p = Object.assign({}, loja().params, d.params||{}, {inicio:d.inicio, fim:d.fim});
-    S.equipeEscala = await equipeComHistoricoAnterior(p.inicio);
-    const base = gerarEscala(S.equipeEscala, p);
-    Object.keys(d.grid).forEach(id=>{ if(base.grid[id]) base.grid[id] = d.grid[id]; });
-    base.horas = d.horas || {};
-    S.res = base; validarEscalaAtual(); S.salvo = true;
-  } else {
+    const historico = resultadoDaVersao(d);
+    if(historico.incompleto){
+      S.historicoIncompleto = historico.motivo;
+      S.salvo = true;
+      pintarGrade();
+      return true;
+    }
+    S.historicoIncompleto = null;
+    S.historicoCarregado = true;
+    S.res = historico.res;
+    S.equipeEscala = historico.res.ativos;
+    S.versao = d.versao == null ? null : Number(d.versao);
+    validarEscalaAtual();
     S.salvo = true;
-  }
+  } else { S.salvo = true; S.versao = null; S.historicoCarregado = false; }
   pintarGrade();
   return true;
 }

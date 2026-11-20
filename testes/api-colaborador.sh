@@ -25,6 +25,10 @@ mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/nul
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-006-supervisor-multiloja.sql >/dev/null \
   || falha "migracao-006-supervisor-multiloja.sql"
 mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
+  || falha "verificar-e-migrar.sql não aplicou as migrações"
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-007-historico-versoes.sql >/dev/null \
+  || falha "migracao-007-historico-versoes.sql"
+mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
   || falha "verificar-e-migrar.sql não foi idempotente"
 
 cat > api/config.php <<'PHP'
