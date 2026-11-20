@@ -11,7 +11,7 @@ ADMIN_PASSWORD="gestao operacional onze junho"
 SUP_EMAIL="supervisor.browser@exemplo.test"
 SUP_PASSWORD="loja autorizada doze junho"
 COOKIE_P=$(mktemp); COOKIE_A=$(mktemp); COOKIE_S=$(mktemp)
-cleanup(){ rm -f "$COOKIE_P" "$COOKIE_A" "$COOKIE_S" api/config.php; }
+cleanup(){ rm -f "$COOKIE_P" "$COOKIE_A" "$COOKIE_S"; }
 trap cleanup EXIT
 
 mysql -u root -h 127.0.0.1 -e "DROP DATABASE IF EXISTS $DB; CREATE DATABASE $DB CHARACTER SET utf8mb4;"

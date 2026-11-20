@@ -85,8 +85,8 @@ jobs:
           --health-retries=5
     steps:
       - uses: actions/checkout@v4
-      - name: Instalar cliente MySQL
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq mysql-client
+      - name: Conferir cliente MySQL do runner
+        run: mysql --version
       - name: Atualizar banco legado e verificar idempotência
         run: bash testes/migracoes-legadas.sh
 
@@ -160,7 +160,13 @@ jobs:
           name: painel-admin-browser
           path: |
             artifacts/painel-admin/
-            /tmp/painel-php.log
+            /tmp/painel-admin-php.log
+            /tmp/shiftflow-browser-php.log
+      - name: Encerrar servidor PHP e remover configuração de teste
+        if: always()
+        run: |
+          if [ -f /tmp/shiftflow-browser-php.pid ]; then kill "$(cat /tmp/shiftflow-browser-php.pid)" || true; fi
+          rm -f api/config.php
 
   deploy:
     name: Build e deploy para HostGator
