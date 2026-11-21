@@ -976,13 +976,13 @@ function fimDoDiaMinutos(c, i, res){
   const hs=horasDaString(ajustada);
   if(hs.length>=2){
     const ini=minutosDaHora(hs[0]), fim=minutosDaHora(hs[1]);
-    if(ini!=null && fim!=null) return fim >= ini ? fim : fim + 1440;
+    if(ini!=null && fim!=null) return fim > ini ? fim : fim + 1440;
   }
   const jornada=jornadaPadrao(c);
   if(!jornada) return null;
   const entrada=entradaDoDia(c,i,res), inicioPadrao=minutosDaHora(jornada.entrada), fimPadrao=minutosDaHora(jornada.saida), inicio=minutosDaHora(entrada);
   if(inicioPadrao==null || fimPadrao==null || inicio==null) return null;
-  let bruto=fimPadrao-inicioPadrao; if(bruto<0) bruto+=1440;
+  let bruto=fimPadrao-inicioPadrao; if(bruto<=0) bruto+=1440;
   return inicio+bruto;
 }
 function saidaDoDia(c, i, res){
@@ -1682,93 +1682,215 @@ function gerarEscala(colabs, params){
 
 /* Estado que uma grade salva deixa para o período seguinte. Uma linha ausente
    ou curta não é uma base confiável: nesse caso ela não produz continuidade. */
-function estadoFinalDaGrade(grade, inicio, fim){
+function estadoFinalDaGrade(grade, inicio, fim, opcoes){
   const days = listDays(inicio, fim);
   if(!grade || typeof grade !== 'object' || !days.length) return {};
+  const opc = opcoes && typeof opcoes === 'object' ? opcoes : {};
+  const horas = (opc.horas && typeof opc.horas === 'object') ? opc.horas : {};
+  const listaPart = Array.isArray(opc.participantes) ? opc.participantes
+                  : (Array.isArray(opc.colabs) ? opc.colabs : []);
+  const mapaPart = {};
+  listaPart.forEach(c=>{ if(c && c.id != null) mapaPart[c.id] = c; });
+  const ultIdx = days.length - 1;
+  const resAnt = {days, grid:grade, horas};
   const estado = {};
   Object.keys(grade).forEach(id=>{
     const arr = grade[id];
     if(!Array.isArray(arr) || arr.length < days.length) return;
     let diasDesdeFolga = 0;
-    for(let i=days.length-1;i>=0 && arr[i]==='';i--) diasDesdeFolga++;
+    for(let i=ultIdx;i>=0 && arr[i]==='';i--) diasDesdeFolga++;
     let domTrabConsec = 0;
-    for(let i=days.length-1;i>=0;i--){
+    for(let i=ultIdx;i>=0;i--){
       if(days[i].getDay()!==0) continue;
       if(arr[i] === '') domTrabConsec++;
       else break;
     }
-    estado[id] = {diasDesdeFolga, domTrabConsec};
+    const trabalhouUltimoDia = arr[ultIdx] === '';
+    const info = {
+      diasDesdeFolga,
+      domTrabConsec,
+      trabalhouUltimoDia,
+      dataUltimoDia: fim,
+      fimUltimoDiaMinutos: null,
+      saidaUltimoDia: null,
+      lacunaUltimoDia: false
+    };
+    if(trabalhouUltimoDia){
+      const ficha = mapaPart[id] || {id};
+      const fimMin = fimDoDiaMinutos(ficha, ultIdx, resAnt);
+      if(fimMin != null){
+        info.fimUltimoDiaMinutos = fimMin;
+        info.saidaUltimoDia = horaDosMinutos(fimMin);
+      } else {
+        info.lacunaUltimoDia = true;
+      }
+    }
+    estado[id] = info;
   });
   return estado;
 }
 
+function semanasDoPeriodo(days, inicioSemana){
+  const N = days.length;
+  const semanas = [];
+  if(inicioSemana === 'P'){
+    for(let i=0;i<N;i+=7) semanas.push({ini:i, fim:Math.min(i+6,N-1), idx:semanas.length});
+  } else {
+    const iniSem = Number(inicioSemana || 0);
+    let i = 0;
+    while(i < N){
+      let j = i;
+      while(j+1 < N && days[j+1].getDay() !== iniSem) j++;
+      semanas.push({ini:i, fim:j, idx:semanas.length});
+      i = j+1;
+    }
+  }
+  semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
+  return semanas;
+}
+
 /* ============================================================
    VALIDAÇÃO
+   Separa:
+   - restrições obrigatórias (obrigatoria: true, categoria: 'obrigatoria', nivel: 'regra')
+   - preferências e metas de cobertura (obrigatoria: false, categoria: 'preferencia', nivel: 'regra')
+   - observações e lacunas de dados (obrigatoria: false, categoria: 'observacao', nivel: 'nota')
    ============================================================ */
 function validar(res, colabs){
-  const {days, grid, semanas, params:P} = res;
-  const desdeFolgaGer = res.desdeFolga || {};
+  const days = (res && Array.isArray(res.days) && res.days.length)
+    ? res.days
+    : (res && res.params && res.params.inicio && res.params.fim ? listDays(res.params.inicio, res.params.fim) : []);
+  const grid = (res && res.grid) || {};
+  const P = Object.assign({inicioSemana:0, folgasSemana:2, cicloDomingo:3, maxSeq:6,
+                           minCaixa:0, minBalcao:0, minFarma:2, minSubger:1, subgerFds:true}, (res && res.params) || {});
+  if(res && res.params && res.params.minFarma === undefined) P.minFarma = 2;
+  if(res && res.params && res.params.minSubger === undefined) P.minSubger = 1;
+  const semanas = (res && Array.isArray(res.semanas) && res.semanas.length)
+    ? res.semanas
+    : semanasDoPeriodo(days, P.inicioSemana);
+  const desdeFolgaGer = (res && res.desdeFolga) || {};
   const N = days.length;
-  const ativos = res.ativos;
+  const listaBase = (res && Array.isArray(res.ativos) && res.ativos.length) ? res.ativos : (colabs || []);
+  const mapaColabs = {};
+  (colabs || []).forEach(c=>{ if(c && c.id != null) mapaColabs[c.id] = c; });
+  const ativos = listaBase.filter(c=>c && c.ativo!==false);
   const alertas = [];
   const porColab = {};
+  const CODIGOS_VALIDOS = new Set(['','X','FC','F','AT','LC']);
 
   ativos.forEach(c=>{
+    const ref = mapaColabs[c.id] || c;
     const av = [];
     const arr = grid[c.id];
-    const folga = i => ['X','F','FC','AT','LC'].includes(arr[i]);
+    if(!Array.isArray(arr) || arr.length !== N){
+      const al = {
+        tipo:'grade-invalida', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+        txt:!Array.isArray(arr)
+          ? 'Colaborador sem linha correspondente na grade da escala'
+          : `Linha da grade com ${arr.length} dia(s), esperado ${N}`
+      };
+      av.push(al);
+      porColab[c.id] = {av, domTrab:0, domFolga:0, pior:0, totalFolgas:0};
+      alertas.push({colab:c.nome, ...al});
+      return;
+    }
 
-    // 1) folgas por semana
+    const folga = i => ['X','F','FC','AT','LC'].includes(arr[i]);
+    const ausenciasLista = (Array.isArray(c.ausencias) && c.ausencias.length) ? c.ausencias : (ref.ausencias || []);
+
+    // 0) códigos válidos e ausências preservadas (obrigatória)
+    days.forEach((d,i)=>{
+      const cod = arr[i];
+      if(!CODIGOS_VALIDOS.has(cod)){
+        av.push({tipo:'grade-invalida', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
+          txt:`Código inválido "${cod}" em ${ddmm(d)}`});
+      }
+      const dt = ymd(d);
+      const tiposAus = ausenciasLista.filter(a=>a && a.ini <= dt && dt <= (a.fim||a.ini)).map(a=>a.tipo);
+      if(tiposAus.length && !tiposAus.includes(cod)){
+        av.push({tipo:'ausencia', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
+          txt:`Ausência (${tiposAus.join('/')}) em ${ddmm(d)} foi sobrescrita por "${cod || 'trabalho'}"`});
+      }
+    });
+
+    // 0b) perfil gerente: folga sábado e domingo (obrigatória conforme perfil)
+    if(c.gerente){
+      days.forEach((d,i)=>{
+        if((d.getDay()===0 || d.getDay()===6) && !folga(i)){
+          av.push({tipo:'gerente', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
+            txt:`Gerente escalado para trabalhar em ${ddmm(d)} (${DIA_NOME[d.getDay()]})`});
+        }
+      });
+    }
+
+    // 1) folgas por semana (obrigatória para não-gerentes)
     semanas.forEach(s=>{
       if(s.dias.length<7) return;
       const n = s.dias.filter(i=>arr[i]==='X'||arr[i]==='FC').length;
       const ferias = s.dias.filter(i=>arr[i]==='F'||arr[i]==='AT'||arr[i]==='LC').length;
       if(ferias>=5) return;
-      if(!c.gerente && n < P.folgasSemana)
-        av.push({tipo:'folgas-semana', nivel:'regra', txt:`Semana de ${ddmm(days[s.ini])}: ${n} folga(s), mínimo ${P.folgasSemana}`});
+      if(!c.gerente && (n + Math.min(ferias, P.folgasSemana)) < P.folgasSemana)
+        av.push({tipo:'folgas-semana', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+          txt:`Semana de ${ddmm(days[s.ini])}: ${n} folga(s), mínimo ${P.folgasSemana}`});
+      if(!c.gerente && P.modelo === '6x1' && ferias < 4){
+        const domFolga = s.dias.some(i=>days[i].getDay()===0 && (arr[i]==='X'||arr[i]==='FC'));
+        if(domFolga && n < 2){
+          av.push({tipo:'6x1-domingo', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+            txt:`Semana de ${ddmm(days[s.ini])}: folgou no domingo do ciclo mas ficou sem a folga semanal do 6x1`});
+        }
+      }
     });
 
-    // 2) sequência máxima
-    let seq = desdeFolgaGer[c.id] != null ? desdeFolgaGer[c.id]
-            : ((c.diasDesdeFolga!=null)?Number(c.diasDesdeFolga):0);
+    // 2) sequência máxima (obrigatória para não-gerentes)
+    const seqIni = desdeFolgaGer[c.id] != null ? Number(desdeFolgaGer[c.id])
+                 : (c.diasDesdeFolga != null && c.diasDesdeFolga !== '' ? Number(c.diasDesdeFolga)
+                 : (ref.diasDesdeFolga != null && ref.diasDesdeFolga !== '' ? Number(ref.diasDesdeFolga) : 0));
+    let seq = c.gerente ? 0 : seqIni;
     let pior=0, quando=null;
     for(let i=0;i<N;i++){
       if(folga(i)){ seq=0; continue; }
       seq++; if(seq>pior){ pior=seq; quando=days[i]; }
     }
-    if(pior > P.maxSeq) av.push({tipo:'sequencia', nivel:'regra', txt:`${pior} dias seguidos sem folga (até ${ddmm(quando)}), máximo ${P.maxSeq}`});
+    if(!c.gerente && pior > P.maxSeq)
+      av.push({tipo:'sequencia', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+        txt:`${pior} dias seguidos sem folga (até ${ddmm(quando)}), máximo ${P.maxSeq}`});
 
-    // 3) domingos
+    // 3) domingos (obrigatória para não-gerentes)
     const dom = [];
     days.forEach((d,i)=>{ if(d.getDay()===0) dom.push(i); });
     const domTrab = dom.filter(i=>arr[i]===''), domFol = dom.filter(i=>arr[i]!=='');
-    let corrida = Number.isInteger(c.domTrabConsec) ? c.domTrabConsec : 0;
+    const domIni = Number.isInteger(c.domTrabConsec) ? c.domTrabConsec
+                 : (Number.isInteger(ref.domTrabConsec) ? ref.domTrabConsec : 0);
+    let corrida = domIni;
     let avisouDom = false;
-    dom.forEach(i=>{
-      if(arr[i]===''){
-        corrida++;
-        if(corrida > P.cicloDomingo-1 && !avisouDom){
-          av.push({tipo:'domingo', nivel:'regra',
-                   txt:`${corrida} domingos seguidos trabalhados até ${ddmm(days[i])} — a lei permite no máximo ${P.cicloDomingo-1}`});
-          avisouDom = true;
-        }
-      } else { corrida=0; avisouDom=false; }
-    });
-
-    // 3b) dia de folga fixa
-    if(c.folgaFixa != null && c.folgaFixa !== ''){
-      const diaFixo = Number(c.folgaFixa);
-      semanas.forEach(s2=>{
-        if(s2.dias.length < 7) return;
-        const cabe = s2.dias.filter(i=>days[i].getDay()===diaFixo && !['F','AT','LC'].includes(arr[i]));
-        if(!cabe.length) return;                       // semana de férias, não se cobra
-        const folgou = cabe.some(i=>arr[i]==='X' || arr[i]==='FC');
-        if(!folgou) av.push({tipo:'dia-fixo', nivel:'regra',
-          txt:`Folga fixa em ${DIA_NOME[diaFixo]}: a semana de ${ddmm(days[s2.ini])} não teve folga nesse dia`});
+    if(!c.gerente){
+      dom.forEach(i=>{
+        if(arr[i]===''){
+          corrida++;
+          if(corrida > P.cicloDomingo-1 && !avisouDom){
+            av.push({tipo:'domingo', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+              txt:`${corrida} domingos seguidos trabalhados até ${ddmm(days[i])} — máximo configurado ${P.cicloDomingo-1}`});
+            avisouDom = true;
+          }
+        } else { corrida=0; avisouDom=false; }
       });
     }
 
-    // 4) folgas isoladas (fora do domingo)
+    // 3b) dia de folga fixa (preferência configurada na ficha)
+    const folgaFixaVal = (c.folgaFixa != null && c.folgaFixa !== '') ? c.folgaFixa : ref.folgaFixa;
+    if(!c.gerente && folgaFixaVal != null && folgaFixaVal !== ''){
+      const diaFixo = Number(folgaFixaVal);
+      semanas.forEach(s2=>{
+        if(s2.dias.length < 7) return;
+        const cabe = s2.dias.filter(i=>days[i].getDay()===diaFixo && !['F','AT','LC'].includes(arr[i]));
+        if(!cabe.length) return;
+        const folgou = cabe.some(i=>arr[i]==='X' || arr[i]==='FC');
+        if(!folgou) av.push({tipo:'dia-fixo', categoria:'preferencia', obrigatoria:false, nivel:'regra',
+          txt:`Preferência de folga fixa em ${DIA_NOME[diaFixo]}: a semana de ${ddmm(days[s2.ini])} não teve folga nesse dia`});
+      });
+    }
+
+    // 4) folgas isoladas fora do domingo no 5x2 (preferência / qualidade)
     const semanaParcial = new Set();
     semanas.forEach(s2=>{ if(s2.dias.length<7) s2.dias.forEach(i=>semanaParcial.add(i)); });
     if(!c.gerente && P.modelo !== '6x1'){
@@ -1779,27 +1901,62 @@ function validar(res, colabs){
         const sem = semanas.find(s2=>i>=s2.ini && i<=s2.fim);
         const temPar = sem && sem.dias.some(k=>arr[k]==='X' && (folga(k+1) || folga(k-1)));
         if(temPar){
-          av.push({tipo:'avulsa', nivel:'nota',
+          av.push({tipo:'avulsa', categoria:'observacao', obrigatoria:false, nivel:'nota',
             txt:`${ddmm(days[i])} (${DIA_NOME[days[i].getDay()]}) é folga avulsa — a semana já tem o par, este dia entrou para não passar de ${P.maxSeq} dias seguidos`});
         } else {
-          av.push({tipo:'isolada', nivel:'regra',
-            txt:`Folga isolada em ${ddmm(days[i])} (${DIA_NOME[days[i].getDay()]}) e a semana não tem nenhum par de folgas`});
+          av.push({tipo:'isolada', categoria:'preferencia', obrigatoria:false, nivel:'regra',
+            txt:`Preferência 5x2: folga isolada em ${ddmm(days[i])} (${DIA_NOME[days[i].getDay()]}) e a semana não tem par de folgas`});
         }
       }
     }
 
-    // 5) intervalo entre o fim de um turno e o início do dia seguinte.
-    // Só há como cobrar quando os dois dias são trabalhados e a jornada informa
-    // entrada e saída; cadastros legados de uma única hora ficam fora da conta.
+    // 5) descanso entre jornadas (obrigatória) e sinalização de jornadas incompletas / lacunas
     const minimoInterjornada = P.minInterjornada != null ? Number(P.minInterjornada) : 660;
+    const trabalhouUltAnt = Boolean(c.trabalhouUltimoDia || ref.trabalhouUltimoDia || c.fimUltimoDiaMinutos != null || ref.fimUltimoDiaMinutos != null);
+    const fimUltAnt = c.fimUltimoDiaMinutos != null ? Number(c.fimUltimoDiaMinutos)
+                    : (ref.fimUltimoDiaMinutos != null ? Number(ref.fimUltimoDiaMinutos) : null);
+    const saidaUltAnt = c.saidaUltimoDia || ref.saidaUltimoDia || (fimUltAnt != null ? horaDosMinutos(fimUltAnt) : null);
+    const dataUltAnt = c.dataUltimoDia || ref.dataUltimoDia || 'período anterior';
+
+    if(N > 0 && arr[0] === '' && trabalhouUltAnt){
+      const ent0 = entradaDoDia(c, 0, res);
+      const ent0Min = minutosDaHora(ent0);
+      if(fimUltAnt != null && ent0Min != null){
+        const descanso0 = ent0Min + 1440 - fimUltAnt;
+        if(descanso0 < minimoInterjornada){
+          const liberado0 = horaDosMinutos(fimUltAnt + minimoInterjornada);
+          av.push({tipo:'interjornada', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:0, transicaoPeriodo:true,
+            txt:`Sai ${saidaUltAnt} no fim do período anterior (${dataUltAnt}) e entra ${ent0} em ${ddmm(days[0])}: ${textoDuracao(descanso0)} de descanso, mínimo 11h (só pode entrar a partir das ${liberado0})`});
+        }
+      } else {
+        av.push({tipo:'jornada-incompleta', categoria:'observacao', obrigatoria:false, nivel:'nota', dia:0, lacuna:true, transicaoPeriodo:true,
+          txt:`Lacuna na passagem de período em ${ddmm(days[0])}: trabalhou no último dia do período anterior, mas falta horário completo de saída/entrada para conferir o descanso de 11h`});
+      }
+    }
+
+    let diasSemJornadaCompleta = 0;
+    let paresSemVerificacao = 0;
+    for(let i=0;i<N;i++){
+      if(arr[i]!=='') continue;
+      if(entradaDoDia(c,i,res)==null || fimDoDiaMinutos(c,i,res)==null) diasSemJornadaCompleta++;
+    }
     for(let i=0;i<N-1;i++){
       if(arr[i]!=='' || arr[i+1]!=='') continue;
       const descanso=intervaloEntreJornadas(c,i,res);
-      if(descanso==null || descanso>=minimoInterjornada) continue;
+      if(descanso==null){
+        paresSemVerificacao++;
+        continue;
+      }
+      if(descanso>=minimoInterjornada) continue;
       const fimMin=fimDoDiaMinutos(c,i,res);
       const liberado=fimMin!=null ? horaDosMinutos(fimMin+minimoInterjornada) : null;
-      av.push({tipo:'interjornada', nivel:'regra', dia:i+1,
+      av.push({tipo:'interjornada', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i+1,
         txt:`Sai ${saidaDoDia(c,i,res)} em ${ddmm(days[i])} e entra ${entradaDoDia(c,i+1,res)} em ${ddmm(days[i+1])}: ${textoDuracao(descanso)} de descanso, mínimo 11h${liberado?` (só pode entrar a partir das ${liberado})`:''}`});
+    }
+    if(diasSemJornadaCompleta > 0){
+      av.push({tipo:'jornada-incompleta', categoria:'observacao', obrigatoria:false, nivel:'nota', lacuna:true,
+        txt:`Jornada incompleta (sem entrada e saída completas) em ${diasSemJornadaCompleta} dia(s) trabalhado(s)`
+          + (paresSemVerificacao > 0 ? ` — descanso de 11h não pôde ser conferido em ${paresSemVerificacao} passagem(ns) de turno` : '')});
     }
 
     porColab[c.id] = {av, domTrab:domTrab.length, domFolga:domFol.length, pior,
@@ -1807,36 +1964,110 @@ function validar(res, colabs){
     av.forEach(a=>alertas.push({colab:c.nome, ...a}));
   });
 
-  // cobertura por dia
+  // cobertura por dia (separa demanda configurada de disponibilidade)
   const cobertura = days.map((d,i)=>{
-    const cx = ativos.filter(c=>grupoDe(c)==='caixa' && grid[c.id][i]==='').length;
-    const bl = ativos.filter(c=>grupoDe(c)==='balcao' && grid[c.id][i]==='').length;
-    const gr = ativos.filter(c=>grupoDe(c)==='gerencia' && grid[c.id][i]==='').length;
-    const fa = ativos.filter(c=>isFarma(c) && grid[c.id][i]==='').length;
-    const falta = [], leve = [];
-    if(cx < P.minCaixa) falta.push(`caixa ${cx}/${P.minCaixa}`);
-    if(bl < P.minBalcao) falta.push(`balcão ${bl}/${P.minBalcao}`);
-    const alvoFa = P.minFarma != null ? P.minFarma : 2;
-    const faDisp = ativos.filter(c=>isFarma(c) && !['F','AT','LC'].includes(grid[c.id][i])).length;
-    if(faDisp >= 1 && fa < 1) falta.push('SEM farmacêutico');
-    else if(faDisp >= alvoFa && fa < alvoFa) leve.push(`farmacêutico ${fa}/${alvoFa}`);
+    const trab = c => Array.isArray(grid[c.id]) && grid[c.id][i]==='';
+    const disp = c => Array.isArray(grid[c.id]) && !['F','AT','LC'].includes(grid[c.id][i]);
+    const cx = ativos.filter(c=>grupoDe(c)==='caixa' && trab(c)).length;
+    const bl = ativos.filter(c=>grupoDe(c)==='balcao' && trab(c)).length;
+    const gr = ativos.filter(c=>grupoDe(c)==='gerencia' && trab(c)).length;
+    const fa = ativos.filter(c=>isFarma(c) && trab(c)).length;
+    const sg = ativos.filter(c=>isSubger(c) && trab(c)).length;
+    const total = cx + bl + gr;
+
+    const cxDisp = ativos.filter(c=>grupoDe(c)==='caixa' && disp(c)).length;
+    const blDisp = ativos.filter(c=>grupoDe(c)==='balcao' && disp(c)).length;
+    const faDisp = ativos.filter(c=>isFarma(c) && disp(c)).length;
+    const sgDisp = ativos.filter(c=>isSubger(c) && disp(c)).length;
+    const totDisp = ativos.filter(c=>disp(c)).length;
+
+    const falta = [], leve = [], impedimentos = [];
+    const minCx = Number(P.minCaixa || 0);
+    const minBl = Number(P.minBalcao || 0);
+    const alvoFa = P.minFarma != null ? Number(P.minFarma) : 2;
+    const alvoSg = P.minSubger != null ? Number(P.minSubger) : 1;
+
+    if(minCx > 0 && cx < minCx){
+      const imp = cxDisp < minCx;
+      const msg = imp ? `caixa ${cx}/${minCx} (impedimento: ${cxDisp} disponível(is))` : `caixa ${cx}/${minCx}`;
+      falta.push(msg);
+      if(imp) impedimentos.push(msg);
+    }
+    if(minBl > 0 && bl < minBl){
+      const imp = blDisp < minBl;
+      const msg = imp ? `balcão ${bl}/${minBl} (impedimento: ${blDisp} disponível(is))` : `balcão ${bl}/${minBl}`;
+      falta.push(msg);
+      if(imp) impedimentos.push(msg);
+    }
+    if(alvoFa > 0 && fa < 1){
+      const imp = faDisp < 1;
+      const msg = imp ? `SEM farmacêutico (impedimento: 0 disponíveis para demanda de ${alvoFa})` : 'SEM farmacêutico';
+      falta.push(msg);
+      if(imp) impedimentos.push(msg);
+    } else if(alvoFa > 0 && fa < alvoFa){
+      const imp = faDisp < alvoFa;
+      const msg = imp ? `farmacêutico ${fa}/${alvoFa} (disponíveis: ${faDisp})` : `farmacêutico ${fa}/${alvoFa}`;
+      leve.push(msg);
+    }
+    if(alvoSg > 0 && sg < alvoSg){
+      const imp = sgDisp < alvoSg;
+      const msg = imp ? `subgerente ${sg}/${alvoSg} (impedimento: ${sgDisp} disponível(is))` : `subgerente ${sg}/${alvoSg}`;
+      falta.push(msg);
+      if(imp) impedimentos.push(msg);
+    }
     if(P.minDia){
       const alvoDiaSem = Number(P.minDia[d.getDay()] || 0);
-      if(alvoDiaSem && (cx+bl+gr) < alvoDiaSem) falta.push(`equipe ${cx+bl+gr}/${alvoDiaSem}`);
+      if(alvoDiaSem > 0 && total < alvoDiaSem){
+        const imp = totDisp < alvoDiaSem;
+        const msg = imp ? `equipe ${total}/${alvoDiaSem} (impedimento: ${totDisp} disponível(is))` : `equipe ${total}/${alvoDiaSem}`;
+        falta.push(msg);
+        if(imp) impedimentos.push(msg);
+      }
     }
-    const sg = ativos.filter(c=>isSubger(c) && grid[c.id][i]==='').length;
-    const sgDisp = ativos.filter(c=>isSubger(c) && !['F','AT','LC'].includes(grid[c.id][i])).length;
-    const alvoSg = P.minSubger != null ? P.minSubger : 1;
-    if(sgDisp >= alvoSg && sg < alvoSg) falta.push(`subgerente ${sg}/${alvoSg}`);
-    if(falta.length) alertas.push({colab:'—', tipo:'cobertura', nivel:'regra', txt:`${ddmm(d)}: ${falta.join(', ')}`});
-    if(leve.length)  alertas.push({colab:'—', tipo:'cobertura-leve', nivel:'nota', txt:`${ddmm(d)}: ${leve.join(', ')} (tolerado)`});
-    return {cx, bl, gr, fa, sg, total:cx+bl+gr, falta, leve};
+    if(ativos.length > 0 && total === 0){
+      const msg = 'loja sem ninguém escalado';
+      if(!falta.includes(msg)) falta.push(msg);
+      alertas.push({colab:'—', tipo:'loja-vazia', categoria:'obrigatoria', obrigatoria:true, impedimento:totDisp===0, nivel:'regra', dia:i,
+        txt:`${ddmm(d)}: ${msg}${totDisp===0 ? ' (impedimento: 0 disponíveis)' : ''}`});
+    }
+    if(falta.length){
+      alertas.push({colab:'—', tipo:'cobertura', categoria:'preferencia', obrigatoria:false, impedimento:impedimentos.length>0, nivel:'regra', dia:i,
+        txt:`${ddmm(d)}: ${falta.join(', ')}`});
+    }
+    if(leve.length){
+      alertas.push({colab:'—', tipo:'cobertura-leve', categoria:'observacao', obrigatoria:false, nivel:'nota', dia:i,
+        txt:`${ddmm(d)}: ${leve.join(', ')} (tolerado)`});
+    }
+    return {
+      cx, bl, gr, fa, sg, total, falta, leve, impedimentos,
+      disponiveis:{cx:cxDisp, bl:blDisp, fa:faDisp, sg:sgDisp, total:totDisp}
+    };
   });
 
-  return {alertas, porColab, cobertura};
+  const obrigatorias = alertas.filter(a=>a.obrigatoria).length;
+  const preferencias = alertas.filter(a=>!a.obrigatoria && a.nivel!=='nota').length;
+  const observacoes = alertas.filter(a=>a.nivel==='nota').length;
+  const impedimentos = alertas.filter(a=>a.impedimento).length;
+  const lacunas = alertas.filter(a=>a.lacuna).length;
+
+  return {
+    alertas,
+    porColab,
+    cobertura,
+    resumo:{
+      obrigatorias,
+      preferencias,
+      observacoes,
+      impedimentos,
+      lacunas,
+      feridas: obrigatorias + preferencias,
+      notas: observacoes,
+      podePublicar: obrigatorias === 0
+    }
+  };
 }
 
-if(typeof module !== 'undefined' && typeof module.exports !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, entradaDoDia, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};
+if(typeof module !== 'undefined' && typeof module.exports !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, semanasDoPeriodo, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, entradaDoDia, fimDoDiaMinutos, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};
 
 
 /* =========================================================================
@@ -2421,7 +2652,10 @@ function gerarPdfEscala(D, nomeLoja){
       }
       const horaEntrada = String(D.horaDe ? D.horaDe(c, 0) : '').slice(0,5);
       const horaSaida = String(D.horaSaidaDe ? D.horaSaidaDe(c, 0) : '').slice(0,5);
-      p.texto(horaEntrada + '–' + horaSaida, margem + larguraNome, y + 6.5,
+      const temEnt = Boolean(horaEntrada && horaEntrada !== '--:--');
+      const temSai = Boolean(horaSaida && horaSaida !== '--:--');
+      const txtJornada = (temEnt && temSai) ? (horaEntrada + '–' + horaSaida) : (temEnt ? horaEntrada : '--:--');
+      p.texto(txtJornada, margem + larguraNome, y + 6.5,
               {tamanho:5.7, cor:COR_PDF.fraco, centro:true, largura:larguraJornada});
       const intervalo = String(D.intervaloDe ? D.intervaloDe(c) : (c.jornada && c.jornada.intervalo ? c.jornada.intervalo + ' min' : ''));
       p.texto(cortarTexto(intervalo, 5.2, larguraIntervalo - 3, false), margem + larguraNome + larguraJornada, y + 6.5,
@@ -2440,12 +2674,15 @@ function gerarPdfEscala(D, nomeLoja){
         } else {
           if(interjornada) p.retangulo(x, y, largDia, altLinha, [0.90,0.90,0.90]);
           else if(fds) p.retangulo(x, y, largDia, altLinha, COR_PDF.fds);
-          const horaDia = String(D.horaDe ? D.horaDe(c, i) : '').slice(0,5);
+          const horaDia = String(D.horaDe ? D.horaDe(c, i) : '').slice(0,5) || '--:--';
           const saidaDia = String(D.horaSaidaDe ? D.horaSaidaDe(c, i) : '').slice(0,5);
-          p.texto((interjornada?'* ':'') + horaDia, x, y + 3.6,
-                  {tamanho:5.6, negrito:true, cor:interjornada?COR_PDF.texto:COR_PDF.texto, centro:true, largura:largDia});
-          p.texto(saidaDia, x, y + 11.2,
-                  {tamanho:4.7, cor:COR_PDF.fraco, centro:true, largura:largDia});
+          const temSaidaDia = Boolean(saidaDia && saidaDia !== '--:--');
+          p.texto((interjornada?'* ':'') + horaDia, x, y + (temSaidaDia ? 3.6 : 6.2),
+                  {tamanho:5.6, negrito:true, cor:COR_PDF.texto, centro:true, largura:largDia});
+          if(temSaidaDia){
+            p.texto(saidaDia, x, y + 11.2,
+                    {tamanho:4.7, cor:COR_PDF.fraco, centro:true, largura:largDia});
+          }
         }
         p.linha(x, y, x, y + altLinha, COR_PDF.linha, d.getDay()===0 ? 0.9 : 0.35);
         if(d.getDay()===0) p.linha(x + 1.4, y, x + 1.4, y + altLinha, COR_PDF.texto, 0.35);
@@ -3461,14 +3698,11 @@ async function escalaAnteriorLocal(inicio){
   if(!anterior) return null;
   const salva = await store.get(chaveGradeDe(S.loja, anterior.inicio, anterior.fim));
   if(!salva || !salva.grid) return null;
-  return {inicio:anterior.inicio, fim:anterior.fim, grid:salva.grid};
+  return {inicio:anterior.inicio, fim:anterior.fim, grid:salva.grid, horas:salva.horas||{}, snapshot:salva.snapshot||null};
 }
 
 async function equipeComHistoricoAnterior(inicio){
-  const equipe = loja().colabs.map(c => {
-    const j = jornadaDe(c);
-    return Object.assign({}, c, {jornada: j, horario: c.horario || textoJornada(j)});
-  });
+  const equipe = loja().colabs.map(c => Object.assign({}, c));
   let anterior = null;
   try{
     anterior = typeof store.escalaAnterior === 'function'
@@ -3480,23 +3714,30 @@ async function equipeComHistoricoAnterior(inicio){
   }
   if(!anterior || !anterior.grid || dataIsoSeguinte(anterior.fim) !== inicio) return equipe;
 
-  const estado = estadoFinalDaGrade(anterior.grid, anterior.inicio, anterior.fim);
+  const participantesAnt = (anterior.snapshot && Array.isArray(anterior.snapshot.participantes) && anterior.snapshot.participantes.length)
+    ? anterior.snapshot.participantes
+    : equipe;
+  const horasAnt = anterior.horas || (anterior.snapshot && anterior.snapshot.horas) || {};
+  const estado = estadoFinalDaGrade(anterior.grid, anterior.inicio, anterior.fim, {
+    horas: horasAnt,
+    participantes: participantesAnt
+  });
   return equipe.map(c => estado[c.id]
     ? Object.assign({}, c, estado[c.id])
     : c);
 }
 
 function validarEscalaAtual(){
-  if(S.res && Array.isArray(S.res.ativos)){
+  if(S.res && Array.isArray(S.res.ativos) && !S.historicoCarregado){
     const colabsAtuais = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)) ? loja().colabs : [];
     S.res.ativos.forEach(c=>{
-      const ref = colabsAtuais.find(x=>x.id===c.id) || c;
-      if(S.historicoCarregado) return;
-      c.jornada = jornadaDe(ref);
-      c.horario = ref.horario || c.horario || textoJornada(c.jornada);
+      const ref = colabsAtuais.find(x=>x.id===c.id);
+      if(!ref) return;
+      c.jornada = ref.jornada ? JSON.parse(JSON.stringify(ref.jornada)) : null;
+      c.horario = ref.horario || '';
     });
   }
-  S.val = validar(S.res, S.equipeEscala || loja().colabs);
+  S.val = validar(S.res, S.equipeEscala || (loja() && loja().colabs) || []);
 }
 
 /* ---------- parâmetros ---------- */
@@ -3605,10 +3846,10 @@ const MODELOS_JORNADA = [
   {id:'gerente-2', nome:'Gerente · 07:00–17:24 · 2 intervalos', entrada:'07:00', saida:'17:24', intervalo:120, intervalos:[{ini:'10:30',fim:'11:30'},{ini:'14:00',fim:'15:00'}], turno:'abertura'}
 ];
 let jornadaAberta = null;
-function minutosHorario(v){ const p=String(v||'').split(':').map(Number); return p.length===2 ? p[0]*60+p[1] : 0; }
-function textoJornada(j){ return j && j.entrada && j.saida ? `${j.entrada} AS ${j.saida}` : ''; }
+function minutosHorario(v){ return minutosDaHora(v); }
+function textoJornada(j){ return j && j.entrada && j.saida ? `${j.entrada} AS ${j.saida}` : (j && j.entrada ? j.entrada : ''); }
 function sugerirIntervalos(j){
-  if(!j || !j.entrada) return [{ini:'12:00', fim:'13:00'}];
+  if(!j || minutosDaHora(j.entrada)==null) return [{ini:'12:00', fim:'13:00'}];
   const mId = MODELOS_JORNADA.find(x=>x.id===j.modelo);
   if(mId && Array.isArray(mId.intervalos) && mId.intervalos.length)
     return mId.intervalos.map(x=>({ini:x.ini, fim:x.fim}));
@@ -3617,7 +3858,7 @@ function sugerirIntervalos(j){
   const mEnt = MODELOS_JORNADA.find(x=>x.entrada===j.entrada && Number(x.intervalo)!==120);
   if(mEnt && Array.isArray(mEnt.intervalos) && mEnt.intervalos.length)
     return mEnt.intervalos.map(x=>({ini:x.ini, fim:x.fim}));
-  const ent = minutosHorario(j.entrada);
+  const ent = minutosDaHora(j.entrada);
   if(ent <= 8*60)       return [{ini:'12:00', fim:'13:00'}];
   if(ent <= 9*60 + 30)  return [{ini:'13:00', fim:'14:00'}];
   if(ent <= 10*60 + 30) return [{ini:'14:00', fim:'15:00'}];
@@ -3626,32 +3867,41 @@ function sugerirIntervalos(j){
   if(ent <= 13*60 + 15) return [{ini:'16:30', fim:'17:30'}];
   return [{ini:'17:30', fim:'18:30'}];
 }
+/* Nunca presume entrada, saída ou intervalo onde eles não foram informados. */
 function jornadaDe(c){
-  if(c.jornada && c.jornada.entrada && c.jornada.saida){
-    const modelo=MODELOS_JORNADA.find(x=>x.id===c.jornada.modelo);
-    const base = Object.assign({}, modelo||{}, c.jornada);
-    const salvos = Array.isArray(c.jornada.intervalos)
-      ? c.jornada.intervalos.filter(x=>x&&x.ini&&x.fim).map(x=>({ini:x.ini,fim:x.fim}))
-      : [];
-    return Object.assign(base, {intervalos:salvos.length ? salvos : sugerirIntervalos(base)});
-  }
-  const partes = String(c.horario||'').match(/(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/i);
-  let base;
-  if(partes){
-    base = {modelo:'', entrada:partes[1].padStart(5,'0'), saida:partes[2].padStart(5,'0'), intervalo:60, turno:''};
-  } else {
-    const soEntrada = String(c.horario||'').match(/(\d{1,2}:\d{2})/);
-    const ent = soEntrada ? soEntrada[1].padStart(5,'0') : '09:00';
-    const modPorEntrada = MODELOS_JORNADA.find(m=>m.entrada===ent);
-    if(modPorEntrada){
-      base = Object.assign({}, modPorEntrada);
-    } else {
-      const mEnt = minutosHorario(ent);
-      base = {modelo:'', entrada:ent, saida:mEnt!=null ? horaDosMinutos(mEnt + 564) : '18:00', intervalo:60, turno:''};
-    }
-  }
-  base.intervalos = sugerirIntervalos(base);
-  return base;
+  const j = (c && typeof c.jornada === 'object' && c.jornada) ? c.jornada : null;
+  const modelo = (j && j.modelo) ? MODELOS_JORNADA.find(x=>x.id===j.modelo) : null;
+  const horasTexto = horasDaString(c && c.horario);
+  const entrada = (j && minutosDaHora(j.entrada)!=null) ? String(j.entrada).padStart(5,'0')
+                : (modelo && minutosDaHora(modelo.entrada)!=null) ? String(modelo.entrada).padStart(5,'0')
+                : (horasTexto[0] || '');
+  const saida = (j && minutosDaHora(j.saida)!=null) ? String(j.saida).padStart(5,'0')
+              : (modelo && minutosDaHora(modelo.saida)!=null) ? String(modelo.saida).padStart(5,'0')
+              : (horasTexto[1] || '');
+  const salvos = (j && Array.isArray(j.intervalos))
+    ? j.intervalos.filter(x=>x && minutosDaHora(x.ini)!=null && minutosDaHora(x.fim)!=null)
+                  .map(x=>({ini:String(x.ini).padStart(5,'0'), fim:String(x.fim).padStart(5,'0')}))
+    : [];
+  const doModelo = (!salvos.length && modelo && Array.isArray(modelo.intervalos))
+    ? modelo.intervalos.map(x=>({ini:x.ini, fim:x.fim}))
+    : [];
+  const intervalos = salvos.length ? salvos : doModelo;
+  const intervaloExplicito = (j && j.intervalo != null && j.intervalo !== '' && Number.isFinite(Number(j.intervalo)))
+    ? Number(j.intervalo)
+    : (intervalos.length
+        ? intervalos.reduce((acc,x)=>{ let d=minutosDaHora(x.fim)-minutosDaHora(x.ini); if(d<=0)d+=1440; return acc+d; }, 0)
+        : (modelo && modelo.intervalo != null ? Number(modelo.intervalo) : null));
+  const completa = Boolean(entrada && saida);
+  return {
+    modelo: (j && j.modelo) || (modelo ? modelo.id : ''),
+    entrada,
+    saida,
+    intervalo: intervaloExplicito,
+    intervalos,
+    turno: (j && j.turno) || (modelo && modelo.turno) || '',
+    completa,
+    incompleta: !completa
+  };
 }
 function intervaloPersonalizado(c){
   if(!c || !c.jornada || !Array.isArray(c.jornada.intervalos)) return false;
@@ -3660,28 +3910,40 @@ function intervaloPersonalizado(c){
   const sug = sugerirIntervalos(c.jornada);
   return JSON.stringify(atuais) !== JSON.stringify(sug);
 }
-function jornadaLiquida(j){ let n=minutosHorario(j.saida)-minutosHorario(j.entrada)-Number(j.intervalo||0); if(n<0)n+=1440; return n; }
-function textoDuracao(n){ return Math.floor(n/60)+'h'+String(n%60).padStart(2,'0'); }
+function jornadaLiquida(j){
+  if(!j || minutosDaHora(j.entrada)==null || minutosDaHora(j.saida)==null) return null;
+  let n = minutosDaHora(j.saida) - minutosDaHora(j.entrada);
+  if(n <= 0) n += 1440;
+  return n - Number(j.intervalo || 0);
+}
+function textoDuracao(n){ return n == null || !Number.isFinite(n) ? '—' : Math.floor(n/60)+'h'+String(n%60).padStart(2,'0'); }
 function intervalosDaJornada(j){ return Array.isArray(j&&j.intervalos) ? j.intervalos.filter(x=>x&&x.ini&&x.fim) : []; }
 function intervaloDaJornada(j, detalhado=false){
   const lista=intervalosDaJornada(j);
-  if(!lista.length) return 'Intervalo não informado';
   if(lista.length===1) return `${lista[0].ini}–${lista[0].fim}`;
-  return detalhado ? lista.map(x=>`${x.ini}–${x.fim}`).join(' · ') : `${lista.length} intervalos`;
+  if(lista.length>1) return detalhado ? lista.map(x=>`${x.ini}–${x.fim}`).join(' · ') : `${lista.length} intervalos`;
+  if(j && j.intervalo != null && Number(j.intervalo) > 0) return textoDuracao(Number(j.intervalo));
+  return 'Intervalo não informado';
 }
 function intervaloDe(c, detalhado=false){ return intervaloDaJornada(jornadaDe(c), detalhado); }
-function resumoModelo(c){ const j=jornadaDe(c); const m=MODELOS_JORNADA.find(x=>x.id===j.modelo); return m ? m.nome : 'Sem modelo oficial — clique para configurar'; }
+function resumoModelo(c){
+  const j=jornadaDe(c);
+  const m=MODELOS_JORNADA.find(x=>x.id===j.modelo);
+  if(m) return m.nome;
+  if(j.incompleta) return 'Jornada incompleta — clique para informar entrada e saída';
+  return 'Sem modelo oficial — clique para configurar';
+}
 function salvarEquipe(){ return store.set('escala:lojas', S.lojas); }
 /* Devolve apenas o conteúdo da célula. A linha é criada com insertRow para que
    o navegador mantenha o contexto de tabela: um fragmento solto com <tr> e <td>
    é descartado pelo analisador, e era isso que impedia os controles de
    funcionarem. */
 function detalhesJornada(c){
-  const j=jornadaDe(c), m=MODELOS_JORNADA.find(x=>x.id===j.modelo);
+  const j=jornadaDe(c), m=MODELOS_JORNADA.find(x=>x.id===j.modelo), liq=jornadaLiquida(j);
   return `<section class="jornada-box" data-jornada="${c.id}">
-    <div class="jornada-topo"><div><strong>Definir a jornada padrão de ${esc(c.nome)}</strong><p>O domingo de folga, a folga fixa e os demais dados da pessoa continuam preservados.</p></div><span class="chip ${j.modelo?'ok':'mal'} jornada-status">${j.modelo?'Modelo oficial':'Modelo pendente'}</span></div>
+    <div class="jornada-topo"><div><strong>Definir a jornada padrão de ${esc(c.nome)}</strong><p>O domingo de folga, a folga fixa e os demais dados da pessoa continuam preservados.</p></div><span class="chip ${j.modelo?'ok':'mal'} jornada-status">${j.modelo?'Modelo oficial':(j.incompleta?'Jornada incompleta':'Modelo pendente')}</span></div>
     <div class="jornada-grade"><div class="jornada-area"><label class="jornada-rot">Modelo oficial</label><select data-j="modelo"><option value="">Manter o horário atual sem modelo</option>${MODELOS_JORNADA.map(x=>`<option value="${x.id}"${x.id===j.modelo?' selected':''}>${x.nome}</option>`).join('')}</select><p class="jornada-desc">${m?`<b>${esc(m.nome)}.</b> Os horários abaixo podem ser conferidos antes de aplicar.`:`<b>Horário atual preservado:</b> ${esc(c.horario||textoJornada(j)||'não informado')}.`}</p></div>
-    <div class="jornada-area"><label class="jornada-rot">Conferir ou ajustar dados</label><div class="jornada-campos"><div class="jornada-campo"><label>Entrada</label><input type="time" data-j="entrada" value="${j.entrada}"></div><div class="jornada-campo"><label>Saída</label><input type="time" data-j="saida" value="${j.saida}"></div><div class="jornada-campo"><label>Intervalo</label><select data-j="intervalo"><option value="60"${Number(j.intervalo)!==120?' selected':''}>1h00</option><option value="120"${Number(j.intervalo)===120?' selected':''}>2h00</option></select></div><div class="jornada-campo"><label>Jornada líquida</label><input readonly data-j="liquida" value="${textoDuracao(jornadaLiquida(j))}"></div></div><div class="jornada-rodape"><p class="jornada-resultado"></p><div class="jornada-acoes"><button class="btn ghost small" type="button" data-j="cancelar">Cancelar</button><button class="btn primary small" type="button" data-j="aplicar">Aplicar jornada</button></div></div></div>
+    <div class="jornada-area"><label class="jornada-rot">Conferir ou ajustar dados</label><div class="jornada-campos"><div class="jornada-campo"><label>Entrada</label><input type="time" data-j="entrada" value="${j.entrada}"></div><div class="jornada-campo"><label>Saída</label><input type="time" data-j="saida" value="${j.saida}"></div><div class="jornada-campo"><label>Intervalo</label><select data-j="intervalo"><option value="60"${Number(j.intervalo)!==120?' selected':''}>1h00</option><option value="120"${Number(j.intervalo)===120?' selected':''}>2h00</option></select></div><div class="jornada-campo"><label>Jornada líquida</label><input readonly data-j="liquida" value="${liq!=null?textoDuracao(liq):'Incompleta'}"></div></div><div class="jornada-rodape"><p class="jornada-resultado"></p><div class="jornada-acoes"><button class="btn ghost small" type="button" data-j="cancelar">Cancelar</button><button class="btn primary small" type="button" data-j="aplicar">Aplicar jornada</button></div></div></div>
     </div></section>`;
 }
 function configurarJornadaDetalhe(box,c){
@@ -3690,13 +3952,15 @@ function configurarJornadaDetalhe(box,c){
   const atualizar = ()=>{
     const j={modelo:campos('modelo').value,entrada:campos('entrada').value,saida:campos('saida').value,
              intervalo:+campos('intervalo').value,intervalos:box._intervalos.map(x=>({ini:x.ini,fim:x.fim}))};
-    const liquida=jornadaLiquida(j), valida=liquida>=440&&liquida<=504;
-    campos('liquida').value=textoDuracao(liquida);
+    const liquida=jornadaLiquida(j), valida=liquida!=null&&liquida>=440&&liquida<=504;
+    campos('liquida').value=liquida!=null?textoDuracao(liquida):'Incompleta';
     const resultado=box.querySelector('.jornada-resultado'), status=box.querySelector('.jornada-status');
     resultado.classList.toggle('invalida',!valida);
-    resultado.innerHTML=valida ? `<b>Jornada dentro da faixa:</b> ${textoDuracao(liquida)} líquidas no dia.` : `<b>Revisar jornada:</b> precisa ficar entre 7h20 e 8h24 líquidas.`;
+    resultado.innerHTML=liquida==null
+      ? `<b>Jornada incompleta:</b> informe entrada e saída para calcular a duração.`
+      : (valida ? `<b>Jornada dentro da faixa:</b> ${textoDuracao(liquida)} líquidas no dia.` : `<b>Revisar jornada:</b> precisa ficar entre 7h20 e 8h24 líquidas.`);
     status.className='chip jornada-status '+(valida?(j.modelo?'ok':'mal'):'mal');
-    status.textContent=!valida?'Revisar jornada':(j.modelo?'Pronto para aplicar':'Modelo pendente');
+    status.textContent=liquida==null?'Jornada incompleta':(!valida?'Revisar jornada':(j.modelo?'Pronto para aplicar':'Modelo pendente'));
     return {j,valida};
   };
   const aplicarModelo = ()=>{ const m=MODELOS_JORNADA.find(x=>x.id===campos('modelo').value); if(m){campos('entrada').value=m.entrada;campos('saida').value=m.saida;campos('intervalo').value=String(m.intervalo);box._intervalos=intervalosDaJornada(m).map(x=>({ini:x.ini,fim:x.fim}));}else{box._intervalos=[];} atualizar(); };
@@ -3809,6 +4073,14 @@ if(typeof store.publicar === 'function'){
   $('#btn-publicar').onclick = async ()=>{
     if(!S.res) return;
     if(!S.salvo){ alert('Salve a escala antes de publicar.'); return; }
+    validarEscalaAtual();
+    const obrigatorias = (S.val && S.val.alertas || []).filter(a=>a.obrigatoria);
+    if(obrigatorias.length){
+      alert('Não é possível publicar esta escala com ' + obrigatorias.length + ' restrição(ões) obrigatória(s) pendente(s):\n\n'
+        + obrigatorias.slice(0, 6).map(a=>`• ${a.colab && a.colab !== '—' ? a.colab + ': ' : ''}${a.txt}`).join('\n')
+        + '\n\nO rascunho permanece salvo para ajustes.');
+      return;
+    }
     if(!confirm('Publicar esta escala? A partir de agora ela fica visível para a equipe.')) return;
     try{
       const snapshot = snapshotDaEscala();
@@ -3831,13 +4103,16 @@ if(typeof store.publicar === 'function'){
 function chaveSalvas(){ return 'escala:salvas:' + S.loja; }
 
 function resumoDaEscala(){
-  const feridas = S.val ? S.val.alertas.filter(a=>a.nivel!=='nota').length : 0;
-  const notas   = S.val ? S.val.alertas.filter(a=>a.nivel==='nota').length : 0;
-  const folgas  = S.res.ativos.reduce((t,c)=>t + S.res.grid[c.id].filter(v=>v==='X').length, 0);
-  const ajustes = Object.values(S.res.horas||{}).reduce((t,m)=>t + Object.keys(m).length, 0);
+  const resVal = (S.val && S.val.resumo) || {};
+  const obrigatorias = resVal.obrigatorias != null ? resVal.obrigatorias : (S.val ? S.val.alertas.filter(a=>a.obrigatoria).length : 0);
+  const preferencias = resVal.preferencias != null ? resVal.preferencias : (S.val ? S.val.alertas.filter(a=>!a.obrigatoria && a.nivel!=='nota').length : 0);
+  const feridas = obrigatorias + preferencias;
+  const notas   = resVal.observacoes != null ? resVal.observacoes : (S.val ? S.val.alertas.filter(a=>a.nivel==='nota').length : 0);
+  const folgas  = S.res.ativos.reduce((t,c)=>t + (S.res.grid[c.id]||[]).filter(v=>v==='X'||v==='FC').length, 0);
+  const ajustes = Object.values(S.res.horas||{}).reduce((t,m)=>t + Object.keys(m||{}).length, 0);
   return {inicio:$('#p-inicio').value, fim:$('#p-fim').value,
     dias:S.res.days.length, pessoas:S.res.ativos.length,
-    modelo:(S.res.params.modelo || '5x2'), folgas, feridas, notas, ajustes,
+    modelo:(S.res.params.modelo || '5x2'), folgas, feridas, obrigatorias, preferencias, notas, ajustes,
     em:new Date().toISOString()};
 }
 
@@ -4204,21 +4479,27 @@ function horaAjustada(id, i){
   return (m && m[i] != null) ? m[i] : null;
 }
 function horaDoDia(c, i, res = S.res){
-  const a = res && res.horas && res.horas[c.id] && res.horas[c.id][i];
-  if(a != null){
-    const hs = String(a).match(/\b\d{1,2}:\d{2}\b/g);
-    if(hs && hs[0]) return hs[0].padStart(5, '0');
-  }
+  const e = entradaDoDia(c, i, res);
+  if(e) return e.slice(0,5);
   const j = jornadaDe(c);
   return (j && j.entrada) ? j.entrada.slice(0,5) : horaEntrada(c);
 }
 function horaSaidaDoDia(c, i, res = S.res){
   const s = saidaDoDia(c, i, res);
   if(s) return s.slice(0,5);
+  const a = res && res.horas && res.horas[c.id] && res.horas[c.id][i];
+  if(a != null) return '--:--';
   const j = jornadaDe(c);
-  if(j && j.saida) return j.saida.slice(0,5);
-  const ent = minutosDaHora(horaDoDia(c, i, res));
-  return ent != null ? horaDosMinutos(ent + 564) : '--:--';
+  return (j && j.saida) ? j.saida.slice(0,5) : '--:--';
+}
+function formatarTurno(ent, sai){
+  const e = String(ent||'').slice(0,5);
+  const s = String(sai||'').slice(0,5);
+  const temE = Boolean(e && e !== '--:--');
+  const temS = Boolean(s && s !== '--:--');
+  if(temE && temS) return `${e}–${s}`;
+  if(temE) return e;
+  return '--:--';
 }
 function interjornadasDaEscala(){
   const saida={};
@@ -4845,24 +5126,27 @@ function pintarGrade(){
     const avisosInterjornada=(interjornadas&&interjornadas[c.id])||{};
     const ivPersonalizado = intervaloPersonalizado(c);
     const jPadrao = jornadaDe(c);
-    const entPadrao = (jPadrao.entrada || horaDoDia(c, 0)).slice(0,5);
-    const saiPadrao = (jPadrao.saida || horaSaidaDoDia(c, 0)).slice(0,5);
+    const entPadrao = (jPadrao.entrada || horaDoDia(c, 0)).slice(0,5) || '--:--';
+    const saiPadrao = (jPadrao.saida || horaSaidaDoDia(c, 0)).slice(0,5) || '--:--';
+    const temSaiPadrao = saiPadrao !== '--:--';
+    const tituloHr = temSaiPadrao ? `Entrada ${entPadrao} · Saída ${saiPadrao}` : (entPadrao !== '--:--' ? `Entrada ${entPadrao} · Saída não informada` : 'Jornada não informada');
     h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome"><span>${esc(c.nome)}</span>${tagGerente}</div></td>`;
-    h += `<td class="hr" title="Entrada ${esc(entPadrao)} · Saída ${esc(saiPadrao)}"><span class="cel-horario"><span class="hora-ent">${entPadrao}</span><span class="hora-sai">${saiPadrao}</span></span></td><td class="intervalo${ivPersonalizado?' cel-editada':''}" data-id="${c.id}" title="${esc(intervaloDe(c, true))} — clique para ajustar o intervalo">${esc(intervaloDe(c))}</td>`;
+    h += `<td class="hr" title="${esc(tituloHr)}"><span class="cel-horario"><span class="hora-ent">${entPadrao}</span>${temSaiPadrao?`<span class="hora-sai">${saiPadrao}</span>`:'<span class="hora-sai">--:--</span>'}</span></td><td class="intervalo${ivPersonalizado?' cel-editada':''}" data-id="${c.id}" title="${esc(intervaloDe(c, true))} — clique para ajustar o intervalo">${esc(intervaloDe(c))}</td>`;
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const mudou = cod==='' && horaAjustada(c.id, i) != null;
       const alertaInterjornada=avisosInterjornada[i];
-      const entDia = cod==='' ? horaDoDia(c, i).slice(0,5) : '';
-      const saiDia = cod==='' ? horaSaidaDoDia(c, i).slice(0,5) : '';
+      const entDia = cod==='' ? (horaDoDia(c, i).slice(0,5) || '--:--') : '';
+      const saiDia = cod==='' ? (horaSaidaDoDia(c, i).slice(0,5) || '--:--') : '';
+      const temSaiDia = saiDia !== '' && saiDia !== '--:--';
       const cls = 'cel' + (d.getDay()===0||d.getDay()===6?' fds':'')
         + (d.getDay()===0?' domingo':'') + (mudou?' cel-editada':'') + (alertaInterjornada?' interjornada':'');
       const conteudo = cod===''
-        ? `<span class="cel-horario${alertaInterjornada?' hora-interjornada':''}" style="${mudou?'font-weight:700':''}"><span class="hora-ent">${entDia}</span><span class="hora-sai">${saiDia}</span></span>${alertaInterjornada?'<i class="marca-interjornada" aria-hidden="true">*</i>':''}`
+        ? `<span class="cel-horario${alertaInterjornada?' hora-interjornada':''}" style="${mudou?'font-weight:700':''}"><span class="hora-ent">${entDia}</span><span class="hora-sai">${temSaiDia?saiDia:'--:--'}</span></span>${alertaInterjornada?'<i class="marca-interjornada" aria-hidden="true">*</i>':''}`
         : cod;
       const aviso = alertaInterjornada
         ? ` title="${esc(alertaInterjornada.txt)}" aria-label="${esc(alertaInterjornada.txt)}"`
-        : (cod==='' ? ` title="Entrada ${esc(entDia)} · Saída ${esc(saiDia)}"` : '');
+        : (cod==='' ? ` title="${esc(temSaiDia ? `Entrada ${entDia} · Saída ${saiDia}` : `Entrada ${entDia} · Saída não informada`)}"` : '');
       h += `<td class="${cls}" data-cod="${cod}" data-i="${i}" data-id="${c.id}"${aviso}>${conteudo}</td>`;
     });
     h += `<td class="cel" style="cursor:default;font-weight:600">${grid[c.id].filter(v=>v==='X'||v==='FC').length}</td></tr>`;
@@ -4916,14 +5200,29 @@ function pintarGrade(){
     td.onclick = (ev)=>{ ev.stopPropagation(); abrirPopupIntervalo(td); };
   });
 
-  // pendências
+  // pendências: separa restrições obrigatórias, preferências/metas e observações/lacunas
   const al = S.val.alertas;
-  const regras = al.filter(a=>a.nivel!=='nota'), notas = al.filter(a=>a.nivel==='nota');
-  $('#cont-alertas').textContent = regras.length
-    ? `${regras.length} regra(s) ferida(s)` + (notas.length?` e ${notas.length} observação(ões).`:'.')
-    : (notas.length ? `Regras fechadas, com ${notas.length} observação(ões).` : 'Nenhuma regra ferida nesta escala.');
+  const obrigatorias = al.filter(a=>a.obrigatoria);
+  const preferencias = al.filter(a=>!a.obrigatoria && a.nivel!=='nota');
+  const notas = al.filter(a=>a.nivel==='nota');
+  const regras = obrigatorias.concat(preferencias);
+  const escopoVerificado = `Verificado: ausências, sequência máx. (${P.maxSeq}d), ciclo de domingos (${Math.max(1, (P.cicloDomingo||3)-1)} seguidos), ${P.folgasSemana||2} folga(s)/semana, descanso de 11h nas jornadas completas e cobertura frente à demanda.`;
+  const partesCont = [];
+  if(obrigatorias.length) partesCont.push(`${obrigatorias.length} restrição(ões) obrigatória(s)`);
+  if(preferencias.length) partesCont.push(`${preferencias.length} meta(s)/preferência(s)`);
+  if(notas.length) partesCont.push(`${notas.length} observação(ões)/lacuna(s)`);
+  $('#cont-alertas').textContent = (partesCont.length
+    ? `${regras.length} regra(s) ferida(s) (${partesCont.join(' · ')}). `
+    : 'Nenhuma regra ferida nesta escala. ') + escopoVerificado;
+  const tagCategoria = a => a.obrigatoria
+    ? '<span class="chip mal" style="font-size:10px;padding:1px 6px;margin-right:6px">Obrigatória</span>'
+    : (a.impedimento
+        ? '<span class="chip mal" style="font-size:10px;padding:1px 6px;margin-right:6px">Impedimento</span>'
+        : (a.nivel==='nota'
+            ? `<span class="chip" style="font-size:10px;padding:1px 6px;margin-right:6px">${a.lacuna?'Lacuna':'Observação'}</span>`
+            : '<span class="chip" style="font-size:10px;padding:1px 6px;margin-right:6px">Preferência/Meta</span>'));
   $('#lista-alertas').innerHTML = al.length
-    ? regras.concat(notas).map(a=>`<li${a.nivel==='nota'?' style="color:var(--fraco)"':''}><b${a.nivel!=='nota'?' style="color:var(--alerta)"':''}>${esc(a.colab)}</b><span>${esc(a.txt)}</span></li>`).join('')
+    ? obrigatorias.concat(preferencias, notas).map(a=>`<li${a.nivel==='nota'?' style="color:var(--fraco)"':''}><b${a.nivel!=='nota'?' style="color:var(--alerta)"':''}>${esc(a.colab)}</b><span>${tagCategoria(a)}${esc(a.txt)}</span></li>`).join('')
     : `<li style="color:var(--v-fg)">Todas as regras de folga fecharam.</li>`;
 
   // resumo
@@ -4985,12 +5284,12 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
       linhas.push([{v:FAIXAS_CARGO[g].rotulo.toUpperCase(), e:'rotulo'}]);
       faixaXls = g;
     }
-    const l = [{v:c.nome, e:'nome'}, {v:D.horaDe(c, 0)+'–'+D.horaSaidaDe(c, 0), e:'hora'}, {v:D.intervaloDe(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
+    const l = [{v:c.nome, e:'nome'}, {v:formatarTurno(D.horaDe(c, 0), D.horaSaidaDe(c, 0)), e:'hora'}, {v:D.intervaloDe(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
     const avisos=(interjornadas&&interjornadas[c.id])||{};
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const fds = (d.getDay()===0 || d.getDay()===6);
-      const turno = D.horaDe(c, i)+'–'+D.horaSaidaDe(c, i);
+      const turno = formatarTurno(D.horaDe(c, i), D.horaSaidaDe(c, i));
       if(cod === '') l.push({v: (avisos[i]?'* ':'') + turno, e: avisos[i]?'interjornada':(fds ? 'trabalhaFds' : 'trabalha')});
       else l.push({v: cod, e: estiloCod[cod] || 'trabalha'});
     });
@@ -5042,7 +5341,11 @@ $('#btn-xlsx').onclick = ()=>{
 function htmlDeImpressao(D, nomeLoja){
   const {days, grid, ativos, P, cob, interjornadas} = D;
   const classeStatus = {X:'status-x', FC:'status-fc', F:'status-f', AT:'status-at', LC:'status-lc'};
-  const turnoDia = (c, i) => `${esc(D.horaDe(c, i).slice(0,5))}<small>${esc(D.horaSaidaDe(c, i).slice(0,5))}</small>`;
+  const turnoDia = (c, i) => {
+    const ent = String(D.horaDe(c, i)||'').slice(0,5) || '--:--';
+    const sai = String(D.horaSaidaDe(c, i)||'').slice(0,5);
+    return (sai && sai !== '--:--') ? `${esc(ent)}<small>${esc(sai)}</small>` : esc(ent);
+  };
   const notasInterjornada = [];
   ativos.forEach(c=>Object.values((interjornadas&&interjornadas[c.id])||{}).forEach(a=>notasInterjornada.push(`${c.nome}: ${a.txt}`)));
   let corpo = '';
@@ -5055,7 +5358,7 @@ function htmlDeImpressao(D, nomeLoja){
       faixaImp = g;
     }
     const descricao = descricaoCargoImpressao(c, FAIXAS_CARGO[g].chave);
-    const jornada = `${D.horaDe(c, 0).slice(0,5)}–${D.horaSaidaDe(c, 0).slice(0,5)}`;
+    const jornada = formatarTurno(D.horaDe(c, 0), D.horaSaidaDe(c, 0));
     corpo += `<tr><td class="nm${descricao?'':' sem-desc'}">${esc(c.nome)}`
            + `${descricao ? `<span>${esc(descricao)}</span>` : ''}`
            + `</td><td class="hr">${esc(jornada)}</td><td class="iv">${esc(D.intervaloDe(c))}</td>`;

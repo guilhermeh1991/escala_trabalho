@@ -932,14 +932,11 @@ async function escalaAnteriorLocal(inicio){
   if(!anterior) return null;
   const salva = await store.get(chaveGradeDe(S.loja, anterior.inicio, anterior.fim));
   if(!salva || !salva.grid) return null;
-  return {inicio:anterior.inicio, fim:anterior.fim, grid:salva.grid};
+  return {inicio:anterior.inicio, fim:anterior.fim, grid:salva.grid, horas:salva.horas||{}, snapshot:salva.snapshot||null};
 }
 
 async function equipeComHistoricoAnterior(inicio){
-  const equipe = loja().colabs.map(c => {
-    const j = jornadaDe(c);
-    return Object.assign({}, c, {jornada: j, horario: c.horario || textoJornada(j)});
-  });
+  const equipe = loja().colabs.map(c => Object.assign({}, c));
   let anterior = null;
   try{
     anterior = typeof store.escalaAnterior === 'function'
@@ -951,23 +948,30 @@ async function equipeComHistoricoAnterior(inicio){
   }
   if(!anterior || !anterior.grid || dataIsoSeguinte(anterior.fim) !== inicio) return equipe;
 
-  const estado = estadoFinalDaGrade(anterior.grid, anterior.inicio, anterior.fim);
+  const participantesAnt = (anterior.snapshot && Array.isArray(anterior.snapshot.participantes) && anterior.snapshot.participantes.length)
+    ? anterior.snapshot.participantes
+    : equipe;
+  const horasAnt = anterior.horas || (anterior.snapshot && anterior.snapshot.horas) || {};
+  const estado = estadoFinalDaGrade(anterior.grid, anterior.inicio, anterior.fim, {
+    horas: horasAnt,
+    participantes: participantesAnt
+  });
   return equipe.map(c => estado[c.id]
     ? Object.assign({}, c, estado[c.id])
     : c);
 }
 
 function validarEscalaAtual(){
-  if(S.res && Array.isArray(S.res.ativos)){
+  if(S.res && Array.isArray(S.res.ativos) && !S.historicoCarregado){
     const colabsAtuais = (typeof loja === 'function' && loja() && Array.isArray(loja().colabs)) ? loja().colabs : [];
     S.res.ativos.forEach(c=>{
-      const ref = colabsAtuais.find(x=>x.id===c.id) || c;
-      if(S.historicoCarregado) return;
-      c.jornada = jornadaDe(ref);
-      c.horario = ref.horario || c.horario || textoJornada(c.jornada);
+      const ref = colabsAtuais.find(x=>x.id===c.id);
+      if(!ref) return;
+      c.jornada = ref.jornada ? JSON.parse(JSON.stringify(ref.jornada)) : null;
+      c.horario = ref.horario || '';
     });
   }
-  S.val = validar(S.res, S.equipeEscala || loja().colabs);
+  S.val = validar(S.res, S.equipeEscala || (loja() && loja().colabs) || []);
 }
 
 /* ---------- parâmetros ---------- */
@@ -1076,10 +1080,10 @@ const MODELOS_JORNADA = [
   {id:'gerente-2', nome:'Gerente · 07:00–17:24 · 2 intervalos', entrada:'07:00', saida:'17:24', intervalo:120, intervalos:[{ini:'10:30',fim:'11:30'},{ini:'14:00',fim:'15:00'}], turno:'abertura'}
 ];
 let jornadaAberta = null;
-function minutosHorario(v){ const p=String(v||'').split(':').map(Number); return p.length===2 ? p[0]*60+p[1] : 0; }
-function textoJornada(j){ return j && j.entrada && j.saida ? `${j.entrada} AS ${j.saida}` : ''; }
+function minutosHorario(v){ return minutosDaHora(v); }
+function textoJornada(j){ return j && j.entrada && j.saida ? `${j.entrada} AS ${j.saida}` : (j && j.entrada ? j.entrada : ''); }
 function sugerirIntervalos(j){
-  if(!j || !j.entrada) return [{ini:'12:00', fim:'13:00'}];
+  if(!j || minutosDaHora(j.entrada)==null) return [{ini:'12:00', fim:'13:00'}];
   const mId = MODELOS_JORNADA.find(x=>x.id===j.modelo);
   if(mId && Array.isArray(mId.intervalos) && mId.intervalos.length)
     return mId.intervalos.map(x=>({ini:x.ini, fim:x.fim}));
@@ -1088,7 +1092,7 @@ function sugerirIntervalos(j){
   const mEnt = MODELOS_JORNADA.find(x=>x.entrada===j.entrada && Number(x.intervalo)!==120);
   if(mEnt && Array.isArray(mEnt.intervalos) && mEnt.intervalos.length)
     return mEnt.intervalos.map(x=>({ini:x.ini, fim:x.fim}));
-  const ent = minutosHorario(j.entrada);
+  const ent = minutosDaHora(j.entrada);
   if(ent <= 8*60)       return [{ini:'12:00', fim:'13:00'}];
   if(ent <= 9*60 + 30)  return [{ini:'13:00', fim:'14:00'}];
   if(ent <= 10*60 + 30) return [{ini:'14:00', fim:'15:00'}];
@@ -1097,32 +1101,41 @@ function sugerirIntervalos(j){
   if(ent <= 13*60 + 15) return [{ini:'16:30', fim:'17:30'}];
   return [{ini:'17:30', fim:'18:30'}];
 }
+/* Nunca presume entrada, saída ou intervalo onde eles não foram informados. */
 function jornadaDe(c){
-  if(c.jornada && c.jornada.entrada && c.jornada.saida){
-    const modelo=MODELOS_JORNADA.find(x=>x.id===c.jornada.modelo);
-    const base = Object.assign({}, modelo||{}, c.jornada);
-    const salvos = Array.isArray(c.jornada.intervalos)
-      ? c.jornada.intervalos.filter(x=>x&&x.ini&&x.fim).map(x=>({ini:x.ini,fim:x.fim}))
-      : [];
-    return Object.assign(base, {intervalos:salvos.length ? salvos : sugerirIntervalos(base)});
-  }
-  const partes = String(c.horario||'').match(/(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/i);
-  let base;
-  if(partes){
-    base = {modelo:'', entrada:partes[1].padStart(5,'0'), saida:partes[2].padStart(5,'0'), intervalo:60, turno:''};
-  } else {
-    const soEntrada = String(c.horario||'').match(/(\d{1,2}:\d{2})/);
-    const ent = soEntrada ? soEntrada[1].padStart(5,'0') : '09:00';
-    const modPorEntrada = MODELOS_JORNADA.find(m=>m.entrada===ent);
-    if(modPorEntrada){
-      base = Object.assign({}, modPorEntrada);
-    } else {
-      const mEnt = minutosHorario(ent);
-      base = {modelo:'', entrada:ent, saida:mEnt!=null ? horaDosMinutos(mEnt + 564) : '18:00', intervalo:60, turno:''};
-    }
-  }
-  base.intervalos = sugerirIntervalos(base);
-  return base;
+  const j = (c && typeof c.jornada === 'object' && c.jornada) ? c.jornada : null;
+  const modelo = (j && j.modelo) ? MODELOS_JORNADA.find(x=>x.id===j.modelo) : null;
+  const horasTexto = horasDaString(c && c.horario);
+  const entrada = (j && minutosDaHora(j.entrada)!=null) ? String(j.entrada).padStart(5,'0')
+                : (modelo && minutosDaHora(modelo.entrada)!=null) ? String(modelo.entrada).padStart(5,'0')
+                : (horasTexto[0] || '');
+  const saida = (j && minutosDaHora(j.saida)!=null) ? String(j.saida).padStart(5,'0')
+              : (modelo && minutosDaHora(modelo.saida)!=null) ? String(modelo.saida).padStart(5,'0')
+              : (horasTexto[1] || '');
+  const salvos = (j && Array.isArray(j.intervalos))
+    ? j.intervalos.filter(x=>x && minutosDaHora(x.ini)!=null && minutosDaHora(x.fim)!=null)
+                  .map(x=>({ini:String(x.ini).padStart(5,'0'), fim:String(x.fim).padStart(5,'0')}))
+    : [];
+  const doModelo = (!salvos.length && modelo && Array.isArray(modelo.intervalos))
+    ? modelo.intervalos.map(x=>({ini:x.ini, fim:x.fim}))
+    : [];
+  const intervalos = salvos.length ? salvos : doModelo;
+  const intervaloExplicito = (j && j.intervalo != null && j.intervalo !== '' && Number.isFinite(Number(j.intervalo)))
+    ? Number(j.intervalo)
+    : (intervalos.length
+        ? intervalos.reduce((acc,x)=>{ let d=minutosDaHora(x.fim)-minutosDaHora(x.ini); if(d<=0)d+=1440; return acc+d; }, 0)
+        : (modelo && modelo.intervalo != null ? Number(modelo.intervalo) : null));
+  const completa = Boolean(entrada && saida);
+  return {
+    modelo: (j && j.modelo) || (modelo ? modelo.id : ''),
+    entrada,
+    saida,
+    intervalo: intervaloExplicito,
+    intervalos,
+    turno: (j && j.turno) || (modelo && modelo.turno) || '',
+    completa,
+    incompleta: !completa
+  };
 }
 function intervaloPersonalizado(c){
   if(!c || !c.jornada || !Array.isArray(c.jornada.intervalos)) return false;
@@ -1131,28 +1144,40 @@ function intervaloPersonalizado(c){
   const sug = sugerirIntervalos(c.jornada);
   return JSON.stringify(atuais) !== JSON.stringify(sug);
 }
-function jornadaLiquida(j){ let n=minutosHorario(j.saida)-minutosHorario(j.entrada)-Number(j.intervalo||0); if(n<0)n+=1440; return n; }
-function textoDuracao(n){ return Math.floor(n/60)+'h'+String(n%60).padStart(2,'0'); }
+function jornadaLiquida(j){
+  if(!j || minutosDaHora(j.entrada)==null || minutosDaHora(j.saida)==null) return null;
+  let n = minutosDaHora(j.saida) - minutosDaHora(j.entrada);
+  if(n <= 0) n += 1440;
+  return n - Number(j.intervalo || 0);
+}
+function textoDuracao(n){ return n == null || !Number.isFinite(n) ? '—' : Math.floor(n/60)+'h'+String(n%60).padStart(2,'0'); }
 function intervalosDaJornada(j){ return Array.isArray(j&&j.intervalos) ? j.intervalos.filter(x=>x&&x.ini&&x.fim) : []; }
 function intervaloDaJornada(j, detalhado=false){
   const lista=intervalosDaJornada(j);
-  if(!lista.length) return 'Intervalo não informado';
   if(lista.length===1) return `${lista[0].ini}–${lista[0].fim}`;
-  return detalhado ? lista.map(x=>`${x.ini}–${x.fim}`).join(' · ') : `${lista.length} intervalos`;
+  if(lista.length>1) return detalhado ? lista.map(x=>`${x.ini}–${x.fim}`).join(' · ') : `${lista.length} intervalos`;
+  if(j && j.intervalo != null && Number(j.intervalo) > 0) return textoDuracao(Number(j.intervalo));
+  return 'Intervalo não informado';
 }
 function intervaloDe(c, detalhado=false){ return intervaloDaJornada(jornadaDe(c), detalhado); }
-function resumoModelo(c){ const j=jornadaDe(c); const m=MODELOS_JORNADA.find(x=>x.id===j.modelo); return m ? m.nome : 'Sem modelo oficial — clique para configurar'; }
+function resumoModelo(c){
+  const j=jornadaDe(c);
+  const m=MODELOS_JORNADA.find(x=>x.id===j.modelo);
+  if(m) return m.nome;
+  if(j.incompleta) return 'Jornada incompleta — clique para informar entrada e saída';
+  return 'Sem modelo oficial — clique para configurar';
+}
 function salvarEquipe(){ return store.set('escala:lojas', S.lojas); }
 /* Devolve apenas o conteúdo da célula. A linha é criada com insertRow para que
    o navegador mantenha o contexto de tabela: um fragmento solto com <tr> e <td>
    é descartado pelo analisador, e era isso que impedia os controles de
    funcionarem. */
 function detalhesJornada(c){
-  const j=jornadaDe(c), m=MODELOS_JORNADA.find(x=>x.id===j.modelo);
+  const j=jornadaDe(c), m=MODELOS_JORNADA.find(x=>x.id===j.modelo), liq=jornadaLiquida(j);
   return `<section class="jornada-box" data-jornada="${c.id}">
-    <div class="jornada-topo"><div><strong>Definir a jornada padrão de ${esc(c.nome)}</strong><p>O domingo de folga, a folga fixa e os demais dados da pessoa continuam preservados.</p></div><span class="chip ${j.modelo?'ok':'mal'} jornada-status">${j.modelo?'Modelo oficial':'Modelo pendente'}</span></div>
+    <div class="jornada-topo"><div><strong>Definir a jornada padrão de ${esc(c.nome)}</strong><p>O domingo de folga, a folga fixa e os demais dados da pessoa continuam preservados.</p></div><span class="chip ${j.modelo?'ok':'mal'} jornada-status">${j.modelo?'Modelo oficial':(j.incompleta?'Jornada incompleta':'Modelo pendente')}</span></div>
     <div class="jornada-grade"><div class="jornada-area"><label class="jornada-rot">Modelo oficial</label><select data-j="modelo"><option value="">Manter o horário atual sem modelo</option>${MODELOS_JORNADA.map(x=>`<option value="${x.id}"${x.id===j.modelo?' selected':''}>${x.nome}</option>`).join('')}</select><p class="jornada-desc">${m?`<b>${esc(m.nome)}.</b> Os horários abaixo podem ser conferidos antes de aplicar.`:`<b>Horário atual preservado:</b> ${esc(c.horario||textoJornada(j)||'não informado')}.`}</p></div>
-    <div class="jornada-area"><label class="jornada-rot">Conferir ou ajustar dados</label><div class="jornada-campos"><div class="jornada-campo"><label>Entrada</label><input type="time" data-j="entrada" value="${j.entrada}"></div><div class="jornada-campo"><label>Saída</label><input type="time" data-j="saida" value="${j.saida}"></div><div class="jornada-campo"><label>Intervalo</label><select data-j="intervalo"><option value="60"${Number(j.intervalo)!==120?' selected':''}>1h00</option><option value="120"${Number(j.intervalo)===120?' selected':''}>2h00</option></select></div><div class="jornada-campo"><label>Jornada líquida</label><input readonly data-j="liquida" value="${textoDuracao(jornadaLiquida(j))}"></div></div><div class="jornada-rodape"><p class="jornada-resultado"></p><div class="jornada-acoes"><button class="btn ghost small" type="button" data-j="cancelar">Cancelar</button><button class="btn primary small" type="button" data-j="aplicar">Aplicar jornada</button></div></div></div>
+    <div class="jornada-area"><label class="jornada-rot">Conferir ou ajustar dados</label><div class="jornada-campos"><div class="jornada-campo"><label>Entrada</label><input type="time" data-j="entrada" value="${j.entrada}"></div><div class="jornada-campo"><label>Saída</label><input type="time" data-j="saida" value="${j.saida}"></div><div class="jornada-campo"><label>Intervalo</label><select data-j="intervalo"><option value="60"${Number(j.intervalo)!==120?' selected':''}>1h00</option><option value="120"${Number(j.intervalo)===120?' selected':''}>2h00</option></select></div><div class="jornada-campo"><label>Jornada líquida</label><input readonly data-j="liquida" value="${liq!=null?textoDuracao(liq):'Incompleta'}"></div></div><div class="jornada-rodape"><p class="jornada-resultado"></p><div class="jornada-acoes"><button class="btn ghost small" type="button" data-j="cancelar">Cancelar</button><button class="btn primary small" type="button" data-j="aplicar">Aplicar jornada</button></div></div></div>
     </div></section>`;
 }
 function configurarJornadaDetalhe(box,c){
@@ -1161,13 +1186,15 @@ function configurarJornadaDetalhe(box,c){
   const atualizar = ()=>{
     const j={modelo:campos('modelo').value,entrada:campos('entrada').value,saida:campos('saida').value,
              intervalo:+campos('intervalo').value,intervalos:box._intervalos.map(x=>({ini:x.ini,fim:x.fim}))};
-    const liquida=jornadaLiquida(j), valida=liquida>=440&&liquida<=504;
-    campos('liquida').value=textoDuracao(liquida);
+    const liquida=jornadaLiquida(j), valida=liquida!=null&&liquida>=440&&liquida<=504;
+    campos('liquida').value=liquida!=null?textoDuracao(liquida):'Incompleta';
     const resultado=box.querySelector('.jornada-resultado'), status=box.querySelector('.jornada-status');
     resultado.classList.toggle('invalida',!valida);
-    resultado.innerHTML=valida ? `<b>Jornada dentro da faixa:</b> ${textoDuracao(liquida)} líquidas no dia.` : `<b>Revisar jornada:</b> precisa ficar entre 7h20 e 8h24 líquidas.`;
+    resultado.innerHTML=liquida==null
+      ? `<b>Jornada incompleta:</b> informe entrada e saída para calcular a duração.`
+      : (valida ? `<b>Jornada dentro da faixa:</b> ${textoDuracao(liquida)} líquidas no dia.` : `<b>Revisar jornada:</b> precisa ficar entre 7h20 e 8h24 líquidas.`);
     status.className='chip jornada-status '+(valida?(j.modelo?'ok':'mal'):'mal');
-    status.textContent=!valida?'Revisar jornada':(j.modelo?'Pronto para aplicar':'Modelo pendente');
+    status.textContent=liquida==null?'Jornada incompleta':(!valida?'Revisar jornada':(j.modelo?'Pronto para aplicar':'Modelo pendente'));
     return {j,valida};
   };
   const aplicarModelo = ()=>{ const m=MODELOS_JORNADA.find(x=>x.id===campos('modelo').value); if(m){campos('entrada').value=m.entrada;campos('saida').value=m.saida;campos('intervalo').value=String(m.intervalo);box._intervalos=intervalosDaJornada(m).map(x=>({ini:x.ini,fim:x.fim}));}else{box._intervalos=[];} atualizar(); };
@@ -1314,6 +1341,14 @@ if(typeof store.publicar === 'function'){
   $('#btn-publicar').onclick = async ()=>{
     if(!S.res) return;
     if(!S.salvo){ alert('Salve a escala antes de publicar.'); return; }
+    validarEscalaAtual();
+    const obrigatorias = (S.val && S.val.alertas || []).filter(a=>a.obrigatoria);
+    if(obrigatorias.length){
+      alert('Não é possível publicar esta escala com ' + obrigatorias.length + ' restrição(ões) obrigatória(s) pendente(s):\n\n'
+        + obrigatorias.slice(0, 6).map(a=>`• ${a.colab && a.colab !== '—' ? a.colab + ': ' : ''}${a.txt}`).join('\n')
+        + '\n\nO rascunho permanece salvo para ajustes.');
+      return;
+    }
     if(!confirm('Publicar esta escala? A partir de agora ela fica visível para a equipe.')) return;
     try{
       const snapshot = snapshotDaEscala();
@@ -1336,13 +1371,16 @@ if(typeof store.publicar === 'function'){
 function chaveSalvas(){ return 'escala:salvas:' + S.loja; }
 
 function resumoDaEscala(){
-  const feridas = S.val ? S.val.alertas.filter(a=>a.nivel!=='nota').length : 0;
-  const notas   = S.val ? S.val.alertas.filter(a=>a.nivel==='nota').length : 0;
-  const folgas  = S.res.ativos.reduce((t,c)=>t + S.res.grid[c.id].filter(v=>v==='X').length, 0);
-  const ajustes = Object.values(S.res.horas||{}).reduce((t,m)=>t + Object.keys(m).length, 0);
+  const resVal = (S.val && S.val.resumo) || {};
+  const obrigatorias = resVal.obrigatorias != null ? resVal.obrigatorias : (S.val ? S.val.alertas.filter(a=>a.obrigatoria).length : 0);
+  const preferencias = resVal.preferencias != null ? resVal.preferencias : (S.val ? S.val.alertas.filter(a=>!a.obrigatoria && a.nivel!=='nota').length : 0);
+  const feridas = obrigatorias + preferencias;
+  const notas   = resVal.observacoes != null ? resVal.observacoes : (S.val ? S.val.alertas.filter(a=>a.nivel==='nota').length : 0);
+  const folgas  = S.res.ativos.reduce((t,c)=>t + (S.res.grid[c.id]||[]).filter(v=>v==='X'||v==='FC').length, 0);
+  const ajustes = Object.values(S.res.horas||{}).reduce((t,m)=>t + Object.keys(m||{}).length, 0);
   return {inicio:$('#p-inicio').value, fim:$('#p-fim').value,
     dias:S.res.days.length, pessoas:S.res.ativos.length,
-    modelo:(S.res.params.modelo || '5x2'), folgas, feridas, notas, ajustes,
+    modelo:(S.res.params.modelo || '5x2'), folgas, feridas, obrigatorias, preferencias, notas, ajustes,
     em:new Date().toISOString()};
 }
 
@@ -1709,21 +1747,27 @@ function horaAjustada(id, i){
   return (m && m[i] != null) ? m[i] : null;
 }
 function horaDoDia(c, i, res = S.res){
-  const a = res && res.horas && res.horas[c.id] && res.horas[c.id][i];
-  if(a != null){
-    const hs = String(a).match(/\b\d{1,2}:\d{2}\b/g);
-    if(hs && hs[0]) return hs[0].padStart(5, '0');
-  }
+  const e = entradaDoDia(c, i, res);
+  if(e) return e.slice(0,5);
   const j = jornadaDe(c);
   return (j && j.entrada) ? j.entrada.slice(0,5) : horaEntrada(c);
 }
 function horaSaidaDoDia(c, i, res = S.res){
   const s = saidaDoDia(c, i, res);
   if(s) return s.slice(0,5);
+  const a = res && res.horas && res.horas[c.id] && res.horas[c.id][i];
+  if(a != null) return '--:--';
   const j = jornadaDe(c);
-  if(j && j.saida) return j.saida.slice(0,5);
-  const ent = minutosDaHora(horaDoDia(c, i, res));
-  return ent != null ? horaDosMinutos(ent + 564) : '--:--';
+  return (j && j.saida) ? j.saida.slice(0,5) : '--:--';
+}
+function formatarTurno(ent, sai){
+  const e = String(ent||'').slice(0,5);
+  const s = String(sai||'').slice(0,5);
+  const temE = Boolean(e && e !== '--:--');
+  const temS = Boolean(s && s !== '--:--');
+  if(temE && temS) return `${e}–${s}`;
+  if(temE) return e;
+  return '--:--';
 }
 function interjornadasDaEscala(){
   const saida={};
@@ -2350,24 +2394,27 @@ function pintarGrade(){
     const avisosInterjornada=(interjornadas&&interjornadas[c.id])||{};
     const ivPersonalizado = intervaloPersonalizado(c);
     const jPadrao = jornadaDe(c);
-    const entPadrao = (jPadrao.entrada || horaDoDia(c, 0)).slice(0,5);
-    const saiPadrao = (jPadrao.saida || horaSaidaDoDia(c, 0)).slice(0,5);
+    const entPadrao = (jPadrao.entrada || horaDoDia(c, 0)).slice(0,5) || '--:--';
+    const saiPadrao = (jPadrao.saida || horaSaidaDoDia(c, 0)).slice(0,5) || '--:--';
+    const temSaiPadrao = saiPadrao !== '--:--';
+    const tituloHr = temSaiPadrao ? `Entrada ${entPadrao} · Saída ${saiPadrao}` : (entPadrao !== '--:--' ? `Entrada ${entPadrao} · Saída não informada` : 'Jornada não informada');
     h += `<tr data-id="${c.id}"><td class="fixa"><div class="nome"><span>${esc(c.nome)}</span>${tagGerente}</div></td>`;
-    h += `<td class="hr" title="Entrada ${esc(entPadrao)} · Saída ${esc(saiPadrao)}"><span class="cel-horario"><span class="hora-ent">${entPadrao}</span><span class="hora-sai">${saiPadrao}</span></span></td><td class="intervalo${ivPersonalizado?' cel-editada':''}" data-id="${c.id}" title="${esc(intervaloDe(c, true))} — clique para ajustar o intervalo">${esc(intervaloDe(c))}</td>`;
+    h += `<td class="hr" title="${esc(tituloHr)}"><span class="cel-horario"><span class="hora-ent">${entPadrao}</span>${temSaiPadrao?`<span class="hora-sai">${saiPadrao}</span>`:'<span class="hora-sai">--:--</span>'}</span></td><td class="intervalo${ivPersonalizado?' cel-editada':''}" data-id="${c.id}" title="${esc(intervaloDe(c, true))} — clique para ajustar o intervalo">${esc(intervaloDe(c))}</td>`;
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const mudou = cod==='' && horaAjustada(c.id, i) != null;
       const alertaInterjornada=avisosInterjornada[i];
-      const entDia = cod==='' ? horaDoDia(c, i).slice(0,5) : '';
-      const saiDia = cod==='' ? horaSaidaDoDia(c, i).slice(0,5) : '';
+      const entDia = cod==='' ? (horaDoDia(c, i).slice(0,5) || '--:--') : '';
+      const saiDia = cod==='' ? (horaSaidaDoDia(c, i).slice(0,5) || '--:--') : '';
+      const temSaiDia = saiDia !== '' && saiDia !== '--:--';
       const cls = 'cel' + (d.getDay()===0||d.getDay()===6?' fds':'')
         + (d.getDay()===0?' domingo':'') + (mudou?' cel-editada':'') + (alertaInterjornada?' interjornada':'');
       const conteudo = cod===''
-        ? `<span class="cel-horario${alertaInterjornada?' hora-interjornada':''}" style="${mudou?'font-weight:700':''}"><span class="hora-ent">${entDia}</span><span class="hora-sai">${saiDia}</span></span>${alertaInterjornada?'<i class="marca-interjornada" aria-hidden="true">*</i>':''}`
+        ? `<span class="cel-horario${alertaInterjornada?' hora-interjornada':''}" style="${mudou?'font-weight:700':''}"><span class="hora-ent">${entDia}</span><span class="hora-sai">${temSaiDia?saiDia:'--:--'}</span></span>${alertaInterjornada?'<i class="marca-interjornada" aria-hidden="true">*</i>':''}`
         : cod;
       const aviso = alertaInterjornada
         ? ` title="${esc(alertaInterjornada.txt)}" aria-label="${esc(alertaInterjornada.txt)}"`
-        : (cod==='' ? ` title="Entrada ${esc(entDia)} · Saída ${esc(saiDia)}"` : '');
+        : (cod==='' ? ` title="${esc(temSaiDia ? `Entrada ${entDia} · Saída ${saiDia}` : `Entrada ${entDia} · Saída não informada`)}"` : '');
       h += `<td class="${cls}" data-cod="${cod}" data-i="${i}" data-id="${c.id}"${aviso}>${conteudo}</td>`;
     });
     h += `<td class="cel" style="cursor:default;font-weight:600">${grid[c.id].filter(v=>v==='X'||v==='FC').length}</td></tr>`;
@@ -2421,14 +2468,29 @@ function pintarGrade(){
     td.onclick = (ev)=>{ ev.stopPropagation(); abrirPopupIntervalo(td); };
   });
 
-  // pendências
+  // pendências: separa restrições obrigatórias, preferências/metas e observações/lacunas
   const al = S.val.alertas;
-  const regras = al.filter(a=>a.nivel!=='nota'), notas = al.filter(a=>a.nivel==='nota');
-  $('#cont-alertas').textContent = regras.length
-    ? `${regras.length} regra(s) ferida(s)` + (notas.length?` e ${notas.length} observação(ões).`:'.')
-    : (notas.length ? `Regras fechadas, com ${notas.length} observação(ões).` : 'Nenhuma regra ferida nesta escala.');
+  const obrigatorias = al.filter(a=>a.obrigatoria);
+  const preferencias = al.filter(a=>!a.obrigatoria && a.nivel!=='nota');
+  const notas = al.filter(a=>a.nivel==='nota');
+  const regras = obrigatorias.concat(preferencias);
+  const escopoVerificado = `Verificado: ausências, sequência máx. (${P.maxSeq}d), ciclo de domingos (${Math.max(1, (P.cicloDomingo||3)-1)} seguidos), ${P.folgasSemana||2} folga(s)/semana, descanso de 11h nas jornadas completas e cobertura frente à demanda.`;
+  const partesCont = [];
+  if(obrigatorias.length) partesCont.push(`${obrigatorias.length} restrição(ões) obrigatória(s)`);
+  if(preferencias.length) partesCont.push(`${preferencias.length} meta(s)/preferência(s)`);
+  if(notas.length) partesCont.push(`${notas.length} observação(ões)/lacuna(s)`);
+  $('#cont-alertas').textContent = (partesCont.length
+    ? `${regras.length} regra(s) ferida(s) (${partesCont.join(' · ')}). `
+    : 'Nenhuma regra ferida nesta escala. ') + escopoVerificado;
+  const tagCategoria = a => a.obrigatoria
+    ? '<span class="chip mal" style="font-size:10px;padding:1px 6px;margin-right:6px">Obrigatória</span>'
+    : (a.impedimento
+        ? '<span class="chip mal" style="font-size:10px;padding:1px 6px;margin-right:6px">Impedimento</span>'
+        : (a.nivel==='nota'
+            ? `<span class="chip" style="font-size:10px;padding:1px 6px;margin-right:6px">${a.lacuna?'Lacuna':'Observação'}</span>`
+            : '<span class="chip" style="font-size:10px;padding:1px 6px;margin-right:6px">Preferência/Meta</span>'));
   $('#lista-alertas').innerHTML = al.length
-    ? regras.concat(notas).map(a=>`<li${a.nivel==='nota'?' style="color:var(--fraco)"':''}><b${a.nivel!=='nota'?' style="color:var(--alerta)"':''}>${esc(a.colab)}</b><span>${esc(a.txt)}</span></li>`).join('')
+    ? obrigatorias.concat(preferencias, notas).map(a=>`<li${a.nivel==='nota'?' style="color:var(--fraco)"':''}><b${a.nivel!=='nota'?' style="color:var(--alerta)"':''}>${esc(a.colab)}</b><span>${tagCategoria(a)}${esc(a.txt)}</span></li>`).join('')
     : `<li style="color:var(--v-fg)">Todas as regras de folga fecharam.</li>`;
 
   // resumo
@@ -2490,12 +2552,12 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
       linhas.push([{v:FAIXAS_CARGO[g].rotulo.toUpperCase(), e:'rotulo'}]);
       faixaXls = g;
     }
-    const l = [{v:c.nome, e:'nome'}, {v:D.horaDe(c, 0)+'–'+D.horaSaidaDe(c, 0), e:'hora'}, {v:D.intervaloDe(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
+    const l = [{v:c.nome, e:'nome'}, {v:formatarTurno(D.horaDe(c, 0), D.horaSaidaDe(c, 0)), e:'hora'}, {v:D.intervaloDe(c), e:'hora'}, {v:c.cargo + (c.gerente && !/GERENTE/.test(c.cargo||'') ? ' (gerente)':''), e:'cargo'}];
     const avisos=(interjornadas&&interjornadas[c.id])||{};
     days.forEach((d,i)=>{
       const cod = grid[c.id][i];
       const fds = (d.getDay()===0 || d.getDay()===6);
-      const turno = D.horaDe(c, i)+'–'+D.horaSaidaDe(c, i);
+      const turno = formatarTurno(D.horaDe(c, i), D.horaSaidaDe(c, i));
       if(cod === '') l.push({v: (avisos[i]?'* ':'') + turno, e: avisos[i]?'interjornada':(fds ? 'trabalhaFds' : 'trabalha')});
       else l.push({v: cod, e: estiloCod[cod] || 'trabalha'});
     });
@@ -2547,7 +2609,11 @@ $('#btn-xlsx').onclick = ()=>{
 function htmlDeImpressao(D, nomeLoja){
   const {days, grid, ativos, P, cob, interjornadas} = D;
   const classeStatus = {X:'status-x', FC:'status-fc', F:'status-f', AT:'status-at', LC:'status-lc'};
-  const turnoDia = (c, i) => `${esc(D.horaDe(c, i).slice(0,5))}<small>${esc(D.horaSaidaDe(c, i).slice(0,5))}</small>`;
+  const turnoDia = (c, i) => {
+    const ent = String(D.horaDe(c, i)||'').slice(0,5) || '--:--';
+    const sai = String(D.horaSaidaDe(c, i)||'').slice(0,5);
+    return (sai && sai !== '--:--') ? `${esc(ent)}<small>${esc(sai)}</small>` : esc(ent);
+  };
   const notasInterjornada = [];
   ativos.forEach(c=>Object.values((interjornadas&&interjornadas[c.id])||{}).forEach(a=>notasInterjornada.push(`${c.nome}: ${a.txt}`)));
   let corpo = '';
@@ -2560,7 +2626,7 @@ function htmlDeImpressao(D, nomeLoja){
       faixaImp = g;
     }
     const descricao = descricaoCargoImpressao(c, FAIXAS_CARGO[g].chave);
-    const jornada = `${D.horaDe(c, 0).slice(0,5)}–${D.horaSaidaDe(c, 0).slice(0,5)}`;
+    const jornada = formatarTurno(D.horaDe(c, 0), D.horaSaidaDe(c, 0));
     corpo += `<tr><td class="nm${descricao?'':' sem-desc'}">${esc(c.nome)}`
            + `${descricao ? `<span>${esc(descricao)}</span>` : ''}`
            + `</td><td class="hr">${esc(jornada)}</td><td class="iv">${esc(D.intervaloDe(c))}</td>`;

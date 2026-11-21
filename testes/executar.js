@@ -352,6 +352,94 @@ conferir('validação acusa descanso menor que 11h',
 conferir('verificador independente acusa descanso menor que 11h',
   verificar(resInterjornada, eqInterjornada, pInterjornada, {}).some(v=>v.regra==='R11-interjornada') ? 1 : 0, 1);
 
+/* Turno que atravessa a meia-noite (16:00 às 01:00 do dia seguinte) entrando às 10:00
+   do dia seguinte tem apenas 9h de descanso e deve ser acusado como interjornada. */
+const eqMeiaNoite = [{id:'mn1', nome:'TURNO MADRUGADA', cargo:'CAIXA', horario:'16:00 AS 01:00',
+  jornada:{modelo:'', entrada:'16:00', saida:'01:00', intervalo:60}, ativo:true, ausencias:[]}];
+const resMeiaNoite = E.gerarEscala(eqMeiaNoite, pInterjornada);
+resMeiaNoite.grid.mn1 = ['','',''];
+resMeiaNoite.horas = {mn1:{1:'10:00 AS 18:20'}};
+conferir('turno que atravessa a meia-noite acusa descanso menor que 11h',
+  E.validar(resMeiaNoite, eqMeiaNoite).alertas.some(a=>a.tipo==='interjornada' && a.obrigatoria===true) &&
+  verificar(resMeiaNoite, eqMeiaNoite, pInterjornada, {}).some(v=>v.regra==='R11-interjornada') ? 1 : 0, 1);
+
+/* Passagem entre períodos contíguos: saída às 23:00 no último dia do período anterior
+   e entrada às 07:00 no primeiro dia do período seguinte (8h de descanso). */
+const estadoAntTurno = E.estadoFinalDaGrade(
+  {ij1:['X','']},
+  '2026-10-31',
+  '2026-11-01',
+  {horas:{}, participantes:eqInterjornada}
+);
+const eqComSaidaAnterior = eqInterjornada.map(c => Object.assign({}, c, estadoAntTurno[c.id]));
+const resTransicao = E.gerarEscala(eqComSaidaAnterior, pInterjornada);
+resTransicao.grid.ij1 = ['','',''];
+resTransicao.horas = {ij1:{0:'07:00 AS 15:20'}};
+const valTransicao = E.validar(resTransicao, eqComSaidaAnterior);
+conferir('descanso insuficiente na passagem entre períodos é acusado no dia 0',
+  valTransicao.alertas.some(a=>a.tipo==='interjornada' && a.dia===0 && a.transicaoPeriodo===true && a.obrigatoria===true) &&
+  verificar(resTransicao, eqComSaidaAnterior, pInterjornada, {}).some(v=>v.regra==='R11-interjornada') ? 1 : 0, 1);
+
+/* Jornadas incompletas: nunca inventar saída onde só há entrada, e sinalizar lacuna. */
+const colabIncompleto = {id:'inc1', nome:'HORARIO PARCIAL', cargo:'CAIXA', horario:'08:00', jornada:null, ativo:true, ausencias:[]};
+conferir('jornada incompleta não inventa saída padrão',
+  E.jornadaPadrao(colabIncompleto) === null && E.saidaDoDia(colabIncompleto, 0, {horas:{}}) === null ? 1 : 0, 1);
+const resIncompleto = {
+  days: E.listDays('2026-11-02', '2026-11-04'),
+  grid: {inc1:['','','X']},
+  ativos: [colabIncompleto],
+  params: pInterjornada,
+  horas: {}
+};
+const valIncompleto = E.validar(resIncompleto, [colabIncompleto]);
+conferir('jornada incompleta sinaliza lacuna sem fabricar violação de 11h',
+  valIncompleto.alertas.some(a=>a.tipo==='jornada-incompleta' && a.lacuna===true && a.obrigatoria===false) &&
+  !valIncompleto.alertas.some(a=>a.tipo==='interjornada') &&
+  verificar(resIncompleto, [colabIncompleto], pInterjornada, {}).some(v=>v.regra==='R11-interjornada-lacuna-nota') ? 1 : 0, 1);
+
+/* Demanda positiva com disponibilidade zero: quando minFarma > 0 ou minSubger > 0
+   e não há ninguém disponível (ou todos de férias), a insuficiência e o impedimento
+   precisam aparecer explicitamente nos alertas e no verificador. */
+const eqSemFarmaSubger = [{id:'cx1', nome:'CAIXA UNICO', cargo:'CAIXA', horario:'08:00 AS 16:20',
+  jornada:{entrada:'08:00', saida:'16:20', intervalo:60}, ativo:true, ausencias:[]}];
+const pDemandaSemDisp = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0,
+  inicio:'2026-11-02', fim:'2026-11-03', minCaixa:1, minBalcao:0, minFarma:2, minSubger:1};
+const resSemDisp = {
+  days: E.listDays('2026-11-02', '2026-11-03'),
+  grid: {cx1:['','']},
+  ativos: eqSemFarmaSubger,
+  params: pDemandaSemDisp,
+  horas: {}
+};
+const valSemDisp = E.validar(resSemDisp, eqSemFarmaSubger);
+const verSemDisp = verificar(resSemDisp, eqSemFarmaSubger, pDemandaSemDisp, {});
+conferir('demanda positiva com disponibilidade zero acusa falta de farmacêutico e subgerente',
+  valSemDisp.alertas.some(a=>a.tipo==='cobertura' && a.impedimento===true && a.txt.includes('SEM farmacêutico')) &&
+  valSemDisp.alertas.some(a=>a.tipo==='cobertura' && a.impedimento===true && a.txt.includes('subgerente 0/1')) &&
+  verSemDisp.some(v=>v.regra==='R7-farma-zero') &&
+  verSemDisp.some(v=>v.regra==='R7-subgerente') ? 1 : 0, 1);
+
+/* Separação entre restrições obrigatórias, preferências e observações em validar(). */
+const colabAusenciaViolada = {
+  id:'av1', nome:'COLAB FERIAS', cargo:'BALCONISTA', horario:'08:00 AS 16:20',
+  folgaFixa:2, ativo:true, ausencias:[{tipo:'F', ini:'2026-11-02', fim:'2026-11-02'}]
+};
+const resAusenciaViolada = {
+  days: E.listDays('2026-11-01', '2026-11-07'),
+  grid: {av1:['','','X','','X','','']}, // dia 02/11 (seg) deveria ser F; folgas isoladas na semana sem folgar na terça (folgaFixa=2 -> quarta=3, terça=2)
+  ativos: [colabAusenciaViolada],
+  params: {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0, minCaixa:0, minBalcao:0, minFarma:0, minSubger:0},
+  horas: {}
+};
+resAusenciaViolada.grid.av1 = ['','','','X','','X','']; // 03/11 (terça, diaFixo=2) trabalha; folgas isoladas em qua (3) e sex (5)
+const valSeparacao = E.validar(resAusenciaViolada, [colabAusenciaViolada]);
+conferir('ausência violada é classificada como restrição obrigatória que bloqueia publicação',
+  valSeparacao.alertas.some(a=>a.tipo==='ausencia' && a.obrigatoria===true && a.categoria==='obrigatoria') &&
+  valSeparacao.resumo.podePublicar === false ? 1 : 0, 1);
+conferir('folga fixa e folga isolada são classificadas como preferências (não obrigatórias)',
+  valSeparacao.alertas.some(a=>a.tipo==='dia-fixo' && a.obrigatoria===false && a.categoria==='preferencia') &&
+  valSeparacao.alertas.some(a=>a.tipo==='isolada' && a.obrigatoria===false && a.categoria==='preferencia') ? 1 : 0, 1);
+
 /* ------------------------------------------------------------------ */
 console.log('\n=== 4. Documento impresso ===\n');
 

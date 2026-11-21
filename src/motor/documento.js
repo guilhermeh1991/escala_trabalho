@@ -349,7 +349,10 @@ function gerarPdfEscala(D, nomeLoja){
       }
       const horaEntrada = String(D.horaDe ? D.horaDe(c, 0) : '').slice(0,5);
       const horaSaida = String(D.horaSaidaDe ? D.horaSaidaDe(c, 0) : '').slice(0,5);
-      p.texto(horaEntrada + '–' + horaSaida, margem + larguraNome, y + 6.5,
+      const temEnt = Boolean(horaEntrada && horaEntrada !== '--:--');
+      const temSai = Boolean(horaSaida && horaSaida !== '--:--');
+      const txtJornada = (temEnt && temSai) ? (horaEntrada + '–' + horaSaida) : (temEnt ? horaEntrada : '--:--');
+      p.texto(txtJornada, margem + larguraNome, y + 6.5,
               {tamanho:5.7, cor:COR_PDF.fraco, centro:true, largura:larguraJornada});
       const intervalo = String(D.intervaloDe ? D.intervaloDe(c) : (c.jornada && c.jornada.intervalo ? c.jornada.intervalo + ' min' : ''));
       p.texto(cortarTexto(intervalo, 5.2, larguraIntervalo - 3, false), margem + larguraNome + larguraJornada, y + 6.5,
@@ -368,12 +371,15 @@ function gerarPdfEscala(D, nomeLoja){
         } else {
           if(interjornada) p.retangulo(x, y, largDia, altLinha, [0.90,0.90,0.90]);
           else if(fds) p.retangulo(x, y, largDia, altLinha, COR_PDF.fds);
-          const horaDia = String(D.horaDe ? D.horaDe(c, i) : '').slice(0,5);
+          const horaDia = String(D.horaDe ? D.horaDe(c, i) : '').slice(0,5) || '--:--';
           const saidaDia = String(D.horaSaidaDe ? D.horaSaidaDe(c, i) : '').slice(0,5);
-          p.texto((interjornada?'* ':'') + horaDia, x, y + 3.6,
-                  {tamanho:5.6, negrito:true, cor:interjornada?COR_PDF.texto:COR_PDF.texto, centro:true, largura:largDia});
-          p.texto(saidaDia, x, y + 11.2,
-                  {tamanho:4.7, cor:COR_PDF.fraco, centro:true, largura:largDia});
+          const temSaidaDia = Boolean(saidaDia && saidaDia !== '--:--');
+          p.texto((interjornada?'* ':'') + horaDia, x, y + (temSaidaDia ? 3.6 : 6.2),
+                  {tamanho:5.6, negrito:true, cor:COR_PDF.texto, centro:true, largura:largDia});
+          if(temSaidaDia){
+            p.texto(saidaDia, x, y + 11.2,
+                    {tamanho:4.7, cor:COR_PDF.fraco, centro:true, largura:largDia});
+          }
         }
         p.linha(x, y, x, y + altLinha, COR_PDF.linha, d.getDay()===0 ? 0.9 : 0.35);
         if(d.getDay()===0) p.linha(x + 1.4, y, x + 1.4, y + altLinha, COR_PDF.texto, 0.35);

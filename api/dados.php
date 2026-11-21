@@ -362,16 +362,23 @@ case 'escala_anterior':
     }
 
     $st = bd()->prepare(
-        'SELECT v.inicio, v.fim, v.grade
+        'SELECT v.inicio, v.fim, v.grade, v.parametros, v.snapshot
            FROM escalas e JOIN escala_versoes v ON v.escala_id=e.id AND v.versao=e.versao
           WHERE e.loja_id = ? AND e.fim < ?
-          ORDER BY e.fim DESC LIMIT 1');
+          ORDER BY e.fim DESC, v.versao DESC LIMIT 1');
     $st->execute([$lojaId, $inicio]);
     $e = $st->fetch();
+    $paramsAnt = ($e && $e['parametros']) ? (json_decode($e['parametros'], true) ?: []) : [];
+    $snapAnt = ($e && $e['snapshot']) ? json_decode($e['snapshot'], true) : null;
+    $horasAnt = is_array($paramsAnt['_horas'] ?? null)
+        ? $paramsAnt['_horas']
+        : (is_array($snapAnt['horas'] ?? null) ? $snapAnt['horas'] : new stdClass());
     responder(['escala' => $e ? [
         'inicio' => $e['inicio'],
         'fim' => $e['fim'],
         'grid' => json_decode($e['grade'], true),
+        'horas' => $horasAnt,
+        'snapshot' => $snapAnt,
     ] : null]);
 
 // -----------------------------------------------------------------------------
@@ -390,8 +397,9 @@ case 'salvar_escala':
     if (!$grade || !is_array($grade)) falhar('Escala vazia.');
 
     $paramsRecebidos = campo($dados, 'parametros');
-    $resumo = normalizarResumo(campo($dados, 'resumo'), $grade, is_array($paramsRecebidos) ? $paramsRecebidos : []);
     if (!is_array($paramsRecebidos)) $paramsRecebidos = [];
+    // Qualquer declaração de conformidade ou alertas enviados pelo cliente são descartados.
+    unset($paramsRecebidos['_resumo'], $paramsRecebidos['alertas'], $paramsRecebidos['bloqueios']);
     $snapshot = campo($dados, 'snapshot');
     if (!is_array($snapshot)) {
         $snapshot = [
@@ -417,17 +425,40 @@ case 'salvar_escala':
         $st->execute([$lojaId, $inicio, $fim]);
         $existente = $st->fetch();
         if ($existente && $idempotencia !== '') {
-            $st = bd()->prepare('SELECT versao, publicada FROM escala_versoes WHERE escala_id = ? AND idempotencia = ?');
+            $st = bd()->prepare('SELECT versao, publicada, resumo FROM escala_versoes WHERE escala_id = ? AND idempotencia = ?');
             $st->execute([$existente['id'], $idempotencia]);
             if ($ja = $st->fetch()) {
                 bd()->commit();
-                responder(['ok' => true, 'versao' => (int)$ja['versao'], 'publicada' => (bool)$ja['publicada'], 'repetida' => true]);
+                responder([
+                    'ok' => true,
+                    'versao' => (int)$ja['versao'],
+                    'publicada' => (bool)$ja['publicada'],
+                    'repetida' => true,
+                    'resumo' => $ja['resumo'] ? json_decode((string)$ja['resumo'], true) : null,
+                ]);
             }
         }
         if ($existente && $esperada !== null && (int)$existente['versao'] !== $esperada) {
             bd()->rollBack();
             falhar('Conflito: a escala foi alterada por outra pessoa. Recarregue ou compare as versões.', 409);
         }
+
+        // Revalida no servidor a versão exata antes de gravar ou publicar.
+        $validacao = validarEscalaServidor($lojaId, $inicio, $fim, $grade, $paramsRecebidos, $snapshot);
+        $resumo = $validacao['resumo'];
+        if ($publicar === 1 && count($validacao['obrigatorias']) > 0) {
+            bd()->rollBack();
+            $primeiros = array_slice(array_map(function ($a) {
+                return (($a['colab'] ?? '—') !== '—' ? $a['colab'] . ': ' : '') . ($a['txt'] ?? '');
+            }, $validacao['obrigatorias']), 0, 5);
+            responder([
+                'erro' => 'Publicação bloqueada por restrição obrigatória: ' . implode(' | ', $primeiros),
+                'bloqueios' => $validacao['obrigatorias'],
+                'alertas' => $validacao['alertas'],
+                'resumo' => $resumo,
+            ], 422);
+        }
+
         $escalaId = $existente['id'] ?? uuid();
         $versao = $existente ? (int)$existente['versao'] + 1 : 1;
         $publicadaAtual = $existente ? (int)$existente['publicada'] : 0;
@@ -466,7 +497,13 @@ case 'salvar_escala':
         error_log('salvar escala: ' . $e->getMessage());
         falhar(mensagemErroBanco($e, 'Erro ao salvar escala. Tente novamente.'), 500);
     }
-    responder(['ok' => true, 'versao' => $versao, 'publicada' => (bool)$publicar]);
+    responder([
+        'ok' => true,
+        'versao' => $versao,
+        'publicada' => (bool)$publicar,
+        'resumo' => $resumo,
+        'alertas' => $validacao['alertas'],
+    ]);
 
     // -----------------------------------------------------------------------------
     case 'listar_versoes_escala':

@@ -321,26 +321,60 @@ NOME=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT nome FROM lojas WH
 [ "$NOME" = "Loja Teste A" ] && ok "nome da loja intacto após tentativa" || falha "loja renomeada para: $NOME"
 
 echo ""
-echo "=== 10. Escala ==="
+echo "=== 10. Escala, revalidação no servidor e bloqueios de publicação ==="
 IDEMP='11111111-1111-4111-8111-111111111111'
 SNAP='{"schema":1,"incompleto":false,"participantes":[{"id":"c1","nome":"Pessoa Historica","cargo":"CAIXA","horario":"08:00 AS 16:20","jornada":{"entrada":"08:00","saida":"16:20","intervalos":[{"ini":"12:00","fim":"13:00"}]},"ausencias":[],"ordem":0}],"grade":{"c1":["","X"]},"params":{"modelo":"5x2"}}'
-R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"idempotency_key\":\"$IDEMP\"}" "$CSRF_A")
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\",\"grade\":{\"c1\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"idempotency_key\":\"$IDEMP\"}" "$CSRF_A")
 echo "$R" | grep -q '"ok":true' && ok "escala salva com snapshot" || falha "salvar escala: $R"
 VERSAO=$(echo "$R" | grep -o '"versao":[0-9]*' | cut -d: -f2)
-R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO,\"idempotency_key\":\"22222222-2222-4222-8222-222222222222\",\"publicar\":true}" "$CSRF_A")
-echo "$R" | grep -q '"publicada":true' && ok "publicação cria versão publicada" || falha "publicação: $R"
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\",\"grade\":{\"c1\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO,\"idempotency_key\":\"22222222-2222-4222-8222-222222222222\",\"publicar\":true}" "$CSRF_A")
+echo "$R" | grep -q '"publicada":true' && ok "publicação válida cria versão publicada" || falha "publicação: $R"
 VERSAO_PUBLICADA=$(echo "$R" | grep -o '"versao":[0-9]*' | cut -d: -f2)
-R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO_PUBLICADA,\"idempotency_key\":\"33333333-3333-4333-8333-333333333333\"}" "$CSRF_A")
-echo "$R" | grep -q '"ok":true' && ok "novo rascunho salvo após publicação" || falha "rascunho após publicação: $R"
+
+# Rascunho com pendência obrigatória (loja vazia nos 2 dias: ["X","X"]) pode ser salvo como rascunho
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\",\"grade\":{\"c1\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO_PUBLICADA,\"idempotency_key\":\"33333333-3333-4333-8333-333333333333\"}" "$CSRF_A")
+echo "$R" | grep -q '"ok":true' && echo "$R" | grep -q '"obrigatorias":2' && ok "rascunho com pendência obrigatória é salvo e identifica a pendência" || falha "rascunho após publicação: $R"
+VERSAO_RASCUNHO=$(echo "$R" | grep -o '"versao":[0-9]*' | cut -d: -f2)
 PUB=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT versao_publicada FROM escalas WHERE loja_id='$LOJA_A' AND inicio='2026-08-11';")
 [ "$PUB" = "$VERSAO_PUBLICADA" ] && ok "rascunho não altera versão publicada" || falha "versão publicada alterada: $PUB"
-R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\"}" "$CSRF_A")
+
+# Tentativa de publicar enviando alertas/resumo falsamente vazios é bloqueada com HTTP 422
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\",\"grade\":{\"c1\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\",\"_resumo\":{\"feridas\":0,\"notas\":0},\"alertas\":[]},\"resumo\":{\"feridas\":0,\"obrigatorias\":0,\"notas\":0},\"snapshot\":$SNAP,\"expected_version\":$VERSAO_RASCUNHO,\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "bloqueada por restrição obrigatória" && ok "servidor ignora alertas falsamente vazios e bloqueia publicação (HTTP 422)" || falha "publicação inválida aceita: HTTP $HTTP_STATUS $HTTP_BODY"
+PUB_APOS=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT versao_publicada FROM escalas WHERE loja_id='$LOJA_A' AND inicio='2026-08-11';")
+[ "$PUB_APOS" = "$VERSAO_PUBLICADA" ] && ok "bloqueio de publicação preserva versão publicada anterior" || falha "versão publicada corrompida: $PUB_APOS"
+
+# Publicação bloqueada por violação de ausência cadastrada no banco e por descanso < 11h
+CID_B=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT id FROM colaboradores WHERE loja_id='$LOJA_A' AND nome='COLABORADORA B';")
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-20\",\"fim\":\"2026-08-21\",\"grade\":{\"$CID_B\":[\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\"},\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "Ausência" && ok "publicação bloqueada quando férias do banco são sobrescritas" || falha "ausência não bloqueou publicação: HTTP $HTTP_STATUS $HTTP_BODY"
+
+# Publicação bloqueada por excesso de dias seguidos (maxSeq=5, 6 dias trabalhados) e ciclo de domingos
+SNAP_SEQ='{"schema":1,"incompleto":false,"participantes":[{"id":"cseq","nome":"Pessoa Sequencia","cargo":"CAIXA","horario":"08:00 AS 16:20","domTrabConsec":1,"ausencias":[],"ordem":0}]}'
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-01\",\"fim\":\"2026-10-06\",\"grade\":{\"cseq\":[\"\",\"\",\"\",\"\",\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\",\"maxSeq\":5},\"snapshot\":$SNAP_SEQ,\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "dias seguidos" && ok "publicação bloqueada quando sequência máxima configurada é excedida" || falha "sequência não bloqueou: HTTP $HTTP_STATUS $HTTP_BODY"
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-04\",\"fim\":\"2026-10-05\",\"grade\":{\"cseq\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\",\"cicloDomingo\":2},\"snapshot\":$SNAP_SEQ,\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "domingos seguidos" && ok "publicação bloqueada quando ciclo configurado de domingos é excedido" || falha "domingo não bloqueou: HTTP $HTTP_STATUS $HTTP_BODY"
+
+# Descanso insuficiente entre períodos contíguos (sai 23:00 em 12/10 e entra 07:00 em 13/10)
+SNAP_ANT='{"schema":1,"incompleto":false,"participantes":[{"id":"cij","nome":"Pessoa Turno","cargo":"CAIXA","horario":"14:40 AS 23:00","ausencias":[],"ordem":0}]}'
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-11\",\"fim\":\"2026-10-12\",\"grade\":{\"cij\":[\"X\",\"\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP_ANT,\"publicar\":true}" "$CSRF_A")
+echo "$R" | grep -q '"publicada":true' && ok "período anterior contíguo publicado" || falha "período anterior: $R"
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-13\",\"fim\":\"2026-10-14\",\"grade\":{\"cij\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\",\"_horas\":{\"cij\":{\"0\":\"07:00 AS 15:20\"}}},\"snapshot\":$SNAP_ANT,\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "período anterior" && ok "publicação bloqueada por descanso < 11h na passagem entre períodos" || falha "interjornada entre períodos não bloqueou: HTTP $HTTP_STATUS $HTTP_BODY"
+
+# Demanda positiva com disponibilidade zero e jornada incompleta registradas no resumo do rascunho
+SNAP_INC='{"schema":1,"incompleto":false,"participantes":[{"id":"cinc","nome":"Pessoa Incompleta","cargo":"CAIXA","horario":"08:00","ausencias":[],"ordem":0}]}'
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-20\",\"fim\":\"2026-10-21\",\"grade\":{\"cinc\":[\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\",\"minFarma\":2,\"minSubger\":1},\"snapshot\":$SNAP_INC}" "$CSRF_A")
+echo "$R" | grep -q '"impedimentos":2' && echo "$R" | grep -q '"lacunas":1' && ok "servidor registra impedimentos de disponibilidade zero e lacuna de jornada incompleta" || falha "impedimentos/lacunas: $R"
+
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\"}" "$CSRF_A")
 echo "$R" | grep -q 'Pessoa Historica' && ok "snapshot recupera participante histórico" || falha "snapshot não recuperado: $R"
-R2=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO,\"idempotency_key\":\"$IDEMP\"}" "$CSRF_A")
+R2=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\",\"grade\":{\"c1\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO,\"idempotency_key\":\"$IDEMP\"}" "$CSRF_A")
 echo "$R2" | grep -q '"repetida":true' && ok "retentativa idempotente não cria versão" || falha "idempotência: $R2"
-R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\",\"grade\":{\"c1\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":999}" "$CSRF_A")
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\",\"grade\":{\"c1\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":999}" "$CSRF_A")
 echo "$R" | grep -q 'Conflito' && ok "edição simultânea gera conflito explícito" || falha "conflito: $R"
-R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"listar_versoes_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-09-10\"}" "$CSRF_A")
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"listar_versoes_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\"}" "$CSRF_A")
 echo "$R" | grep -q '"versao":' && ok "versões históricas listadas" || falha "listar versões: $R"
 R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"listar_escalas\",\"loja_id\":\"$LOJA_A\"}" "$CSRF_A")
 echo "$R" | grep -q '"inicio":"2026-08-11"' && ok "listar_escalas devolve versões" || falha "listar_escalas: $R"

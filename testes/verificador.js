@@ -26,8 +26,8 @@ function horasTexto(txt){ return (String(txt||'').match(/\d{1,2}:\d{2}/g)||[]).m
 function entradaDia(c,i,res){ const hs=horasTexto(res.horas&&res.horas[c.id]&&res.horas[c.id][i]); return hs.length ? hs[0] : (jornada(c)||{}).entrada; }
 function fimDiaMinutos(c,i,res){
   const hs=horasTexto(res.horas&&res.horas[c.id]&&res.horas[c.id][i]);
-  if(hs.length>=2){ let b=minutos(hs[1])-minutos(hs[0]); if(b<0)b+=1440; return minutos(hs[0])+b; }
-  const j=jornada(c), entrada=entradaDia(c,i,res); if(!j||minutos(entrada)==null) return null; let bruto=minutos(j.saida)-minutos(j.entrada); if(bruto<0)bruto+=1440; return minutos(entrada)+bruto;
+  if(hs.length>=2){ let b=minutos(hs[1])-minutos(hs[0]); if(b<=0)b+=1440; return minutos(hs[0])+b; }
+  const j=jornada(c), entrada=entradaDia(c,i,res); if(!j||minutos(entrada)==null) return null; let bruto=minutos(j.saida)-minutos(j.entrada); if(bruto<=0)bruto+=1440; return minutos(entrada)+bruto;
 }
 
 /**
@@ -80,10 +80,24 @@ function verificar(res, colabs, P, estadoInicial){
     // R11 — repouso mínimo entre a saída de um dia e a entrada do seguinte.
     // Vale também para gerente, antes do retorno das demais regras de folga.
     const minimoInterjornada = P.minInterjornada != null ? Number(P.minInterjornada) : 660;
+    if(N > 0 && trabalha(0) && (c.trabalhouUltimoDia || c.fimUltimoDiaMinutos != null)){
+      const fimAnt = c.fimUltimoDiaMinutos != null ? Number(c.fimUltimoDiaMinutos) : null;
+      const ent0 = entradaDia(c, 0, res);
+      if(fimAnt != null && minutos(ent0) != null){
+        const descanso0 = minutos(ent0) + 1440 - fimAnt;
+        if(descanso0 < minimoInterjornada)
+          add('R11-interjornada', c.nome, `anterior→${dd(days[0])}: ${Math.floor(descanso0/60)}h${String(descanso0%60).padStart(2,'0')} de descanso`);
+      } else {
+        add('R11-interjornada-lacuna-nota', c.nome, `anterior→${dd(days[0])}: lacuna de jornada impede conferir descanso de 11h`);
+      }
+    }
     for(let i=0;i<N-1;i++){
       if(!trabalha(i) || !trabalha(i+1)) continue;
       const fim=fimDiaMinutos(c,i,res), entrada=entradaDia(c,i+1,res);
-      if(fim==null || minutos(entrada)==null) continue;
+      if(fim==null || minutos(entrada)==null){
+        add('R11-interjornada-lacuna-nota', c.nome, `${dd(days[i])}→${dd(days[i+1])}: lacuna de jornada impede conferir descanso de 11h`);
+        continue;
+      }
       const descanso=minutos(entrada)+1440-fim;
       if(descanso < minimoInterjornada)
         add('R11-interjornada', c.nome, `${dd(days[i])}→${dd(days[i+1])}: ${Math.floor(descanso/60)}h${String(descanso%60).padStart(2,'0')} de descanso`);
@@ -117,7 +131,7 @@ function verificar(res, colabs, P, estadoInicial){
     });
 
     // R3 — domingos: no máximo (ciclo-1) trabalhados seguidos
-    let corrida=0, jaAvisou=false;
+    let corrida = 0, jaAvisou=false;
     days.forEach((d,i)=>{
       if(d.getDay()!==0) return;
       if(trabalha(i)){
@@ -170,23 +184,28 @@ function verificar(res, colabs, P, estadoInicial){
 
   });
 
-  // R7 — cobertura por dia
+  // R7 — cobertura por dia (separa demanda configurada de disponibilidade)
   days.forEach((d,i)=>{
     const trab = c => grid[c.id] && grid[c.id][i]==='';
+    const disp = c => grid[c.id] && !AUSENCIA.includes(grid[c.id][i]);
     const cx = ativos.filter(c=>ehCaixa(c) && trab(c)).length;
     const bl = ativos.filter(c=>ehBalcao(c) && trab(c)).length;
     const fa = ativos.filter(c=>ehFarma(c) && trab(c)).length;
     const sg = ativos.filter(c=>ehSubger(c) && trab(c)).length;
     const tot= ativos.filter(c=>trab(c)).length;
-    if(ativos.some(ehCaixa)  && cx < P.minCaixa)  add('R7-caixa','—',   `${dd(d)}: ${cx}/${P.minCaixa}`);
-    if(ativos.some(ehBalcao) && bl < P.minBalcao) add('R7-balcao','—',  `${dd(d)}: ${bl}/${P.minBalcao}`);
-    const alvoFa = P.minFarma != null ? P.minFarma : 2;
-    const faDisp = ativos.filter(c=>ehFarma(c) && grid[c.id] && !AUSENCIA.includes(grid[c.id][i])).length;
-    if(faDisp >= 1 && fa < 1) add('R7-farma-zero','—', `${dd(d)}: nenhum farmacêutico`);
-    else if(faDisp >= alvoFa && fa < alvoFa) add('R7-farma-alvo-nota','—', `${dd(d)}: ${fa}/${alvoFa} (tolerado)`);
-    const sgDisp = ativos.filter(c=>ehSubger(c) && grid[c.id] && !AUSENCIA.includes(grid[c.id][i])).length;
-    const alvoSg = P.minSubger != null ? P.minSubger : 1;
-    if(sgDisp >= alvoSg && sg < alvoSg) add('R7-subgerente','—', `${dd(d)}: ${sg}/${alvoSg} subgerente`);
+    const cxDisp = ativos.filter(c=>ehCaixa(c) && disp(c)).length;
+    const blDisp = ativos.filter(c=>ehBalcao(c) && disp(c)).length;
+    const faDisp = ativos.filter(c=>ehFarma(c) && disp(c)).length;
+    const sgDisp = ativos.filter(c=>ehSubger(c) && disp(c)).length;
+    const minCx = Number(P.minCaixa || 0);
+    const minBl = Number(P.minBalcao || 0);
+    if(minCx > 0 && cx < minCx) add('R7-caixa','—', `${dd(d)}: ${cx}/${minCx}${cxDisp < minCx ? ` (disponíveis: ${cxDisp})` : ''}`);
+    if(minBl > 0 && bl < minBl) add('R7-balcao','—', `${dd(d)}: ${bl}/${minBl}${blDisp < minBl ? ` (disponíveis: ${blDisp})` : ''}`);
+    const alvoFa = P.minFarma != null ? Number(P.minFarma) : 2;
+    if(alvoFa > 0 && fa < 1) add('R7-farma-zero','—', `${dd(d)}: nenhum farmacêutico${faDisp < 1 ? ' (0 disponíveis)' : ''}`);
+    else if(alvoFa > 0 && fa < alvoFa) add('R7-farma-alvo-nota','—', `${dd(d)}: ${fa}/${alvoFa}${faDisp < alvoFa ? ` (disponíveis: ${faDisp})` : ''} (tolerado)`);
+    const alvoSg = P.minSubger != null ? Number(P.minSubger) : 1;
+    if(alvoSg > 0 && sg < alvoSg) add('R7-subgerente','—', `${dd(d)}: ${sg}/${alvoSg} subgerente${sgDisp < alvoSg ? ` (disponíveis: ${sgDisp})` : ''}`);
     if(P.minDia){
       const alvo = Number(P.minDia[d.getDay()]||0);
       if(alvo && tot < alvo) add('R7-equipe','—', `${dd(d)}: ${tot}/${alvo}`);

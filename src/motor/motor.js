@@ -79,13 +79,13 @@ function fimDoDiaMinutos(c, i, res){
   const hs=horasDaString(ajustada);
   if(hs.length>=2){
     const ini=minutosDaHora(hs[0]), fim=minutosDaHora(hs[1]);
-    if(ini!=null && fim!=null) return fim >= ini ? fim : fim + 1440;
+    if(ini!=null && fim!=null) return fim > ini ? fim : fim + 1440;
   }
   const jornada=jornadaPadrao(c);
   if(!jornada) return null;
   const entrada=entradaDoDia(c,i,res), inicioPadrao=minutosDaHora(jornada.entrada), fimPadrao=minutosDaHora(jornada.saida), inicio=minutosDaHora(entrada);
   if(inicioPadrao==null || fimPadrao==null || inicio==null) return null;
-  let bruto=fimPadrao-inicioPadrao; if(bruto<0) bruto+=1440;
+  let bruto=fimPadrao-inicioPadrao; if(bruto<=0) bruto+=1440;
   return inicio+bruto;
 }
 function saidaDoDia(c, i, res){
@@ -785,93 +785,215 @@ function gerarEscala(colabs, params){
 
 /* Estado que uma grade salva deixa para o período seguinte. Uma linha ausente
    ou curta não é uma base confiável: nesse caso ela não produz continuidade. */
-function estadoFinalDaGrade(grade, inicio, fim){
+function estadoFinalDaGrade(grade, inicio, fim, opcoes){
   const days = listDays(inicio, fim);
   if(!grade || typeof grade !== 'object' || !days.length) return {};
+  const opc = opcoes && typeof opcoes === 'object' ? opcoes : {};
+  const horas = (opc.horas && typeof opc.horas === 'object') ? opc.horas : {};
+  const listaPart = Array.isArray(opc.participantes) ? opc.participantes
+                  : (Array.isArray(opc.colabs) ? opc.colabs : []);
+  const mapaPart = {};
+  listaPart.forEach(c=>{ if(c && c.id != null) mapaPart[c.id] = c; });
+  const ultIdx = days.length - 1;
+  const resAnt = {days, grid:grade, horas};
   const estado = {};
   Object.keys(grade).forEach(id=>{
     const arr = grade[id];
     if(!Array.isArray(arr) || arr.length < days.length) return;
     let diasDesdeFolga = 0;
-    for(let i=days.length-1;i>=0 && arr[i]==='';i--) diasDesdeFolga++;
+    for(let i=ultIdx;i>=0 && arr[i]==='';i--) diasDesdeFolga++;
     let domTrabConsec = 0;
-    for(let i=days.length-1;i>=0;i--){
+    for(let i=ultIdx;i>=0;i--){
       if(days[i].getDay()!==0) continue;
       if(arr[i] === '') domTrabConsec++;
       else break;
     }
-    estado[id] = {diasDesdeFolga, domTrabConsec};
+    const trabalhouUltimoDia = arr[ultIdx] === '';
+    const info = {
+      diasDesdeFolga,
+      domTrabConsec,
+      trabalhouUltimoDia,
+      dataUltimoDia: fim,
+      fimUltimoDiaMinutos: null,
+      saidaUltimoDia: null,
+      lacunaUltimoDia: false
+    };
+    if(trabalhouUltimoDia){
+      const ficha = mapaPart[id] || {id};
+      const fimMin = fimDoDiaMinutos(ficha, ultIdx, resAnt);
+      if(fimMin != null){
+        info.fimUltimoDiaMinutos = fimMin;
+        info.saidaUltimoDia = horaDosMinutos(fimMin);
+      } else {
+        info.lacunaUltimoDia = true;
+      }
+    }
+    estado[id] = info;
   });
   return estado;
 }
 
+function semanasDoPeriodo(days, inicioSemana){
+  const N = days.length;
+  const semanas = [];
+  if(inicioSemana === 'P'){
+    for(let i=0;i<N;i+=7) semanas.push({ini:i, fim:Math.min(i+6,N-1), idx:semanas.length});
+  } else {
+    const iniSem = Number(inicioSemana || 0);
+    let i = 0;
+    while(i < N){
+      let j = i;
+      while(j+1 < N && days[j+1].getDay() !== iniSem) j++;
+      semanas.push({ini:i, fim:j, idx:semanas.length});
+      i = j+1;
+    }
+  }
+  semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
+  return semanas;
+}
+
 /* ============================================================
    VALIDAÇÃO
+   Separa:
+   - restrições obrigatórias (obrigatoria: true, categoria: 'obrigatoria', nivel: 'regra')
+   - preferências e metas de cobertura (obrigatoria: false, categoria: 'preferencia', nivel: 'regra')
+   - observações e lacunas de dados (obrigatoria: false, categoria: 'observacao', nivel: 'nota')
    ============================================================ */
 function validar(res, colabs){
-  const {days, grid, semanas, params:P} = res;
-  const desdeFolgaGer = res.desdeFolga || {};
+  const days = (res && Array.isArray(res.days) && res.days.length)
+    ? res.days
+    : (res && res.params && res.params.inicio && res.params.fim ? listDays(res.params.inicio, res.params.fim) : []);
+  const grid = (res && res.grid) || {};
+  const P = Object.assign({inicioSemana:0, folgasSemana:2, cicloDomingo:3, maxSeq:6,
+                           minCaixa:0, minBalcao:0, minFarma:2, minSubger:1, subgerFds:true}, (res && res.params) || {});
+  if(res && res.params && res.params.minFarma === undefined) P.minFarma = 2;
+  if(res && res.params && res.params.minSubger === undefined) P.minSubger = 1;
+  const semanas = (res && Array.isArray(res.semanas) && res.semanas.length)
+    ? res.semanas
+    : semanasDoPeriodo(days, P.inicioSemana);
+  const desdeFolgaGer = (res && res.desdeFolga) || {};
   const N = days.length;
-  const ativos = res.ativos;
+  const listaBase = (res && Array.isArray(res.ativos) && res.ativos.length) ? res.ativos : (colabs || []);
+  const mapaColabs = {};
+  (colabs || []).forEach(c=>{ if(c && c.id != null) mapaColabs[c.id] = c; });
+  const ativos = listaBase.filter(c=>c && c.ativo!==false);
   const alertas = [];
   const porColab = {};
+  const CODIGOS_VALIDOS = new Set(['','X','FC','F','AT','LC']);
 
   ativos.forEach(c=>{
+    const ref = mapaColabs[c.id] || c;
     const av = [];
     const arr = grid[c.id];
-    const folga = i => ['X','F','FC','AT','LC'].includes(arr[i]);
+    if(!Array.isArray(arr) || arr.length !== N){
+      const al = {
+        tipo:'grade-invalida', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+        txt:!Array.isArray(arr)
+          ? 'Colaborador sem linha correspondente na grade da escala'
+          : `Linha da grade com ${arr.length} dia(s), esperado ${N}`
+      };
+      av.push(al);
+      porColab[c.id] = {av, domTrab:0, domFolga:0, pior:0, totalFolgas:0};
+      alertas.push({colab:c.nome, ...al});
+      return;
+    }
 
-    // 1) folgas por semana
+    const folga = i => ['X','F','FC','AT','LC'].includes(arr[i]);
+    const ausenciasLista = (Array.isArray(c.ausencias) && c.ausencias.length) ? c.ausencias : (ref.ausencias || []);
+
+    // 0) códigos válidos e ausências preservadas (obrigatória)
+    days.forEach((d,i)=>{
+      const cod = arr[i];
+      if(!CODIGOS_VALIDOS.has(cod)){
+        av.push({tipo:'grade-invalida', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
+          txt:`Código inválido "${cod}" em ${ddmm(d)}`});
+      }
+      const dt = ymd(d);
+      const tiposAus = ausenciasLista.filter(a=>a && a.ini <= dt && dt <= (a.fim||a.ini)).map(a=>a.tipo);
+      if(tiposAus.length && !tiposAus.includes(cod)){
+        av.push({tipo:'ausencia', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
+          txt:`Ausência (${tiposAus.join('/')}) em ${ddmm(d)} foi sobrescrita por "${cod || 'trabalho'}"`});
+      }
+    });
+
+    // 0b) perfil gerente: folga sábado e domingo (obrigatória conforme perfil)
+    if(c.gerente){
+      days.forEach((d,i)=>{
+        if((d.getDay()===0 || d.getDay()===6) && !folga(i)){
+          av.push({tipo:'gerente', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
+            txt:`Gerente escalado para trabalhar em ${ddmm(d)} (${DIA_NOME[d.getDay()]})`});
+        }
+      });
+    }
+
+    // 1) folgas por semana (obrigatória para não-gerentes)
     semanas.forEach(s=>{
       if(s.dias.length<7) return;
       const n = s.dias.filter(i=>arr[i]==='X'||arr[i]==='FC').length;
       const ferias = s.dias.filter(i=>arr[i]==='F'||arr[i]==='AT'||arr[i]==='LC').length;
       if(ferias>=5) return;
-      if(!c.gerente && n < P.folgasSemana)
-        av.push({tipo:'folgas-semana', nivel:'regra', txt:`Semana de ${ddmm(days[s.ini])}: ${n} folga(s), mínimo ${P.folgasSemana}`});
+      if(!c.gerente && (n + Math.min(ferias, P.folgasSemana)) < P.folgasSemana)
+        av.push({tipo:'folgas-semana', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+          txt:`Semana de ${ddmm(days[s.ini])}: ${n} folga(s), mínimo ${P.folgasSemana}`});
+      if(!c.gerente && P.modelo === '6x1' && ferias < 4){
+        const domFolga = s.dias.some(i=>days[i].getDay()===0 && (arr[i]==='X'||arr[i]==='FC'));
+        if(domFolga && n < 2){
+          av.push({tipo:'6x1-domingo', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+            txt:`Semana de ${ddmm(days[s.ini])}: folgou no domingo do ciclo mas ficou sem a folga semanal do 6x1`});
+        }
+      }
     });
 
-    // 2) sequência máxima
-    let seq = desdeFolgaGer[c.id] != null ? desdeFolgaGer[c.id]
-            : ((c.diasDesdeFolga!=null)?Number(c.diasDesdeFolga):0);
+    // 2) sequência máxima (obrigatória para não-gerentes)
+    const seqIni = desdeFolgaGer[c.id] != null ? Number(desdeFolgaGer[c.id])
+                 : (c.diasDesdeFolga != null && c.diasDesdeFolga !== '' ? Number(c.diasDesdeFolga)
+                 : (ref.diasDesdeFolga != null && ref.diasDesdeFolga !== '' ? Number(ref.diasDesdeFolga) : 0));
+    let seq = c.gerente ? 0 : seqIni;
     let pior=0, quando=null;
     for(let i=0;i<N;i++){
       if(folga(i)){ seq=0; continue; }
       seq++; if(seq>pior){ pior=seq; quando=days[i]; }
     }
-    if(pior > P.maxSeq) av.push({tipo:'sequencia', nivel:'regra', txt:`${pior} dias seguidos sem folga (até ${ddmm(quando)}), máximo ${P.maxSeq}`});
+    if(!c.gerente && pior > P.maxSeq)
+      av.push({tipo:'sequencia', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+        txt:`${pior} dias seguidos sem folga (até ${ddmm(quando)}), máximo ${P.maxSeq}`});
 
-    // 3) domingos
+    // 3) domingos (obrigatória para não-gerentes)
     const dom = [];
     days.forEach((d,i)=>{ if(d.getDay()===0) dom.push(i); });
     const domTrab = dom.filter(i=>arr[i]===''), domFol = dom.filter(i=>arr[i]!=='');
-    let corrida = Number.isInteger(c.domTrabConsec) ? c.domTrabConsec : 0;
+    const domIni = Number.isInteger(c.domTrabConsec) ? c.domTrabConsec
+                 : (Number.isInteger(ref.domTrabConsec) ? ref.domTrabConsec : 0);
+    let corrida = domIni;
     let avisouDom = false;
-    dom.forEach(i=>{
-      if(arr[i]===''){
-        corrida++;
-        if(corrida > P.cicloDomingo-1 && !avisouDom){
-          av.push({tipo:'domingo', nivel:'regra',
-                   txt:`${corrida} domingos seguidos trabalhados até ${ddmm(days[i])} — a lei permite no máximo ${P.cicloDomingo-1}`});
-          avisouDom = true;
-        }
-      } else { corrida=0; avisouDom=false; }
-    });
-
-    // 3b) dia de folga fixa
-    if(c.folgaFixa != null && c.folgaFixa !== ''){
-      const diaFixo = Number(c.folgaFixa);
-      semanas.forEach(s2=>{
-        if(s2.dias.length < 7) return;
-        const cabe = s2.dias.filter(i=>days[i].getDay()===diaFixo && !['F','AT','LC'].includes(arr[i]));
-        if(!cabe.length) return;                       // semana de férias, não se cobra
-        const folgou = cabe.some(i=>arr[i]==='X' || arr[i]==='FC');
-        if(!folgou) av.push({tipo:'dia-fixo', nivel:'regra',
-          txt:`Folga fixa em ${DIA_NOME[diaFixo]}: a semana de ${ddmm(days[s2.ini])} não teve folga nesse dia`});
+    if(!c.gerente){
+      dom.forEach(i=>{
+        if(arr[i]===''){
+          corrida++;
+          if(corrida > P.cicloDomingo-1 && !avisouDom){
+            av.push({tipo:'domingo', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+              txt:`${corrida} domingos seguidos trabalhados até ${ddmm(days[i])} — máximo configurado ${P.cicloDomingo-1}`});
+            avisouDom = true;
+          }
+        } else { corrida=0; avisouDom=false; }
       });
     }
 
-    // 4) folgas isoladas (fora do domingo)
+    // 3b) dia de folga fixa (preferência configurada na ficha)
+    const folgaFixaVal = (c.folgaFixa != null && c.folgaFixa !== '') ? c.folgaFixa : ref.folgaFixa;
+    if(!c.gerente && folgaFixaVal != null && folgaFixaVal !== ''){
+      const diaFixo = Number(folgaFixaVal);
+      semanas.forEach(s2=>{
+        if(s2.dias.length < 7) return;
+        const cabe = s2.dias.filter(i=>days[i].getDay()===diaFixo && !['F','AT','LC'].includes(arr[i]));
+        if(!cabe.length) return;
+        const folgou = cabe.some(i=>arr[i]==='X' || arr[i]==='FC');
+        if(!folgou) av.push({tipo:'dia-fixo', categoria:'preferencia', obrigatoria:false, nivel:'regra',
+          txt:`Preferência de folga fixa em ${DIA_NOME[diaFixo]}: a semana de ${ddmm(days[s2.ini])} não teve folga nesse dia`});
+      });
+    }
+
+    // 4) folgas isoladas fora do domingo no 5x2 (preferência / qualidade)
     const semanaParcial = new Set();
     semanas.forEach(s2=>{ if(s2.dias.length<7) s2.dias.forEach(i=>semanaParcial.add(i)); });
     if(!c.gerente && P.modelo !== '6x1'){
@@ -882,27 +1004,62 @@ function validar(res, colabs){
         const sem = semanas.find(s2=>i>=s2.ini && i<=s2.fim);
         const temPar = sem && sem.dias.some(k=>arr[k]==='X' && (folga(k+1) || folga(k-1)));
         if(temPar){
-          av.push({tipo:'avulsa', nivel:'nota',
+          av.push({tipo:'avulsa', categoria:'observacao', obrigatoria:false, nivel:'nota',
             txt:`${ddmm(days[i])} (${DIA_NOME[days[i].getDay()]}) é folga avulsa — a semana já tem o par, este dia entrou para não passar de ${P.maxSeq} dias seguidos`});
         } else {
-          av.push({tipo:'isolada', nivel:'regra',
-            txt:`Folga isolada em ${ddmm(days[i])} (${DIA_NOME[days[i].getDay()]}) e a semana não tem nenhum par de folgas`});
+          av.push({tipo:'isolada', categoria:'preferencia', obrigatoria:false, nivel:'regra',
+            txt:`Preferência 5x2: folga isolada em ${ddmm(days[i])} (${DIA_NOME[days[i].getDay()]}) e a semana não tem par de folgas`});
         }
       }
     }
 
-    // 5) intervalo entre o fim de um turno e o início do dia seguinte.
-    // Só há como cobrar quando os dois dias são trabalhados e a jornada informa
-    // entrada e saída; cadastros legados de uma única hora ficam fora da conta.
+    // 5) descanso entre jornadas (obrigatória) e sinalização de jornadas incompletas / lacunas
     const minimoInterjornada = P.minInterjornada != null ? Number(P.minInterjornada) : 660;
+    const trabalhouUltAnt = Boolean(c.trabalhouUltimoDia || ref.trabalhouUltimoDia || c.fimUltimoDiaMinutos != null || ref.fimUltimoDiaMinutos != null);
+    const fimUltAnt = c.fimUltimoDiaMinutos != null ? Number(c.fimUltimoDiaMinutos)
+                    : (ref.fimUltimoDiaMinutos != null ? Number(ref.fimUltimoDiaMinutos) : null);
+    const saidaUltAnt = c.saidaUltimoDia || ref.saidaUltimoDia || (fimUltAnt != null ? horaDosMinutos(fimUltAnt) : null);
+    const dataUltAnt = c.dataUltimoDia || ref.dataUltimoDia || 'período anterior';
+
+    if(N > 0 && arr[0] === '' && trabalhouUltAnt){
+      const ent0 = entradaDoDia(c, 0, res);
+      const ent0Min = minutosDaHora(ent0);
+      if(fimUltAnt != null && ent0Min != null){
+        const descanso0 = ent0Min + 1440 - fimUltAnt;
+        if(descanso0 < minimoInterjornada){
+          const liberado0 = horaDosMinutos(fimUltAnt + minimoInterjornada);
+          av.push({tipo:'interjornada', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:0, transicaoPeriodo:true,
+            txt:`Sai ${saidaUltAnt} no fim do período anterior (${dataUltAnt}) e entra ${ent0} em ${ddmm(days[0])}: ${textoDuracao(descanso0)} de descanso, mínimo 11h (só pode entrar a partir das ${liberado0})`});
+        }
+      } else {
+        av.push({tipo:'jornada-incompleta', categoria:'observacao', obrigatoria:false, nivel:'nota', dia:0, lacuna:true, transicaoPeriodo:true,
+          txt:`Lacuna na passagem de período em ${ddmm(days[0])}: trabalhou no último dia do período anterior, mas falta horário completo de saída/entrada para conferir o descanso de 11h`});
+      }
+    }
+
+    let diasSemJornadaCompleta = 0;
+    let paresSemVerificacao = 0;
+    for(let i=0;i<N;i++){
+      if(arr[i]!=='') continue;
+      if(entradaDoDia(c,i,res)==null || fimDoDiaMinutos(c,i,res)==null) diasSemJornadaCompleta++;
+    }
     for(let i=0;i<N-1;i++){
       if(arr[i]!=='' || arr[i+1]!=='') continue;
       const descanso=intervaloEntreJornadas(c,i,res);
-      if(descanso==null || descanso>=minimoInterjornada) continue;
+      if(descanso==null){
+        paresSemVerificacao++;
+        continue;
+      }
+      if(descanso>=minimoInterjornada) continue;
       const fimMin=fimDoDiaMinutos(c,i,res);
       const liberado=fimMin!=null ? horaDosMinutos(fimMin+minimoInterjornada) : null;
-      av.push({tipo:'interjornada', nivel:'regra', dia:i+1,
+      av.push({tipo:'interjornada', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i+1,
         txt:`Sai ${saidaDoDia(c,i,res)} em ${ddmm(days[i])} e entra ${entradaDoDia(c,i+1,res)} em ${ddmm(days[i+1])}: ${textoDuracao(descanso)} de descanso, mínimo 11h${liberado?` (só pode entrar a partir das ${liberado})`:''}`});
+    }
+    if(diasSemJornadaCompleta > 0){
+      av.push({tipo:'jornada-incompleta', categoria:'observacao', obrigatoria:false, nivel:'nota', lacuna:true,
+        txt:`Jornada incompleta (sem entrada e saída completas) em ${diasSemJornadaCompleta} dia(s) trabalhado(s)`
+          + (paresSemVerificacao > 0 ? ` — descanso de 11h não pôde ser conferido em ${paresSemVerificacao} passagem(ns) de turno` : '')});
     }
 
     porColab[c.id] = {av, domTrab:domTrab.length, domFolga:domFol.length, pior,
@@ -910,33 +1067,107 @@ function validar(res, colabs){
     av.forEach(a=>alertas.push({colab:c.nome, ...a}));
   });
 
-  // cobertura por dia
+  // cobertura por dia (separa demanda configurada de disponibilidade)
   const cobertura = days.map((d,i)=>{
-    const cx = ativos.filter(c=>grupoDe(c)==='caixa' && grid[c.id][i]==='').length;
-    const bl = ativos.filter(c=>grupoDe(c)==='balcao' && grid[c.id][i]==='').length;
-    const gr = ativos.filter(c=>grupoDe(c)==='gerencia' && grid[c.id][i]==='').length;
-    const fa = ativos.filter(c=>isFarma(c) && grid[c.id][i]==='').length;
-    const falta = [], leve = [];
-    if(cx < P.minCaixa) falta.push(`caixa ${cx}/${P.minCaixa}`);
-    if(bl < P.minBalcao) falta.push(`balcão ${bl}/${P.minBalcao}`);
-    const alvoFa = P.minFarma != null ? P.minFarma : 2;
-    const faDisp = ativos.filter(c=>isFarma(c) && !['F','AT','LC'].includes(grid[c.id][i])).length;
-    if(faDisp >= 1 && fa < 1) falta.push('SEM farmacêutico');
-    else if(faDisp >= alvoFa && fa < alvoFa) leve.push(`farmacêutico ${fa}/${alvoFa}`);
+    const trab = c => Array.isArray(grid[c.id]) && grid[c.id][i]==='';
+    const disp = c => Array.isArray(grid[c.id]) && !['F','AT','LC'].includes(grid[c.id][i]);
+    const cx = ativos.filter(c=>grupoDe(c)==='caixa' && trab(c)).length;
+    const bl = ativos.filter(c=>grupoDe(c)==='balcao' && trab(c)).length;
+    const gr = ativos.filter(c=>grupoDe(c)==='gerencia' && trab(c)).length;
+    const fa = ativos.filter(c=>isFarma(c) && trab(c)).length;
+    const sg = ativos.filter(c=>isSubger(c) && trab(c)).length;
+    const total = cx + bl + gr;
+
+    const cxDisp = ativos.filter(c=>grupoDe(c)==='caixa' && disp(c)).length;
+    const blDisp = ativos.filter(c=>grupoDe(c)==='balcao' && disp(c)).length;
+    const faDisp = ativos.filter(c=>isFarma(c) && disp(c)).length;
+    const sgDisp = ativos.filter(c=>isSubger(c) && disp(c)).length;
+    const totDisp = ativos.filter(c=>disp(c)).length;
+
+    const falta = [], leve = [], impedimentos = [];
+    const minCx = Number(P.minCaixa || 0);
+    const minBl = Number(P.minBalcao || 0);
+    const alvoFa = P.minFarma != null ? Number(P.minFarma) : 2;
+    const alvoSg = P.minSubger != null ? Number(P.minSubger) : 1;
+
+    if(minCx > 0 && cx < minCx){
+      const imp = cxDisp < minCx;
+      const msg = imp ? `caixa ${cx}/${minCx} (impedimento: ${cxDisp} disponível(is))` : `caixa ${cx}/${minCx}`;
+      falta.push(msg);
+      if(imp) impedimentos.push(msg);
+    }
+    if(minBl > 0 && bl < minBl){
+      const imp = blDisp < minBl;
+      const msg = imp ? `balcão ${bl}/${minBl} (impedimento: ${blDisp} disponível(is))` : `balcão ${bl}/${minBl}`;
+      falta.push(msg);
+      if(imp) impedimentos.push(msg);
+    }
+    if(alvoFa > 0 && fa < 1){
+      const imp = faDisp < 1;
+      const msg = imp ? `SEM farmacêutico (impedimento: 0 disponíveis para demanda de ${alvoFa})` : 'SEM farmacêutico';
+      falta.push(msg);
+      if(imp) impedimentos.push(msg);
+    } else if(alvoFa > 0 && fa < alvoFa){
+      const imp = faDisp < alvoFa;
+      const msg = imp ? `farmacêutico ${fa}/${alvoFa} (disponíveis: ${faDisp})` : `farmacêutico ${fa}/${alvoFa}`;
+      leve.push(msg);
+    }
+    if(alvoSg > 0 && sg < alvoSg){
+      const imp = sgDisp < alvoSg;
+      const msg = imp ? `subgerente ${sg}/${alvoSg} (impedimento: ${sgDisp} disponível(is))` : `subgerente ${sg}/${alvoSg}`;
+      falta.push(msg);
+      if(imp) impedimentos.push(msg);
+    }
     if(P.minDia){
       const alvoDiaSem = Number(P.minDia[d.getDay()] || 0);
-      if(alvoDiaSem && (cx+bl+gr) < alvoDiaSem) falta.push(`equipe ${cx+bl+gr}/${alvoDiaSem}`);
+      if(alvoDiaSem > 0 && total < alvoDiaSem){
+        const imp = totDisp < alvoDiaSem;
+        const msg = imp ? `equipe ${total}/${alvoDiaSem} (impedimento: ${totDisp} disponível(is))` : `equipe ${total}/${alvoDiaSem}`;
+        falta.push(msg);
+        if(imp) impedimentos.push(msg);
+      }
     }
-    const sg = ativos.filter(c=>isSubger(c) && grid[c.id][i]==='').length;
-    const sgDisp = ativos.filter(c=>isSubger(c) && !['F','AT','LC'].includes(grid[c.id][i])).length;
-    const alvoSg = P.minSubger != null ? P.minSubger : 1;
-    if(sgDisp >= alvoSg && sg < alvoSg) falta.push(`subgerente ${sg}/${alvoSg}`);
-    if(falta.length) alertas.push({colab:'—', tipo:'cobertura', nivel:'regra', txt:`${ddmm(d)}: ${falta.join(', ')}`});
-    if(leve.length)  alertas.push({colab:'—', tipo:'cobertura-leve', nivel:'nota', txt:`${ddmm(d)}: ${leve.join(', ')} (tolerado)`});
-    return {cx, bl, gr, fa, sg, total:cx+bl+gr, falta, leve};
+    if(ativos.length > 0 && total === 0){
+      const msg = 'loja sem ninguém escalado';
+      if(!falta.includes(msg)) falta.push(msg);
+      alertas.push({colab:'—', tipo:'loja-vazia', categoria:'obrigatoria', obrigatoria:true, impedimento:totDisp===0, nivel:'regra', dia:i,
+        txt:`${ddmm(d)}: ${msg}${totDisp===0 ? ' (impedimento: 0 disponíveis)' : ''}`});
+    }
+    if(falta.length){
+      alertas.push({colab:'—', tipo:'cobertura', categoria:'preferencia', obrigatoria:false, impedimento:impedimentos.length>0, nivel:'regra', dia:i,
+        txt:`${ddmm(d)}: ${falta.join(', ')}`});
+    }
+    if(leve.length){
+      alertas.push({colab:'—', tipo:'cobertura-leve', categoria:'observacao', obrigatoria:false, nivel:'nota', dia:i,
+        txt:`${ddmm(d)}: ${leve.join(', ')} (tolerado)`});
+    }
+    return {
+      cx, bl, gr, fa, sg, total, falta, leve, impedimentos,
+      disponiveis:{cx:cxDisp, bl:blDisp, fa:faDisp, sg:sgDisp, total:totDisp}
+    };
   });
 
-  return {alertas, porColab, cobertura};
+  const obrigatorias = alertas.filter(a=>a.obrigatoria).length;
+  const preferencias = alertas.filter(a=>!a.obrigatoria && a.nivel!=='nota').length;
+  const observacoes = alertas.filter(a=>a.nivel==='nota').length;
+  const impedimentos = alertas.filter(a=>a.impedimento).length;
+  const lacunas = alertas.filter(a=>a.lacuna).length;
+
+  return {
+    alertas,
+    porColab,
+    cobertura,
+    resumo:{
+      obrigatorias,
+      preferencias,
+      observacoes,
+      impedimentos,
+      lacunas,
+      feridas: obrigatorias + preferencias,
+      notas: observacoes,
+      podePublicar: obrigatorias === 0
+    }
+  };
 }
 
-if(typeof module !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, entradaDoDia, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};
+if(typeof module !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, semanasDoPeriodo, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, entradaDoDia, fimDoDiaMinutos, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};
