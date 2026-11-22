@@ -239,8 +239,8 @@ async function main() {
 
     /* Reabre a célula, aplica horário explícito, salva e recarrega. */
     await vizinha.press('Enter');
-    await page.locator('#pc-hora').fill('07:00');
-    await page.locator('#pc-saida').fill('15:20');
+    await page.locator('#pc-hora').fill('08:00');
+    await page.locator('#pc-saida').fill('16:20');
     await page.locator('#pc-ok').click();
     await page.locator('#btn-salvar').click();
     await waitText(page, '#esc-aviso', 'Rascunho salvo');
