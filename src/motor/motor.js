@@ -1151,7 +1151,7 @@ function validar(res, colabs){
     const sgDisp = ativos.filter(c=>isSubger(c) && disp(c)).length;
     const totDisp = ativos.filter(c=>disp(c)).length;
 
-    const falta = [], leve = [], impedimentos = [];
+    const falta = [], leve = [], impedimentos = [], pisosFaltantes = [];
     const minCx = Number(P.minCaixa || 0);
     const minBl = Number(P.minBalcao || 0);
     const alvoFa = P.minFarma != null ? Number(P.minFarma) : 2;
@@ -1210,6 +1210,7 @@ function validar(res, colabs){
       /* Piso obrigatório bloqueia mesmo sem gente disponível: escassez é
          informação operacional, não rebaixamento da regra. */
       const impossivel = disp < piso;
+      pisosFaltantes.push({rotulo, tem, piso, disponiveis:disp, impedimento:impossivel});
       alertas.push({colab:'—', tipo:'cobertura-minima',
         categoria:'obrigatoria', obrigatoria:true, impedimento:impossivel,
         nivel:'regra', base:'politica-da-casa', dia:i,
@@ -1233,6 +1234,10 @@ function validar(res, colabs){
     }
     return {
       cx, bl, gr, fa, sg, total, falta, leve, impedimentos,
+      /* `falta` são metas diárias não atingidas; `pisosFaltantes` são mínimos
+         obrigatórios da loja. A tela precisa distinguir os dois, porque meta
+         avisa e piso bloqueia. */
+      pisosFaltantes,
       disponiveis:{cx:cxDisp, bl:blDisp, fa:faDisp, sg:sgDisp, total:totDisp}
     };
   });
@@ -1275,6 +1280,10 @@ function validar(res, colabs){
       lacunas,
       feridas: obrigatorias + preferencias,
       notas: observacoes,
+      /* Contadores separados por natureza, para a tela não concluir "cobertura
+         mínima atendida" quando o que fechou foi apenas a meta diária. */
+      diasAbaixoDaMeta: cobertura.filter(c=>c.falta && c.falta.length).length,
+      diasAbaixoDoPiso: cobertura.filter(c=>c.pisosFaltantes && c.pisosFaltantes.length).length,
       coberturaConfigurada: intra ? intra.resumo.configurado : false,
       coberturaBloqueios: intra ? intra.resumo.bloqueios : 0,
       coberturaAvisos: intra ? intra.resumo.avisos : 0,

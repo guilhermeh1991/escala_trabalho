@@ -185,10 +185,13 @@ não zero — por isso as lojas já configuradas continuam exatamente como estav
 nenhuma meta vira bloqueio sem uma alteração explícita de quem administra.
 
 Quando não há gente disponível para alcançar o piso (férias, atestado, licença),
-o dia é registrado como **impedimento operacional** e não bloqueia. É a mesma
-distinção entre violação e impossibilidade que a
-[decisão 0005](decisoes/0005-verificador-independente.md) exigiu para o
-farmacêutico: cobrar o impossível treina a equipe a ignorar alerta.
+o alerta registra a indisponibilidade no texto, **mas o piso continua
+bloqueando**. A distinção entre violação e impossibilidade da
+[decisão 0005](decisoes/0005-verificador-independente.md) vale para o gerador,
+que precisa produzir alguma escala; aqui a pergunta é se a escala pode ser
+publicada, e escassez de equipe não autoriza publicar uma escala que a própria
+loja declarou inaceitável. Ver
+[decisão 0011](decisoes/0011-cobertura-intradiaria.md).
 
 ## 8c. Cobertura por faixa de horário
 

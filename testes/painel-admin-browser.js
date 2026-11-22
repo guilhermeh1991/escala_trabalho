@@ -102,6 +102,36 @@ async function closeQuietly(resource) {
   try { await resource.close(); } catch (_) {}
 }
 
+/* A página não pode rolar na horizontal em nenhuma largura. Tabelas densas
+   rolam dentro do próprio contêiner, e isso continua permitido: o que se mede
+   aqui é o documento. */
+async function exigirSemTransbordamento(page, rotulo) {
+  const medida = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+    culpados: Array.from(document.querySelectorAll('body *'))
+      .filter(el => el.getBoundingClientRect().right > document.documentElement.clientWidth + 1)
+      .slice(0, 5)
+      .map(el => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).join('.') : '')),
+  }));
+  assert.ok(
+    medida.scroll <= medida.client + 1,
+    `transbordamento em ${rotulo}: scrollWidth ${medida.scroll} > clientWidth ${medida.client}. Elementos: ${medida.culpados.join(' | ')}`
+  );
+}
+
+/* Percorre as larguras-alvo medindo transbordamento e, de quebra, registra a
+   captura daquele estado. */
+async function medirLarguras(page, prefixo) {
+  for (const [width, height] of [[1440,1000],[1024,900],[390,844],[320,760]]) {
+    await page.setViewportSize({width, height});
+    await page.waitForTimeout(120);
+    await exigirSemTransbordamento(page, `${prefixo} @${width}px`);
+    await page.screenshot({path:`${OUT}/${prefixo}-${width}.png`, fullPage:true});
+  }
+  await page.setViewportSize({width:1440,height:1000});
+}
+
 async function main() {
   assert(PLATFORM_EMAIL && PLATFORM_PASSWORD && OPERADOR_EMAIL && OPERADOR_PASSWORD && SUPERVISOR_EMAIL);
   assert(STORE_A && STORE_B);
@@ -193,7 +223,7 @@ async function main() {
     await page.locator('#r-mincaixa-obr').waitFor({state:'visible'});
     assert.equal(await page.locator('#r-mincaixa-obr').inputValue(), '1');
     assert.equal(await page.locator('#tab-faixas tbody tr').count() >= 7, true);
-    await page.screenshot({path:`${OUT}/ui-parametros-1440.png`, fullPage:true});
+    await medirLarguras(page, 'ui-parametros');
     await page.locator('button[data-view="escala"]').click();
     await page.locator('#esc-rota').waitFor({state:'visible'});
     await page.locator('#p-inicio').fill('2026-12-01');
@@ -255,10 +285,20 @@ async function main() {
     await page.locator('table.esc').waitFor({state:'visible', timeout:DEFAULT_TIMEOUT_MS});
     assert.equal(await page.locator('table.esc td.cel-editada').count() >= 1, true);
 
+    /* Apenas a versão realmente carregada aparece como em edição. */
+    const emEdicao = await page.locator('#lista-salvas .salva-atual').count();
+    assert.equal(emEdicao, 1);
+    assert.equal(await page.locator('#lista-salvas .salva-versao').count() >= 1, true);
+
+    /* Estado válido: indicadores coerentes e sem transbordamento. */
+    assert.equal(await page.locator('#resumo-cobertura .cobertura-alerta').count(), 0);
+    await medirLarguras(page, 'ui-valido');
+
     /* Publicação válida pelo fluxo real. */
     page.once('dialog', dialog => dialog.accept());
     await page.locator('#btn-publicar').click();
     await waitText(page, '#esc-aviso', 'Escala publicada');
+    await page.locator('#lista-salvas .chip', {hasText:'Publicação vigente'}).first().waitFor({state:'visible', timeout:DEFAULT_TIMEOUT_MS});
 
     /* Agora aumenta explicitamente o piso de caixa para criar uma pendência
        obrigatória controlada. A API aceita o rascunho, mas a publicação é
@@ -273,16 +313,19 @@ async function main() {
     await page.locator('table.esc').waitFor({state:'visible', timeout:DEFAULT_TIMEOUT_MS});
     await page.locator('#btn-salvar').click();
     await waitText(page, '#esc-aviso', 'Rascunho salvo');
-    await page.locator('#btn-publicar').click();
-    await waitText(page, '#esc-aviso', 'Publicação bloqueada');
+
+    /* Com bloqueio conhecido, a tela não convida para publicar: o botão fica
+       desabilitado e os indicadores apontam o piso, não a meta. */
+    assert.equal(await page.locator('#btn-publicar').isDisabled(), true);
+    const metricas = await page.locator('#esc-metricas').innerText();
+    assert.ok(/dia\(s\) abaixo do mínimo obrigatório/.test(metricas), metricas);
+    assert.ok(!/\b0\s+dia\(s\) abaixo do mínimo obrigatório/.test(metricas), metricas);
+    assert.equal(await page.locator('#resumo-cobertura .cobertura-ok').count(), 0);
+    assert.equal(await page.locator('#resumo-cobertura .cobertura-alerta').count() >= 1, true);
     await page.screenshot({path:`${OUT}/ui-pendencias-1440.png`, fullPage:true});
 
-    /* Capturas da grade preenchida e dos estados reais em quatro larguras. */
-    for (const [width, height] of [[1440,1000],[1024,900],[390,844],[320,760]]) {
-      await page.setViewportSize({width, height});
-      await page.screenshot({path:`${OUT}/ui-grade-${width}.png`, fullPage:true});
-    }
-    await page.setViewportSize({width:1440,height:1000});
+    /* Estado bloqueado nas quatro larguras, medindo transbordamento. */
+    await medirLarguras(page, 'ui-grade');
 
     deniedContext = await browser.newContext({viewport:{width:1440,height:1000}});
     const deniedPage = await deniedContext.newPage();
@@ -317,7 +360,9 @@ async function main() {
     await deniedPage.locator('#tab-faixas').waitFor({state:'visible'});
     await deniedPage.locator('#tab-faixas td.mono').filter({hasText:'08:00–14:00'}).first().waitFor({state:'visible'});
     assert.equal(await deniedPage.locator('#tab-faixas').getByText('Caixa').count() > 0, true);
-    await deniedPage.screenshot({path:`${OUT}/ui-parametros-1440.png`, fullPage:true});
+    /* Piso e perfis gravados no fixture continuam intactos após salvar a faixa. */
+    assert.equal(await deniedPage.locator('#r-mincaixa-obr').inputValue(), '1');
+    await deniedPage.screenshot({path:`${OUT}/ui-parametros-editor-1440.png`, fullPage:true});
 
     await closeQuietly(deniedContext);
     deniedContext = null;

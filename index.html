@@ -100,6 +100,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .salva-desc{font-size:12.5px;color:var(--fraco);margin-top:2px;line-height:1.5}
 .salva-desc b{color:var(--texto);font-weight:600}
 .salva-acoes{display:flex;gap:7px;flex-shrink:0}
+.salva-versao{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--linha);border-radius:4px;
+  font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--fraco)}
 .salva-atual{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;
   text-transform:uppercase;background:var(--v-bg);color:var(--v-fg);padding:2px 7px;
   border-radius:10px;margin-left:7px;vertical-align:1px}
@@ -353,8 +355,13 @@ main{padding:24px;max-width:1900px;margin:0 auto}
 .esc-periodo label{margin:0;flex:1;min-width:132px}
 .esc-periodo .inp{margin-top:5px;min-width:0}
 .esc-fluxo{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.esc-saidas{display:flex;align-items:center;justify-content:flex-end;gap:0;min-width:0}
-.esc-saidas-rot{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--fraco);margin-right:9px}
+.esc-saidas-caixa{min-width:0}
+.esc-saidas-caixa>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.esc-saidas-caixa>summary::-webkit-details-marker{display:none}
+.esc-saidas-caixa>summary::after{content:'▾';font-size:10px;color:var(--fraco)}
+.esc-saidas-caixa>summary:focus-visible{outline:3px solid rgba(22,99,76,.3);outline-offset:3px;border-radius:4px}
+.esc-saidas{display:flex;align-items:center;justify-content:flex-end;gap:0;min-width:0;margin-top:8px}
+.esc-saidas-rot{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--fraco)}
 .esc-saidas .btn{border-radius:0;margin-left:-1px;padding-inline:11px;white-space:nowrap}
 .esc-saidas .btn:first-of-type{border-radius:var(--radius-sm) 0 0 var(--radius-sm);margin-left:0}
 .esc-saidas .btn:last-child{border-radius:0 var(--radius-sm) var(--radius-sm) 0}
@@ -368,21 +375,36 @@ main{padding:24px;max-width:1900px;margin:0 auto}
 .cobertura-estado{display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:3px 8px;font-size:11.5px;font-weight:600}
 .cobertura-ok{background:var(--v-bg);color:var(--v-fg)}
 .cobertura-alerta{background:var(--r-bg);color:var(--r-fg)}
+.cobertura-aviso{background:var(--m-bg);color:var(--m-fg)}
+@media(min-width:721px){
+  /* No desktop a exportação permanece sempre visível, sem gesto extra. */
+  .esc-saidas-caixa>summary{display:none}
+  .esc-saidas-caixa>.esc-saidas{margin-top:0}
+}
 @media(max-width:1120px){
   .esc-barra{grid-template-columns:minmax(300px,1fr) auto}
-  .esc-saidas{grid-column:1/-1;justify-content:flex-start;padding-top:12px;border-top:1px solid var(--linha-suave)}
+  .esc-saidas-caixa{grid-column:1/-1;padding-top:12px;border-top:1px solid var(--linha-suave)}
+  .esc-saidas{justify-content:flex-start}
 }
 @media(max-width:720px){
   .esc-barra{display:flex;flex-direction:column;align-items:stretch;gap:13px}
   .esc-periodo{padding-right:0;padding-bottom:13px;border-right:0;border-bottom:1px solid var(--linha-suave)}
   .esc-fluxo{display:grid;grid-template-columns:1fr 1fr}
   .esc-fluxo .btn:first-child{grid-column:1/-1}
-  .esc-saidas{display:grid;grid-template-columns:repeat(3,1fr);padding-top:13px}
-  .esc-saidas-rot{grid-column:1/-1;margin:0 0 6px}
+  .esc-saidas{display:grid;grid-template-columns:repeat(3,1fr)}
   .esc-saidas .btn{width:100%;font-size:12px;padding-inline:6px}
   .esc-status{align-items:flex-start;flex-direction:column-reverse}
   .esc-visao{grid-template-columns:1fr;gap:10px}
   .esc-metricas{justify-content:flex-start}
+  /* Topo compacto: o chip da faixa e o rótulo de salvamento diziam a mesma
+     coisa em dois lugares. No celular fica só o chip de situação, que é o
+     primeiro a ser lido, e o texto de etapas some em favor do passo atual. */
+  .esc-rota{grid-template-columns:1fr;gap:8px}
+  .esc-rota .chip{justify-self:start}
+  .esc-status #status-salvo{display:none}
+  .esc-passos li:not([data-estado="atual"]) .ep-t{display:none}
+  .esc-passos li{flex:0 0 auto}
+  .esc-passos li[data-estado="atual"]{flex:1 1 auto}
 }
 @media(max-width:620px){
   table.esc th.intervalo,table.esc td.intervalo{display:none}
@@ -394,8 +416,24 @@ main{padding:24px;max-width:1900px;margin:0 auto}
   .esc-rota strong{font-size:18px}
   .esc-visao{padding:13px 16px 15px}
   .esc-passos{padding:12px 16px 0}
-  .esc-passos li{flex:1 1 calc(50% - 6px);font-size:12px}
+  .esc-passos li{font-size:12px}
   .gerando,.esc-aviso{margin-inline:16px}
+}
+/* Telas estreitas: nenhum painel pode empurrar a página. Os contêineres que
+   precisam de rolagem recebem rolagem própria; os demais quebram linha.
+   `overflow-x:hidden` no documento está fora de questão — esconderia o defeito
+   em vez de corrigir a dimensão. */
+@media(max-width:620px){
+  .painel{overflow-wrap:anywhere}
+  ul.alertas li{flex-direction:column;gap:2px}
+  ul.alertas li b{min-width:0}
+  /* Tabelas de leitura densa rolam dentro do próprio painel. */
+  #tab-resumo,#tab-intradiaria,#tab-equipe,#tab-aus,#tab-faixas{min-width:460px}
+  .painel>div[style*="overflow"]{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .salva-acoes{flex-wrap:wrap}
+  .salva-acoes .btn{flex:1 1 auto}
+  .esc-metricas{gap:6px}
+  .esc-metrica{white-space:normal}
 }
 /* 320px: o menor aparelho que ainda precisa operar. Os passos viram uma coluna
    e o cabeçalho encolhe, mas nada é removido — só reorganizado. */
@@ -403,13 +441,22 @@ main{padding:24px;max-width:1900px;margin:0 auto}
   main{padding:12px}
   .painel{padding:13px}
   .esc-passos{padding:10px 13px 0;gap:4px}
-  .esc-passos li{flex:1 1 100%;padding:5px 10px 5px 6px}
+  .esc-passos li{padding:5px 10px 5px 6px}
   .gerando,.esc-aviso,.esc-status{margin-inline:13px}
   .esc-rota{padding:12px 13px}
   .esc-rota strong{font-size:17px}
   .esc-saidas{grid-template-columns:1fr 1fr}
   header.top{padding-inline:13px;gap:10px}
   header.top .marca{font-size:11.5px;letter-spacing:.1em}
+  /* Os campos de data do WebKit/Blink têm largura intrínseca maior que o texto.
+     Sem min-width:0 e sem largura fluida eles estouravam a linha em 320px. */
+  .esc-periodo{flex-wrap:wrap;gap:10px}
+  .esc-periodo label{flex:1 1 100%;min-width:0}
+  .esc-periodo .inp{width:100%;min-width:0}
+  input[type="date"],input[type="time"]{max-width:100%;min-width:0}
+  .grade-form{grid-template-columns:1fr}
+  .barra{gap:6px}
+  .barra .btn{flex:1 1 auto}
 }
 
 /* ---------- tabela escala ----------
@@ -516,9 +563,12 @@ th.domingo{color:var(--texto);background:#F8F3E3!important}
 .chip.mal{background:var(--r-bg);color:var(--r-fg)}
 .chip.info{background:var(--info-bg);color:var(--info-fg)}
 ul.alertas{list-style:none;margin:0;padding:0;max-height:230px;overflow:auto}
-ul.alertas li{padding:8px 0;border-bottom:1px solid var(--linha-suave);font-size:13px;display:flex;gap:8px}
+ul.alertas li{padding:8px 0;border-bottom:1px solid var(--linha-suave);font-size:13px;display:flex;gap:8px;flex-wrap:wrap}
+/* O nome tem largura mínima no desktop, mas não pode empurrar a página numa
+   tela estreita: abaixo de 620px o item passa a quebrar em linhas. */
 ul.alertas li b{min-width:120px;font-weight:600}
-table.simples{width:100%;border-collapse:collapse;font-size:13.5px}
+ul.alertas li span{min-width:0;overflow-wrap:anywhere}
+table.simples{width:100%;border-collapse:collapse;font-size:13.5px;table-layout:auto}
 table.simples th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.065em;color:var(--fraco);border-bottom:1px solid var(--linha);padding:8px}
 table.simples td{border-bottom:1px solid var(--linha-suave);padding:7px 8px}
 table.simples tbody tr:hover{background:#FAFCFB}
@@ -724,12 +774,16 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <button class="btn ghost" id="btn-salvar" disabled>Salvar rascunho</button>
             <button class="btn publish" id="btn-publicar" style="display:none">Publicar</button>
           </div>
-          <div class="esc-saidas" aria-label="Exportar escala">
-            <span class="esc-saidas-rot">Exportar</span>
-            <button class="btn ghost" id="btn-xlsx">Planilha</button>
-            <button class="btn ghost" id="btn-pdf">PDF</button>
-            <button class="btn ghost" id="btn-print">Imprimir</button>
-          </div>
+          <!-- No celular a exportação sai do topo e vira um bloco recolhido:
+               continua acessível por teclado, sem competir com a próxima ação. -->
+          <details class="esc-saidas-caixa">
+            <summary class="esc-saidas-rot">Exportar</summary>
+            <div class="esc-saidas" aria-label="Exportar escala">
+              <button class="btn ghost" id="btn-xlsx">Planilha</button>
+              <button class="btn ghost" id="btn-pdf">PDF</button>
+              <button class="btn ghost" id="btn-print">Imprimir</button>
+            </div>
+          </details>
         </div>
         <div class="gerando" id="gerando" hidden>
           <div class="gerando-linha">
@@ -802,7 +856,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
     <section class="view" data-view="equipe">
       <div class="painel">
         <h2>Equipe da loja</h2>
-        <p class="desc"><b>E-mail de acesso</b>: preenchendo o e-mail da pessoa, ela cria a própria conta e passa a ver <b>apenas a escala dela</b> — sem acesso à equipe nem à escala dos colegas. Gerente folga todo sábado e domingo. <b>Folga fixa</b>: em “variável” o sistema escolhe o melhor dia para cada semana; escolhendo um dia, a folga daquela pessoa cai sempre nele — no 6x1 é a folga da semana, no 5x2 é o par que passa a incluir esse dia. “Dom. trabalhados” diz quantos domingos a pessoa já trabalhou seguidos no fim do mês anterior.</p>
+        <p class="desc"><b>E-mail de acesso</b>: preenchendo o e-mail da pessoa, ela cria a própria conta e passa a ver <b>apenas a escala dela</b> — sem acesso à equipe nem à escala dos colegas. Quem tem um perfil com folga fixa semanal folga nos dias que o perfil define; sem perfis configurados, o gerente folga sábado e domingo por política da casa. <b>Folga fixa</b>: em “variável” o sistema escolhe o melhor dia para cada semana; escolhendo um dia, a folga daquela pessoa cai sempre nele — no 6x1 é a folga da semana, no 5x2 é o par que passa a incluir esse dia. “Dom. trabalhados” diz quantos domingos a pessoa já trabalhou seguidos no fim do mês anterior.</p>
         <div class="barra"><button class="btn small" id="btn-add-colab">Adicionar colaborador</button></div>
         <div style="overflow:auto"><table class="simples" id="tab-equipe"></table></div>
       </div>
@@ -900,7 +954,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <div class="dias-semana" id="min-dias"></div>
 
         <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:24px 0 8px">Mínimos obrigatórios desta loja</h3>
-        <p class="desc" style="margin-bottom:12px">Os números acima são metas: ficar abaixo deles gera aviso. O que você preencher aqui é piso obrigatório e <b>impede a publicação</b> da escala. Em branco significa que não há piso e só a meta vale — é como as lojas já configuradas continuam funcionando. Quando não há gente disponível para alcançar o piso, o dia é registrado como impedimento operacional e não bloqueia.</p>
+        <p class="desc" style="margin-bottom:12px">Os números acima são metas: ficar abaixo deles gera aviso. O que você preencher aqui é piso obrigatório e <b>impede a publicação</b> da escala. Em branco significa que não há piso e só a meta vale — é como as lojas já configuradas continuam funcionando. O piso continua bloqueando mesmo quando não há ninguém disponível para cobri-lo; nesse caso o alerta registra a indisponibilidade, e abrir mão do piso é uma decisão de quem administra, feita aqui nos parâmetros.</p>
         <div class="pg-grade">
           <div class="pg-cel">
             <label for="r-mincaixa-obr">Caixas (mínimo obrigatório)</label>
@@ -969,7 +1023,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
       </div>
       <div class="painel">
         <h2>O que o sistema não inventa</h2>
-        <p class="desc" style="margin:0">Dois farmacêuticos por dia com três no quadro é apertado: cada um precisa folgar em dias que os outros dois trabalham. Nas suas lojas isso fecha em 28 a 31 dias do mês, e o rodapé marca em amarelo o dia que ficou com um só. Loja com um farmacêutico só não tem como dar folga a ele e manter cobertura: o sistema concede a folga a que ele tem direito e marca o dia em vermelho, para você combinar substituição. O mesmo vale para subgerente único no fim de semana. Escala de uma folga por semana (6x1) tem uma limitação de matemática: com semanas fixas, o dia de folga só consegue andar para trás, nunca para frente, sem estourar o limite de dias seguidos.</p>
+        <p class="desc" style="margin:0">Manter dois farmacêuticos por dia com três no quadro é apertado: cada um precisa folgar em dias que os outros dois trabalham, e quanto menor a folga de pessoal, mais dias ficam com um só — o rodapé marca esses dias. Quando a loja tem um único farmacêutico, não há como dar a folga dele e manter a presença: o sistema concede a folga e marca o dia para você combinar substituição. O mesmo vale para subgerente único no fim de semana. Um <b>mínimo obrigatório</b> configurado continua bloqueando a publicação mesmo quando não há ninguém disponível para cobri-lo: quem decide abrir mão do piso é quem administra a loja, alterando os parâmetros. Escala de uma folga por semana (6x1) tem uma limitação de matemática: com semanas fixas, o dia de folga só consegue andar para trás, nunca para frente, sem estourar o limite de dias seguidos.</p>
       </div>
     </section>
 
@@ -2488,7 +2542,7 @@ function validar(res, colabs){
     const sgDisp = ativos.filter(c=>isSubger(c) && disp(c)).length;
     const totDisp = ativos.filter(c=>disp(c)).length;
 
-    const falta = [], leve = [], impedimentos = [];
+    const falta = [], leve = [], impedimentos = [], pisosFaltantes = [];
     const minCx = Number(P.minCaixa || 0);
     const minBl = Number(P.minBalcao || 0);
     const alvoFa = P.minFarma != null ? Number(P.minFarma) : 2;
@@ -2547,6 +2601,7 @@ function validar(res, colabs){
       /* Piso obrigatório bloqueia mesmo sem gente disponível: escassez é
          informação operacional, não rebaixamento da regra. */
       const impossivel = disp < piso;
+      pisosFaltantes.push({rotulo, tem, piso, disponiveis:disp, impedimento:impossivel});
       alertas.push({colab:'—', tipo:'cobertura-minima',
         categoria:'obrigatoria', obrigatoria:true, impedimento:impossivel,
         nivel:'regra', base:'politica-da-casa', dia:i,
@@ -2570,6 +2625,10 @@ function validar(res, colabs){
     }
     return {
       cx, bl, gr, fa, sg, total, falta, leve, impedimentos,
+      /* `falta` são metas diárias não atingidas; `pisosFaltantes` são mínimos
+         obrigatórios da loja. A tela precisa distinguir os dois, porque meta
+         avisa e piso bloqueia. */
+      pisosFaltantes,
       disponiveis:{cx:cxDisp, bl:blDisp, fa:faDisp, sg:sgDisp, total:totDisp}
     };
   });
@@ -2612,6 +2671,10 @@ function validar(res, colabs){
       lacunas,
       feridas: obrigatorias + preferencias,
       notas: observacoes,
+      /* Contadores separados por natureza, para a tela não concluir "cobertura
+         mínima atendida" quando o que fechou foi apenas a meta diária. */
+      diasAbaixoDaMeta: cobertura.filter(c=>c.falta && c.falta.length).length,
+      diasAbaixoDoPiso: cobertura.filter(c=>c.pisosFaltantes && c.pisosFaltantes.length).length,
       coberturaConfigurada: intra ? intra.resumo.configurado : false,
       coberturaBloqueios: intra ? intra.resumo.bloqueios : 0,
       coberturaAvisos: intra ? intra.resumo.avisos : 0,
@@ -4901,11 +4964,30 @@ async function pintarSalvas(){
   if(!lista.length){ painel.style.display = 'none'; return; }
   painel.style.display = '';
   const dt = iso => { const [a,m,d] = String(iso).split('-'); return d + '/' + m; };
+  /* A versão aberta é a que está realmente carregada na tela: mesmo período e
+     mesma versão. Sem isso, todas as versões do período apareciam como abertas,
+     inclusive publicações antigas que ninguém está editando. */
+  const versaoVigente = {};
+  lista.forEach(x=>{
+    if(!x.publicada) return;
+    const chave = x.inicio + '_' + x.fim;
+    if(versaoVigente[chave] == null || Number(x.versao) > versaoVigente[chave]) versaoVigente[chave] = Number(x.versao);
+  });
   cx.innerHTML = lista.map((x,k)=>{
-    const atual = x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value;
+    const mesmoPeriodo = x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value;
+    const atual = mesmoPeriodo && S.res != null
+      && (x.versao == null || S.versao == null || Number(x.versao) === Number(S.versao));
+    const chave = x.inicio + '_' + x.fim;
+    const vigente = x.publicada && versaoVigente[chave] === Number(x.versao);
     const selo = typeof x.publicada === 'boolean'
-      ? (x.publicada ? '<span class="chip ok" style="margin-left:6px">Publicada</span>'
-                     : '<span class="chip mal" style="margin-left:6px">Rascunho</span>')
+      ? (x.publicada
+          ? (vigente
+              ? '<span class="chip ok" style="margin-left:6px">Publicação vigente</span>'
+              : '<span class="chip" style="margin-left:6px">Publicação anterior</span>')
+          : '<span class="chip mal" style="margin-left:6px">Rascunho</span>')
+      : '';
+    const versaoRot = x.versao != null
+      ? `<span class="salva-versao">v${x.versao}</span>`
       : '';
     const partes = [`<b>${x.pessoas}</b> pessoas`, `<b>${x.dias}</b> dias`,
                     `modelo <b>${esc(x.modelo)}</b>`, `<b>${x.folgas}</b> folgas no total`];
@@ -4915,7 +4997,7 @@ async function pintarSalvas(){
     const q = new Date(x.em);
     return `<div class="salva">
       <div class="salva-info">
-        <div class="salva-tit">${dt(x.inicio)} a ${dt(x.fim)}${atual ? '<span class="salva-atual">aberta</span>' : ''}${selo}</div>
+        <div class="salva-tit">${dt(x.inicio)} a ${dt(x.fim)}${versaoRot}${atual ? '<span class="salva-atual">em edição</span>' : ''}${selo}</div>
         <div class="salva-desc">${partes.join(' · ')}<br>salva em ${q.toLocaleDateString('pt-BR')} às ${q.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
       </div>
       <div class="salva-acoes">${atual
@@ -5106,20 +5188,36 @@ function atualizarFaixaRota(){
   const regras = alertas.filter(a=>a.nivel!=='nota').length;
   const notas = alertas.length - regras;
   const cob = S.val && S.val.cobertura ? S.val.cobertura : [];
-  const abaixoMinimo = cob.filter(c=>c.falta && c.falta.length).length;
+  const resVal = (S.val && S.val.resumo) || {};
+  /* Três grandezas distintas, nunca somadas: meta diária avisa, piso obrigatório
+     da loja bloqueia e a cobertura por faixa é outra checagem. */
+  const abaixoMeta = resVal.diasAbaixoDaMeta != null
+    ? resVal.diasAbaixoDaMeta
+    : cob.filter(c=>c.falta && c.falta.length).length;
+  const abaixoPiso = resVal.diasAbaixoDoPiso != null
+    ? resVal.diasAbaixoDoPiso
+    : cob.filter(c=>c.pisosFaltantes && c.pisosFaltantes.length).length;
+  const faixasBloqueadas = resVal.coberturaBloqueios || 0;
+  const faixasAviso = resVal.coberturaAvisos || 0;
+  const faixaConfigurada = !!resVal.coberturaConfigurada;
   const pessoas = S.res.ativos ? S.res.ativos.length : 0;
   const dias = S.res.days ? S.res.days.length : 0;
 
   if(visao && visaoTitulo && visaoDesc && metricas){
     visao.hidden = false;
-    visaoTitulo.textContent = regras || abaixoMinimo ? 'O que precisa de revisão' : 'Leitura do período';
-    visaoDesc.textContent = regras || abaixoMinimo
+    const precisaRevisao = regras || abaixoPiso || abaixoMeta || faixasBloqueadas;
+    visaoTitulo.textContent = precisaRevisao ? 'O que precisa de revisão' : 'Leitura do período';
+    visaoDesc.textContent = precisaRevisao
       ? 'A grade já está montada. Comece pelos dias e pessoas marcados com pendência.'
-      : 'A cobertura mínima e as regras de folga fecharam para este período.';
+      : 'As regras de folga e os mínimos configurados fecharam para este período.';
     metricas.innerHTML = [
       `<span class="esc-metrica"><b>${pessoas}</b> pessoas</span>`,
       `<span class="esc-metrica"><b>${dias}</b> dias</span>`,
-      `<span class="esc-metrica ${abaixoMinimo ? 'alerta' : 'ok'}"><b>${abaixoMinimo}</b> dia(s) abaixo do mínimo</span>`,
+      `<span class="esc-metrica ${abaixoPiso ? 'alerta' : 'ok'}"><b>${abaixoPiso}</b> dia(s) abaixo do mínimo obrigatório</span>`,
+      `<span class="esc-metrica ${abaixoMeta ? 'info' : 'ok'}"><b>${abaixoMeta}</b> dia(s) abaixo da meta diária</span>`,
+      faixaConfigurada
+        ? `<span class="esc-metrica ${faixasBloqueadas ? 'alerta' : (faixasAviso ? 'info' : 'ok')}"><b>${faixasBloqueadas}</b> faixa(s) sem cobertura obrigatória</span>`
+        : '',
       regras
         ? `<span class="esc-metrica alerta"><b>${regras}</b> pendência(s)</span>`
         : `<span class="esc-metrica ok"><b>0</b> pendências</span>`,
@@ -5144,7 +5242,7 @@ function atualizarFaixaRota(){
   titulo.textContent = 'Escala pronta para distribuir';
   desc.textContent = notas
     ? `As validações configuradas fecharam; há ${notas} observação(ões) explicando escolhas do gerador.`
-    : 'As validações configuradas e a cobertura mínima foram conferidas. Salve, revise e só então publique.';
+    : 'As regras de folga e os mínimos configurados foram conferidos. Salve, revise e só então publique.';
   status.textContent = 'Pronta para distribuir';
 }
 
@@ -5200,7 +5298,16 @@ function marcarSalvo(){
   el.textContent = S.salvo ? 'Alterações salvas' : 'Alterações pendentes';
   el.className = 'chip ' + (S.salvo?'ok':'mal');
   if(salvar) salvar.disabled = S.salvo;
-  if(publicar) publicar.disabled = !S.salvo;
+  /* Publicar não fica ativo quando a própria validação já conhece um bloqueio.
+     O servidor continua revalidando e recusando; aqui a tela apenas deixa de
+     convidar para uma ação que será recusada. */
+  const bloqueiosConhecidos = S.val ? (S.val.alertas||[]).filter(a=>a.obrigatoria).length : 0;
+  if(publicar){
+    publicar.disabled = !S.salvo || bloqueiosConhecidos > 0;
+    publicar.title = bloqueiosConhecidos
+      ? `${bloqueiosConhecidos} restrição(ões) obrigatória(s) impedem publicar. Ajuste a grade ou os parâmetros.`
+      : '';
+  }
 }
 function gerarId(){
   if(typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -6176,12 +6283,20 @@ function pintarGrade(){
     });
   })();
 
-  // faixa de cobertura
+  /* Faixa de cobertura: separa meta diária, piso obrigatório e faixa horária,
+     para não anunciar cobertura atendida quando um piso está descoberto. */
   const furos = cob.filter(c=>c.falta.length).length;
+  const furosPiso = cob.filter(c=>(c.pisosFaltantes||[]).length).length;
+  const resCob = (S.val && S.val.resumo) || {};
+  const faixasBloq = resCob.coberturaBloqueios || 0;
   const minTot = Math.min(...cob.map(c=>c.total)), maxTot = Math.max(...cob.map(c=>c.total));
-  const cobertura = furos
-    ? `<span class="cobertura-estado cobertura-alerta"><b>${furos}</b> dia(s) abaixo do mínimo</span>`
-    : '<span class="cobertura-estado cobertura-ok">Cobertura mínima atendida</span>';
+  const estados = [];
+  if(furosPiso) estados.push(`<span class="cobertura-estado cobertura-alerta"><b>${furosPiso}</b> dia(s) abaixo do mínimo obrigatório</span>`);
+  if(faixasBloq) estados.push(`<span class="cobertura-estado cobertura-alerta"><b>${faixasBloq}</b> faixa(s) sem cobertura obrigatória</span>`);
+  if(furos) estados.push(`<span class="cobertura-estado cobertura-aviso"><b>${furos}</b> dia(s) abaixo da meta diária</span>`);
+  const cobertura = estados.length
+    ? estados.join('')
+    : '<span class="cobertura-estado cobertura-ok">Mínimos configurados atendidos</span>';
   $('#resumo-cobertura').innerHTML = `<div class="resumo-cobertura-linha">
     <span>Período <b class="mono">${ddmm(days[0])}</b> a <b class="mono">${ddmm(days[days.length-1])}</b></span>
     <span>${days.length} dias</span><span>${ativos.length} pessoas</span>
