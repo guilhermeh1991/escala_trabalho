@@ -428,9 +428,11 @@ main{padding:24px;max-width:1900px;margin:0 auto}
   .painel{overflow-wrap:anywhere}
   ul.alertas li{flex-direction:column;gap:2px}
   ul.alertas li b{min-width:0}
-  /* Tabelas de leitura densa rolam dentro do próprio painel. */
-  #tab-resumo,#tab-intradiaria,#tab-equipe,#tab-aus,#tab-faixas{min-width:460px}
-  .painel>div[style*="overflow"]{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* Tabelas de leitura densa rolam dentro do próprio contêiner. A largura
+     mínima só pode ser aplicada onde existe esse contêiner, senão a tabela
+     empurra a página em vez de rolar. */
+  .painel>div[style*="overflow"],.tabela-rolavel{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .painel>div[style*="overflow"]>table.simples,.tabela-rolavel>table.simples{min-width:460px}
   .salva-acoes{flex-wrap:wrap}
   .salva-acoes .btn{flex:1 1 auto}
   /* Sete colunas com campos de hora não cabem numa tela estreita. Em vez de
@@ -995,7 +997,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
 
         <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:24px 0 8px">Demanda por faixa de horário</h3>
         <p class="desc" style="margin-bottom:12px">Quantas pessoas de cada função a loja precisa ter <b>presentes</b> em cada intervalo. É o que enxerga o buraco do almoço: duas pessoas no dia inteiro cumprem o mínimo diário e ainda assim deixam o caixa sozinho das 12h às 13h. A meta gera aviso; o obrigatório impede publicar.</p>
-        <table class="simples" id="tab-faixas"></table>
+        <div class="tabela-rolavel"><table class="simples" id="tab-faixas"></table></div>
         <div class="fx-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
           <div><label style="font-size:11px;color:var(--fraco)">Dia</label><br>
             <select id="fx-dia" class="inp" style="min-width:120px"></select></div>
