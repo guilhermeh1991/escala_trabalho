@@ -92,6 +92,45 @@ function saidaDoDia(c, i, res){
   const fim=fimDoDiaMinutos(c,i,res);
   return fim==null ? null : horaDosMinutos(fim);
 }
+/* Dados de jornada para a análise intradiária. Distingue três situações que não
+   podem ser confundidas: jornada ausente (não dá para calcular presença),
+   intervalo declarado como vazio (a pessoa não tem intervalo — presença cheia) e
+   intervalo desconhecido (há almoço em algum lugar, mas não sabemos onde).
+   Nunca se inventa um horário de intervalo. */
+function jornadaParaCobertura(c, i, res){
+  const entradaTexto = entradaDoDia(c, i, res);
+  const entrada = minutosDaHora(entradaTexto);
+  const fim = fimDoDiaMinutos(c, i, res);
+  if(entrada == null || fim == null) return null;
+
+  const j = c && c.jornada;
+  let intervalos = null, intervaloDesconhecido = false;
+  if(j && Array.isArray(j.intervalos)){
+    // Lista explícita, inclusive vazia: vazia significa "sem intervalo".
+    intervalos = j.intervalos.map(iv=>{
+      const ini = minutosDaHora(iv && iv.ini), f = minutosDaHora(iv && iv.fim);
+      if(ini == null || f == null) return null;
+      // Deslocamento do ajuste manual: o intervalo acompanha a entrada do dia.
+      const base = minutosDaHora((jornadaPadrao(c)||{}).entrada);
+      const desloca = (base != null && entrada != null) ? entrada - base : 0;
+      const a = ini + desloca, b = (f <= ini ? f + 1440 : f) + desloca;
+      return {ini:a, fim:b};
+    }).filter(Boolean);
+    if(intervalos.length !== j.intervalos.length) intervaloDesconhecido = true;
+  } else if(j && Number(j.intervalo) > 0){
+    // Sabemos que existe intervalo e quanto dura, mas não em que horário.
+    intervalos = [];
+    intervaloDesconhecido = true;
+  } else if(j && (j.intervalo === 0 || j.intervalo === '0')){
+    intervalos = [];                       // declarado sem intervalo
+  } else {
+    // Jornada sem informação de intervalo: desconhecido, não "sem intervalo".
+    intervalos = [];
+    intervaloDesconhecido = true;
+  }
+  return {entrada, fim, intervalos, intervaloDesconhecido};
+}
+
 function intervaloEntreJornadas(c, i, res){
   const fim=fimDoDiaMinutos(c,i,res), inicio=minutosDaHora(entradaDoDia(c,i+1,res));
   if(fim==null || inicio==null) return null;
@@ -1150,14 +1189,14 @@ function validar(res, colabs){
       {piso:pisoDiaSem, tem:total, disp:totDisp, rotulo:'equipe'},
     ].forEach(({piso, tem, disp, rotulo})=>{
       if(piso == null || !(piso > 0) || tem >= piso) return;
+      /* Piso obrigatório bloqueia mesmo sem gente disponível: escassez é
+         informação operacional, não rebaixamento da regra. */
       const impossivel = disp < piso;
       alertas.push({colab:'—', tipo:'cobertura-minima',
-        categoria: impossivel ? 'observacao' : 'obrigatoria',
-        obrigatoria: !impossivel, impedimento: impossivel,
-        nivel: impossivel ? 'nota' : 'regra', base:'politica-da-casa', dia:i,
-        txt:`${ddmm(d)}: ${rotulo} ${tem}/${piso}${impossivel
-          ? ` — mínimo obrigatório não alcançável (${disp} disponível(is))`
-          : ' — abaixo do mínimo obrigatório da loja'}`});
+        categoria:'obrigatoria', obrigatoria:true, impedimento:impossivel,
+        nivel:'regra', base:'politica-da-casa', dia:i,
+        txt:`${ddmm(d)}: ${rotulo} ${tem}/${piso} — abaixo do mínimo obrigatório da loja${
+          impossivel ? ` (sem gente disponível: ${disp})` : ''}`});
     });
 
     if(ativos.length > 0 && total === 0){
@@ -1180,6 +1219,25 @@ function validar(res, colabs){
     };
   });
 
+  /* Cobertura intradiária: só roda quando a loja configurou faixas. O módulo é
+     carregado por require no Node e por escopo global no app montado. */
+  let intra = null;
+  try {
+    const mod = (typeof analisarCobertura === 'function')
+      ? {analisarCobertura}
+      : (typeof require === 'function' ? require('./cobertura.js') : null);
+    if(mod) intra = mod.analisarCobertura(res, colabs, P, {jornada: jornadaParaCobertura});
+  } catch(_e){ intra = null; }
+  if(intra){
+    intra.alertas.forEach(a=>alertas.push(a));
+    intra.lacunas.forEach(l=>alertas.push({
+      colab: l.colab, tipo:'cobertura-intradiaria-lacuna', categoria:'observacao',
+      obrigatoria:false, nivel:'nota', lacuna:true, dia:l.dia,
+      txt: l.motivo==='intervalo-desconhecido'
+        ? 'Intervalo não informado: a presença durante o intervalo não pôde ser conferida.'
+        : 'Jornada sem entrada e saída completas: a presença no dia não pôde ser conferida.'}));
+  }
+
   const obrigatorias = alertas.filter(a=>a.obrigatoria).length;
   const preferencias = alertas.filter(a=>!a.obrigatoria && a.nivel!=='nota').length;
   const observacoes = alertas.filter(a=>a.nivel==='nota').length;
@@ -1190,6 +1248,7 @@ function validar(res, colabs){
     alertas,
     porColab,
     cobertura,
+    coberturaIntradiaria: intra,
     resumo:{
       obrigatorias,
       preferencias,
@@ -1198,9 +1257,14 @@ function validar(res, colabs){
       lacunas,
       feridas: obrigatorias + preferencias,
       notas: observacoes,
+      coberturaConfigurada: intra ? intra.resumo.configurado : false,
+      coberturaBloqueios: intra ? intra.resumo.bloqueios : 0,
+      coberturaAvisos: intra ? intra.resumo.avisos : 0,
+      coberturaLacunas: intra ? intra.resumo.lacunas : 0,
+      diasFechados: intra ? intra.resumo.diasFechados : 0,
       podePublicar: obrigatorias === 0
     }
   };
 }
 
-if(typeof module !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, semanasDoPeriodo, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, entradaDoDia, fimDoDiaMinutos, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};
+if(typeof module !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, semanasDoPeriodo, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, jornadaParaCobertura, entradaDoDia, fimDoDiaMinutos, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};

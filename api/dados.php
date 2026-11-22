@@ -446,6 +446,13 @@ case 'salvar_escala':
         // Revalida no servidor a versão exata antes de gravar ou publicar.
         $validacao = validarEscalaServidor($lojaId, $inicio, $fim, $grade, $paramsRecebidos, $snapshot);
         $resumo = $validacao['resumo'];
+
+        /* Reprodutibilidade histórica: a versão guarda as regras que de fato
+           valeram nesta validação, lidas do banco. Sem isso, reabrir uma escala
+           antiga a mediria com a configuração de hoje, e o histórico mudaria
+           sozinho quando alguém editasse os parâmetros da loja. */
+        $snapshot['regras_aplicadas'] = $validacao['regras_aplicadas'] ?? null;
+        $snapshot['validado_em'] = date('Y-m-d H:i:s');
         if ($publicar === 1 && count($validacao['obrigatorias']) > 0) {
             bd()->rollBack();
             $primeiros = array_slice(array_map(function ($a) {

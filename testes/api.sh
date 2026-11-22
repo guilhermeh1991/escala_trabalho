@@ -414,6 +414,47 @@ R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LO
 echo "$R" | grep -q '"conformidade":"parcial"' && ok "jornada incompleta resulta em conformidade parcial, não completa" || falha "conformidade não é parcial: $R"
 echo "$R" | grep -q '"nao_verificadas":\[' && echo "$R" | grep -q 'interjornada' && ok "resposta nomeia a regra que não pôde ser conferida" || falha "regras não verificadas não nomeadas: $R"
 
+echo ""
+echo "=== 10b. Cobertura intradiária por função ==="
+# Dois caixas no mesmo turno da manhã: o dia tem 2 pessoas e ainda assim a loja
+# fica sem caixa das 14h às 20h. O mínimo diário não enxerga esse furo.
+SNAP_INTRA='{"schema":1,"incompleto":false,"participantes":[
+{"id":"ci1","nome":"Caixa Manha","cargo":"CAIXA","horario":"08:00 AS 14:00","jornada":{"entrada":"08:00","saida":"14:00","intervalos":[]},"ausencias":[],"ordem":0},
+{"id":"ci2","nome":"Caixa Manha Dois","cargo":"CAIXA","horario":"08:00 AS 14:00","jornada":{"entrada":"08:00","saida":"14:00","intervalos":[]},"ausencias":[],"ordem":1}]}'
+PARAMS_INTRA='{"modelo":"5x2","expediente":{"1":[{"ini":"08:00","fim":"20:00"}]},"faixas":{"1":[{"funcao":"caixa","ini":"08:00","fim":"20:00","obrigatorio":1}]}}'
+gravar_params_loja "$PARAMS_INTRA"
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-09\",\"fim\":\"2026-11-09\",\"grade\":{\"ci1\":[\"\"],\"ci2\":[\"\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP_INTRA,\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "14:00–20:00" && ok "faixa descoberta à tarde bloqueia a publicação" || falha "cobertura intradiária não bloqueou: HTTP $HTTP_STATUS $HTTP_BODY"
+
+# Turno da tarde cobrindo a faixa: mesma configuração, escala completa.
+SNAP_INTRA_OK='{"schema":1,"incompleto":false,"participantes":[
+{"id":"ci1","nome":"Caixa Manha","cargo":"CAIXA","horario":"08:00 AS 14:00","jornada":{"entrada":"08:00","saida":"14:00","intervalos":[]},"ausencias":[],"ordem":0},
+{"id":"ci3","nome":"Caixa Tarde","cargo":"CAIXA","horario":"14:00 AS 20:00","jornada":{"entrada":"14:00","saida":"20:00","intervalos":[]},"ausencias":[],"ordem":1}]}'
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-09\",\"fim\":\"2026-11-09\",\"grade\":{\"ci1\":[\"\"],\"ci3\":[\"\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP_INTRA_OK,\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 200 ] && ok "troca de turno exata cobre a faixa inteira e publica" || falha "troca de turno bloqueou indevidamente: HTTP $HTTP_STATUS $HTTP_BODY"
+
+# Dia fechado: mesma faixa configurada, ninguém escalado, nenhuma cobrança.
+gravar_params_loja '{"modelo":"5x2","expediente":{"1":false},"faixas":{"1":[{"funcao":"caixa","ini":"08:00","fim":"20:00","obrigatorio":2}]}}'
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-16\",\"fim\":\"2026-11-16\",\"grade\":{\"ci1\":[\"X\"],\"ci2\":[\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP_INTRA}" "$CSRF_A")
+echo "$R" | grep -q '"cobertura_bloqueios":0' && echo "$R" | grep -q '"dias_fechados":1' && ok "dia fechado não recebe falta de cobertura" || falha "dia fechado cobrou cobertura: $R"
+
+# MANIPULAÇÃO: faixa afrouxada no payload não pode liberar a publicação.
+gravar_params_loja "$PARAMS_INTRA"
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-09\",\"fim\":\"2026-11-09\",\"grade\":{\"ci1\":[\"\"],\"ci2\":[\"\"]},\"parametros\":{\"modelo\":\"5x2\",\"faixas\":{\"1\":[]},\"expediente\":{\"1\":false}},\"snapshot\":$SNAP_INTRA,\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "14:00–20:00" && ok "faixa e expediente do payload não enfraquecem o bloqueio" || falha "payload afrouxou a cobertura: HTTP $HTTP_STATUS $HTTP_BODY"
+
+# A versão publicada anterior permanece intacta após o bloqueio.
+PUB_INTRA=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT versao_publicada FROM escalas WHERE loja_id='$LOJA_A' AND inicio='2026-11-09';")
+[ -n "$PUB_INTRA" ] && ok "bloqueio de cobertura preserva a versão publicada" || falha "versão publicada perdida: '$PUB_INTRA'"
+
+# REPRODUÇÃO HISTÓRICA: a versão guarda as regras que valeram na validação, e
+# alterar a configuração da loja depois não reescreve o passado.
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-09\",\"fim\":\"2026-11-09\"}" "$CSRF_A")
+echo "$R" | grep -q 'regras_aplicadas' && ok "snapshot guarda as regras aplicadas na validação" || falha "snapshot sem regras aplicadas: $R"
+gravar_params_loja '{"modelo":"5x2","expediente":{"1":[{"ini":"06:00","fim":"23:00"}]},"faixas":{"1":[{"funcao":"balcao","ini":"06:00","fim":"23:00","obrigatorio":9}]}}'
+R2=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-09\",\"fim\":\"2026-11-09\"}" "$CSRF_A")
+echo "$R2" | grep -q '"funcao":"caixa"' && ok "análise histórica não depende da configuração futura da loja" || falha "histórico reescrito pela configuração nova: $R2"
+
 R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\"}" "$CSRF_A")
 echo "$R" | grep -q 'Pessoa Historica' && ok "snapshot recupera participante histórico" || falha "snapshot não recuperado: $R"
 R2=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\",\"grade\":{\"c1\":[\"\",\"X\"],\"c2\":[\"X\",\"\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO,\"idempotency_key\":\"$IDEMP\"}" "$CSRF_A")

@@ -19,6 +19,9 @@ jobs:
         run: npx eslint src/ testes/ || true
       - name: Suíte do motor
         run: node testes/executar.js
+      - name: Processamento da cobertura intradiária (20, 50 e 100 pessoas)
+        timeout-minutes: 10
+        run: node testes/bench-cobertura.js
 
   api:
     name: Backend PHP

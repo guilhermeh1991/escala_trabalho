@@ -234,8 +234,9 @@ function verificar(res, colabs, P, estadoInicial){
       {p: pisoDiaSem, tem: tot, disp: ativos.filter(c=>disp(c)).length, rotulo: 'equipe'},
     ].forEach(({p, tem, disp: d2, rotulo})=>{
       if(p == null || !(p > 0) || tem >= p) return;
-      if(d2 < p) add('R12-piso-impedimento-nota','—', `${dd(d)}: ${rotulo} ${tem}/${p} — mínimo obrigatório não alcançável (${d2} disponível(is))`);
-      else add('R12-piso-obrigatorio','—', `${dd(d)}: ${rotulo} ${tem}/${p} — abaixo do mínimo obrigatório da loja`);
+      // Piso obrigatório é violação mesmo sem gente disponível; a escassez entra
+      // no texto como informação, não como rebaixamento da regra.
+      add('R12-piso-obrigatorio','—', `${dd(d)}: ${rotulo} ${tem}/${p} — abaixo do mínimo obrigatório da loja${d2 < p ? ` (sem gente disponível: ${d2})` : ''}`);
     });
   });
 

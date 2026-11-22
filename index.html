@@ -721,6 +721,12 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           <div style="max-height:260px;overflow:auto"><table class="simples" id="tab-resumo"></table></div>
         </div>
       </div>
+
+      <div class="painel naoimprime" id="painel-intradiaria" style="display:none">
+        <h2>Cobertura por faixa de horário</h2>
+        <p class="desc" id="cont-intradiaria"></p>
+        <div style="max-height:320px;overflow:auto"><table class="simples" id="tab-intradiaria"></table></div>
+      </div>
     </section>
 
     <!-- EQUIPE -->
@@ -845,6 +851,34 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           </div>
         </div>
 
+        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:24px 0 8px">Horário de funcionamento</h3>
+        <p class="desc" style="margin-bottom:12px">Em que horas a loja abre em cada dia. Deixe em branco para não controlar horário nesse dia; marque <b>fechada</b> e o dia deixa de receber cobrança de cobertura. Os mínimos diários acima continuam valendo como estão — eles contam pessoas no dia, não presença contínua durante o expediente.</p>
+        <div id="expediente-dias" class="dias-semana"></div>
+
+        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:24px 0 8px">Demanda por faixa de horário</h3>
+        <p class="desc" style="margin-bottom:12px">Quantas pessoas de cada função a loja precisa ter <b>presentes</b> em cada intervalo. É o que enxerga o buraco do almoço: duas pessoas no dia inteiro cumprem o mínimo diário e ainda assim deixam o caixa sozinho das 12h às 13h. A meta gera aviso; o obrigatório impede publicar.</p>
+        <table class="simples" id="tab-faixas"></table>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+          <div><label style="font-size:11px;color:var(--fraco)">Dia</label><br>
+            <select id="fx-dia" class="inp" style="min-width:120px"></select></div>
+          <div><label style="font-size:11px;color:var(--fraco)">Função</label><br>
+            <select id="fx-funcao" class="inp" style="min-width:130px">
+              <option value="caixa">Caixa</option>
+              <option value="balcao">Balcão</option>
+              <option value="farmaceutico">Farmacêutico</option>
+              <option value="subgerente">Subgerente</option>
+            </select></div>
+          <div><label style="font-size:11px;color:var(--fraco)">Das</label><br>
+            <input type="time" id="fx-ini" class="inp" style="min-width:95px"></div>
+          <div><label style="font-size:11px;color:var(--fraco)">Até</label><br>
+            <input type="time" id="fx-fim" class="inp" style="min-width:95px"></div>
+          <div><label style="font-size:11px;color:var(--fraco)">Meta</label><br>
+            <input type="number" id="fx-meta" class="inp" min="0" max="20" style="min-width:70px" placeholder="—"></div>
+          <div><label style="font-size:11px;color:var(--fraco)">Obrigatório</label><br>
+            <input type="number" id="fx-obr" class="inp" min="0" max="20" style="min-width:90px" placeholder="—"></div>
+          <button class="btn" id="btn-add-faixa" type="button">Adicionar faixa</button>
+        </div>
+
         <div class="params-actions">
           <button class="btn" id="btn-salvar-params">Salvar parâmetros</button>
           <span class="chip" id="status-params"></span>
@@ -916,6 +950,322 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
 </div>
 
 <script>
+/* =========================================================================
+   COBERTURA INTRADIÁRIA POR FUNÇÃO
+
+   O mínimo diário responde "quantas pessoas trabalharam neste dia". Não
+   responde "houve alguém no balcão às 14h". Uma loja pode ter 9 pessoas no dia
+   e mesmo assim ficar sem caixa das 12h às 13h, porque todo mundo almoça junto.
+   Este módulo responde a segunda pergunta.
+
+   CRITÉRIOS DE CÁLCULO
+
+   1. Presença vem da jornada efetivamente cadastrada: modelo estruturado,
+      ajuste manual de horário na grade, ou o texto legado quando traz entrada
+      e saída. Nada é inventado — sem dado, o resultado é "não verificável",
+      não zero e não "tudo certo".
+
+   2. Intervalos são descontados da presença. Um intervalo declarado vira
+      ausência naquele trecho; intervalo desconhecido é registrado como lacuna.
+
+   3. Os limites são semiabertos: [entrada, saída). Quem sai 15:00 não conta
+      às 15:00; quem entra 15:00 conta. Assim a troca de turno sem lacuna não
+      gera dupla contagem nem buraco falso.
+
+   4. A linha do tempo é segmentada exatamente nos instantes em que presença ou
+      demanda mudam — nenhuma grade fixa de 30 ou 60 minutos. Uma lacuna de 10
+      minutos aparece como lacuna de 10 minutos.
+
+   5. Turnos que atravessam a meia-noite contribuem para os dois dias: o trecho
+      após 24h do dia anterior é transportado para o começo do dia seguinte.
+
+   6. Cada pessoa é contada uma única vez no total do período, mesmo quando
+      atende a várias funções. Ver `atendePor` abaixo.
+   ========================================================================= */
+
+const DIA_MIN = 1440;
+
+/* ---------- utilidades de tempo ---------- */
+function minutosDe(hora) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hora || '').trim());
+  if (!m) return null;
+  const h = +m[1], min = +m[2];
+  return (h >= 0 && h < 24 && min >= 0 && min < 60) ? h * 60 + min : null;
+}
+function horaDe(minutos) {
+  const n = ((minutos % DIA_MIN) + DIA_MIN) % DIA_MIN;
+  return String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+}
+/* Rótulo que preserva 24:00 como fim de dia em vez de voltar para 00:00. */
+function rotuloFim(minutos) {
+  return minutos >= DIA_MIN && minutos % DIA_MIN === 0 ? '24:00' : horaDe(minutos);
+}
+
+/* ---------- funções e competências (item 4) ----------
+   Quais cargos atendem cada função é configuração explícita da loja, nunca
+   dedução. Repositor e auxiliar não viram balcão por conta própria. */
+const FUNCOES_PADRAO = {
+  caixa:        { nome: 'Caixa',        cargos: ['CAIXA'] },
+  balcao:       { nome: 'Balcão',       cargos: ['BALCONISTA'] },
+  farmaceutico: { nome: 'Farmacêutico', cargos: ['FARMACEUTICO', 'FARMACÊUTICO', 'SUB/FARMA'] },
+  subgerente:   { nome: 'Subgerente',   cargos: ['SUBGERENTE', 'SUB/FARMA'] },
+};
+
+function normalizarCargo(v) {
+  return String(v || '').trim().toUpperCase();
+}
+
+/** Definição das funções desta loja, com o padrão como ponto de partida. */
+function funcoesDaLoja(P) {
+  const cfg = (P && P.funcoes) || null;
+  if (!cfg || typeof cfg !== 'object') return JSON.parse(JSON.stringify(FUNCOES_PADRAO));
+  const saida = {};
+  Object.keys(cfg).forEach(id => {
+    const f = cfg[id];
+    if (!f || typeof f !== 'object') return;
+    saida[id] = {
+      nome: String(f.nome || id),
+      cargos: Array.isArray(f.cargos) ? f.cargos.map(normalizarCargo) : [],
+    };
+  });
+  return Object.keys(saida).length ? saida : JSON.parse(JSON.stringify(FUNCOES_PADRAO));
+}
+
+/** A pessoa atende esta função? Comparação exata de cargo, sem heurística. */
+function atendePor(colab, funcao) {
+  const cargo = normalizarCargo(colab && colab.cargo);
+  if (!cargo) return false;
+  return (funcao.cargos || []).map(normalizarCargo).includes(cargo);
+}
+
+/* ---------- expediente da loja (item 2) ----------
+   Sem configuração, o dia inteiro é expediente: a cobertura intradiária só
+   passa a cobrar horário onde a loja declarou seu funcionamento. */
+function expedienteDoDia(P, diaSemana) {
+  const cfg = (P && P.expediente) || null;
+  if (!cfg || typeof cfg !== 'object') return null;      // não configurado
+  const doDia = cfg[String(diaSemana)] !== undefined ? cfg[String(diaSemana)] : cfg[diaSemana];
+  if (doDia === undefined || doDia === null) return null;
+  if (doDia === false || doDia === 'fechado') return { fechado: true, janelas: [] };
+  const lista = Array.isArray(doDia) ? doDia : [doDia];
+  const janelas = [];
+  lista.forEach(j => {
+    if (!j || typeof j !== 'object') return;
+    const ini = minutosDe(j.ini), fimBruto = minutosDe(j.fim);
+    if (ini == null || fimBruto == null) return;
+    // 00:00 como fim significa meia-noite do dia seguinte, não início do dia.
+    const fim = fimBruto <= ini ? fimBruto + DIA_MIN : fimBruto;
+    janelas.push({ ini, fim });
+  });
+  if (!janelas.length) return { fechado: true, janelas: [] };
+  return { fechado: false, janelas };
+}
+
+/* ---------- faixas de demanda (item 2) ----------
+   Cada faixa diz: neste intervalo, esta função precisa de tanta gente, sendo
+   tanto meta e tanto piso obrigatório. O mínimo diário existente continua
+   valendo como está — ele não vira exigência contínua do expediente inteiro. */
+function faixasDoDia(P, diaSemana) {
+  const cfg = (P && P.faixas) || null;
+  if (!cfg || typeof cfg !== 'object') return [];
+  const doDia = cfg[String(diaSemana)] !== undefined ? cfg[String(diaSemana)] : cfg[diaSemana];
+  const lista = Array.isArray(doDia) ? doDia : [];
+  const saida = [];
+  lista.forEach(f => {
+    if (!f || typeof f !== 'object') return;
+    const ini = minutosDe(f.ini), fimBruto = minutosDe(f.fim);
+    if (ini == null || fimBruto == null) return;
+    const fim = fimBruto <= ini ? fimBruto + DIA_MIN : fimBruto;
+    const meta = (f.meta == null || f.meta === '') ? null : Math.max(0, Number(f.meta));
+    const piso = (f.obrigatorio == null || f.obrigatorio === '') ? null : Math.max(0, Number(f.obrigatorio));
+    if (meta == null && piso == null) return;
+    saida.push({ funcao: String(f.funcao || ''), ini, fim, meta, piso });
+  });
+  return saida;
+}
+
+/* ---------- presença de uma pessoa num dia ----------
+   Devolve {trechos, lacuna, motivo}. `trechos` são intervalos [ini, fim) em
+   minutos a partir das 00:00 do dia, já descontados os intervalos. Pode passar
+   de 1440 quando a jornada atravessa a meia-noite. */
+function presencaDoDia(colab, indiceDia, res, opcoes) {
+  const codigo = String(((res.grid || {})[colab.id] || [])[indiceDia] || '');
+  if (['X', 'FC', 'F', 'AT', 'LC'].includes(codigo)) {
+    return { trechos: [], lacuna: false, motivo: 'folga-ou-ausencia' };
+  }
+  const leitor = (opcoes && opcoes.jornada) || null;
+  const dados = leitor ? leitor(colab, indiceDia, res) : null;
+  if (!dados || dados.entrada == null || dados.fim == null) {
+    return { trechos: [], lacuna: true, motivo: 'jornada-incompleta' };
+  }
+  const { entrada, fim, intervalos, intervaloDesconhecido } = dados;
+  if (fim <= entrada) return { trechos: [], lacuna: true, motivo: 'jornada-invalida' };
+
+  let trechos = [{ ini: entrada, fim }];
+  (intervalos || []).forEach(iv => {
+    if (iv.ini == null || iv.fim == null || iv.fim <= iv.ini) return;
+    const resto = [];
+    trechos.forEach(t => {
+      if (iv.fim <= t.ini || iv.ini >= t.fim) { resto.push(t); return; }
+      if (iv.ini > t.ini) resto.push({ ini: t.ini, fim: iv.ini });
+      if (iv.fim < t.fim) resto.push({ ini: iv.fim, fim: t.fim });
+    });
+    trechos = resto;
+  });
+  return {
+    trechos,
+    lacuna: !!intervaloDesconhecido,
+    motivo: intervaloDesconhecido ? 'intervalo-desconhecido' : null,
+  };
+}
+
+/* ---------- análise de um dia ---------- */
+function analisarDia(ctx) {
+  const { indiceDia, data, ativos, res, P, funcoes, opcoes } = ctx;
+  const diaSemana = data.getDay();
+  const expediente = expedienteDoDia(P, diaSemana);
+  const faixas = faixasDoDia(P, diaSemana);
+
+  if (expediente && expediente.fechado) {
+    // Loja fechada não recebe falta de cobertura (item 5).
+    return { dia: indiceDia, fechado: true, segmentos: [], alertas: [], lacunas: [] };
+  }
+  if (!faixas.length) {
+    return { dia: indiceDia, fechado: false, segmentos: [], alertas: [], lacunas: [], semFaixas: true };
+  }
+
+  /* Presença de cada pessoa, incluindo o que transborda do dia anterior. */
+  const presencas = [];
+  const lacunas = [];
+  ativos.forEach(c => {
+    const hoje = presencaDoDia(c, indiceDia, res, opcoes);
+    if (hoje.lacuna) lacunas.push({ colab: c.nome, motivo: hoje.motivo });
+    hoje.trechos.forEach(t => {
+      // Trecho dentro do dia; o excedente volta amanhã, não hoje.
+      const fim = Math.min(t.fim, DIA_MIN);
+      if (fim > t.ini) presencas.push({ id: c.id, nome: c.nome, cargo: c.cargo, ini: t.ini, fim });
+    });
+    if (indiceDia > 0) {
+      const ontem = presencaDoDia(c, indiceDia - 1, res, opcoes);
+      ontem.trechos.forEach(t => {
+        if (t.fim <= DIA_MIN) return;                 // não atravessou a meia-noite
+        const ini = Math.max(t.ini, DIA_MIN) - DIA_MIN;
+        const fim = t.fim - DIA_MIN;
+        if (fim > ini) presencas.push({ id: c.id, nome: c.nome, cargo: c.cargo, ini, fim, doDiaAnterior: true });
+      });
+    }
+  });
+
+  /* Pontos de corte: todo instante em que presença ou demanda muda. */
+  const cortes = new Set();
+  faixas.forEach(f => { cortes.add(f.ini); cortes.add(Math.min(f.fim, DIA_MIN)); });
+  presencas.forEach(p => { cortes.add(p.ini); cortes.add(p.fim); });
+  if (expediente) expediente.janelas.forEach(j => { cortes.add(j.ini); cortes.add(Math.min(j.fim, DIA_MIN)); });
+
+  const marcos = Array.from(cortes).filter(v => v >= 0 && v <= DIA_MIN).sort((a, b) => a - b);
+  const segmentos = [];
+  const alertas = [];
+
+  for (let k = 0; k < marcos.length - 1; k++) {
+    const ini = marcos[k], fim = marcos[k + 1];
+    if (fim <= ini) continue;
+    const dentroDoExpediente = !expediente || expediente.janelas.some(j => ini >= j.ini && fim <= Math.min(j.fim, DIA_MIN));
+    if (expediente && !dentroDoExpediente) continue;   // fora do expediente não se cobra cobertura
+
+    /* Semiaberto: quem sai exatamente em `ini` não está presente no segmento. */
+    const presentes = presencas.filter(p => p.ini <= ini && p.fim >= fim);
+    const idsNoSegmento = new Set(presentes.map(p => p.id));
+
+    faixas.forEach(f => {
+      const fFim = Math.min(f.fim, DIA_MIN);
+      if (f.ini > ini || fFim < fim) return;           // faixa não cobre este segmento
+      const funcao = funcoes[f.funcao];
+      if (!funcao) return;
+      const escalados = presentes.filter(p => atendePor(p, funcao));
+      const quantos = new Set(escalados.map(p => p.id)).size;
+      const necessario = f.piso != null ? f.piso : f.meta;
+      const deficit = Math.max(0, necessario - quantos);
+      const seg = {
+        dia: indiceDia, funcao: f.funcao, funcaoNome: funcao.nome,
+        ini, fim, iniTexto: horaDe(ini), fimTexto: rotuloFim(fim),
+        escalados: quantos, meta: f.meta, piso: f.piso, deficit,
+        pessoas: escalados.map(p => p.nome),
+        totalPresentes: idsNoSegmento.size,
+      };
+      if (f.piso != null && quantos < f.piso) {
+        seg.situacao = 'bloqueio';
+        alertas.push({
+          colab: '—', tipo: 'cobertura-intradiaria', categoria: 'obrigatoria',
+          obrigatoria: true, nivel: 'regra', base: 'politica-da-casa', dia: indiceDia,
+          funcao: f.funcao, ini, fim,
+          txt: `${('0' + data.getDate()).slice(-2)}/${('0' + (data.getMonth() + 1)).slice(-2)} ${horaDe(ini)}–${rotuloFim(fim)}: ${funcao.nome} ${quantos}/${f.piso} — abaixo do mínimo obrigatório da faixa`,
+        });
+      } else if (f.meta != null && quantos < f.meta) {
+        seg.situacao = 'aviso';
+        alertas.push({
+          colab: '—', tipo: 'cobertura-intradiaria-meta', categoria: 'preferencia',
+          obrigatoria: false, nivel: 'regra', base: 'politica-da-casa', dia: indiceDia,
+          funcao: f.funcao, ini, fim,
+          txt: `${('0' + data.getDate()).slice(-2)}/${('0' + (data.getMonth() + 1)).slice(-2)} ${horaDe(ini)}–${rotuloFim(fim)}: ${funcao.nome} ${quantos}/${f.meta} — abaixo da meta da faixa`,
+        });
+      } else {
+        seg.situacao = 'ok';
+      }
+      segmentos.push(seg);
+    });
+  }
+
+  return { dia: indiceDia, fechado: false, segmentos, alertas, lacunas };
+}
+
+/**
+ * Analisa a cobertura intradiária de todo o período.
+ * @param res    {days, grid, ativos, params, horas}
+ * @param colabs lista de colaboradores
+ * @param P      parâmetros da loja (expediente, faixas, funcoes)
+ * @param opcoes {jornada: (colab, i, res) => {entrada, fim, intervalos, intervaloDesconhecido}}
+ */
+function analisarCobertura(res, colabs, P, opcoes) {
+  const days = res.days || [];
+  const ativos = (colabs || []).filter(c => c.ativo !== false);
+  const funcoes = funcoesDaLoja(P);
+  const dias = [];
+  const alertas = [];
+  const lacunas = [];
+
+  days.forEach((data, i) => {
+    const r = analisarDia({ indiceDia: i, data, ativos, res, P, funcoes, opcoes });
+    dias.push(r);
+    r.alertas.forEach(a => alertas.push(a));
+    (r.lacunas || []).forEach(l => lacunas.push(Object.assign({ dia: i }, l)));
+  });
+
+  const configurado = dias.some(d => !d.semFaixas && !d.fechado);
+  const bloqueios = alertas.filter(a => a.obrigatoria);
+  const avisos = alertas.filter(a => !a.obrigatoria);
+
+  /* Lacuna não vira passe livre: quando há bloqueio de faixa e também falta
+     dado, o bloqueio permanece e a lacuna é reportada à parte (item 5). */
+  return {
+    configurado,
+    dias,
+    alertas,
+    lacunas,
+    resumo: {
+      configurado,
+      segmentos: dias.reduce((n, d) => n + d.segmentos.length, 0),
+      bloqueios: bloqueios.length,
+      avisos: avisos.length,
+      lacunas: lacunas.length,
+      diasFechados: dias.filter(d => d.fechado).length,
+      validacaoParcial: lacunas.length > 0,
+    },
+  };
+}
+
+
+
+
 /* ============================================================
    MOTOR DE ESCALA - regras de folga
    ============================================================ */
@@ -1010,6 +1360,45 @@ function saidaDoDia(c, i, res){
   const fim=fimDoDiaMinutos(c,i,res);
   return fim==null ? null : horaDosMinutos(fim);
 }
+/* Dados de jornada para a análise intradiária. Distingue três situações que não
+   podem ser confundidas: jornada ausente (não dá para calcular presença),
+   intervalo declarado como vazio (a pessoa não tem intervalo — presença cheia) e
+   intervalo desconhecido (há almoço em algum lugar, mas não sabemos onde).
+   Nunca se inventa um horário de intervalo. */
+function jornadaParaCobertura(c, i, res){
+  const entradaTexto = entradaDoDia(c, i, res);
+  const entrada = minutosDaHora(entradaTexto);
+  const fim = fimDoDiaMinutos(c, i, res);
+  if(entrada == null || fim == null) return null;
+
+  const j = c && c.jornada;
+  let intervalos = null, intervaloDesconhecido = false;
+  if(j && Array.isArray(j.intervalos)){
+    // Lista explícita, inclusive vazia: vazia significa "sem intervalo".
+    intervalos = j.intervalos.map(iv=>{
+      const ini = minutosDaHora(iv && iv.ini), f = minutosDaHora(iv && iv.fim);
+      if(ini == null || f == null) return null;
+      // Deslocamento do ajuste manual: o intervalo acompanha a entrada do dia.
+      const base = minutosDaHora((jornadaPadrao(c)||{}).entrada);
+      const desloca = (base != null && entrada != null) ? entrada - base : 0;
+      const a = ini + desloca, b = (f <= ini ? f + 1440 : f) + desloca;
+      return {ini:a, fim:b};
+    }).filter(Boolean);
+    if(intervalos.length !== j.intervalos.length) intervaloDesconhecido = true;
+  } else if(j && Number(j.intervalo) > 0){
+    // Sabemos que existe intervalo e quanto dura, mas não em que horário.
+    intervalos = [];
+    intervaloDesconhecido = true;
+  } else if(j && (j.intervalo === 0 || j.intervalo === '0')){
+    intervalos = [];                       // declarado sem intervalo
+  } else {
+    // Jornada sem informação de intervalo: desconhecido, não "sem intervalo".
+    intervalos = [];
+    intervaloDesconhecido = true;
+  }
+  return {entrada, fim, intervalos, intervaloDesconhecido};
+}
+
 function intervaloEntreJornadas(c, i, res){
   const fim=fimDoDiaMinutos(c,i,res), inicio=minutosDaHora(entradaDoDia(c,i+1,res));
   if(fim==null || inicio==null) return null;
@@ -2068,14 +2457,14 @@ function validar(res, colabs){
       {piso:pisoDiaSem, tem:total, disp:totDisp, rotulo:'equipe'},
     ].forEach(({piso, tem, disp, rotulo})=>{
       if(piso == null || !(piso > 0) || tem >= piso) return;
+      /* Piso obrigatório bloqueia mesmo sem gente disponível: escassez é
+         informação operacional, não rebaixamento da regra. */
       const impossivel = disp < piso;
       alertas.push({colab:'—', tipo:'cobertura-minima',
-        categoria: impossivel ? 'observacao' : 'obrigatoria',
-        obrigatoria: !impossivel, impedimento: impossivel,
-        nivel: impossivel ? 'nota' : 'regra', base:'politica-da-casa', dia:i,
-        txt:`${ddmm(d)}: ${rotulo} ${tem}/${piso}${impossivel
-          ? ` — mínimo obrigatório não alcançável (${disp} disponível(is))`
-          : ' — abaixo do mínimo obrigatório da loja'}`});
+        categoria:'obrigatoria', obrigatoria:true, impedimento:impossivel,
+        nivel:'regra', base:'politica-da-casa', dia:i,
+        txt:`${ddmm(d)}: ${rotulo} ${tem}/${piso} — abaixo do mínimo obrigatório da loja${
+          impossivel ? ` (sem gente disponível: ${disp})` : ''}`});
     });
 
     if(ativos.length > 0 && total === 0){
@@ -2098,6 +2487,25 @@ function validar(res, colabs){
     };
   });
 
+  /* Cobertura intradiária: só roda quando a loja configurou faixas. O módulo é
+     carregado por require no Node e por escopo global no app montado. */
+  let intra = null;
+  try {
+    const mod = (typeof analisarCobertura === 'function')
+      ? {analisarCobertura}
+      : (typeof require === 'function' ? require('./cobertura.js') : null);
+    if(mod) intra = mod.analisarCobertura(res, colabs, P, {jornada: jornadaParaCobertura});
+  } catch(_e){ intra = null; }
+  if(intra){
+    intra.alertas.forEach(a=>alertas.push(a));
+    intra.lacunas.forEach(l=>alertas.push({
+      colab: l.colab, tipo:'cobertura-intradiaria-lacuna', categoria:'observacao',
+      obrigatoria:false, nivel:'nota', lacuna:true, dia:l.dia,
+      txt: l.motivo==='intervalo-desconhecido'
+        ? 'Intervalo não informado: a presença durante o intervalo não pôde ser conferida.'
+        : 'Jornada sem entrada e saída completas: a presença no dia não pôde ser conferida.'}));
+  }
+
   const obrigatorias = alertas.filter(a=>a.obrigatoria).length;
   const preferencias = alertas.filter(a=>!a.obrigatoria && a.nivel!=='nota').length;
   const observacoes = alertas.filter(a=>a.nivel==='nota').length;
@@ -2108,6 +2516,7 @@ function validar(res, colabs){
     alertas,
     porColab,
     cobertura,
+    coberturaIntradiaria: intra,
     resumo:{
       obrigatorias,
       preferencias,
@@ -2116,12 +2525,17 @@ function validar(res, colabs){
       lacunas,
       feridas: obrigatorias + preferencias,
       notas: observacoes,
+      coberturaConfigurada: intra ? intra.resumo.configurado : false,
+      coberturaBloqueios: intra ? intra.resumo.bloqueios : 0,
+      coberturaAvisos: intra ? intra.resumo.avisos : 0,
+      coberturaLacunas: intra ? intra.resumo.lacunas : 0,
+      diasFechados: intra ? intra.resumo.diasFechados : 0,
       podePublicar: obrigatorias === 0
     }
   };
 }
 
-if(typeof module !== 'undefined' && typeof module.exports !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, semanasDoPeriodo, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, entradaDoDia, fimDoDiaMinutos, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};
+if(typeof module !== 'undefined' && typeof module.exports !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, semanasDoPeriodo, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, jornadaParaCobertura, entradaDoDia, fimDoDiaMinutos, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};
 
 
 /* =========================================================================
@@ -3807,6 +4221,77 @@ function pintarMinDias(){
      </div>`).join('');
   $$('#min-dias input').forEach(el=>el.onchange=()=>{});
 }
+/* ---------- expediente e faixas de demanda ---------- */
+function pintarExpediente(){
+  const p = loja().params;
+  const ex = p.expediente || {};
+  const FDS = new Set([0,6]);
+  $('#expediente-dias').innerHTML = DIAS_SEM.map((d,k)=>{
+    const v = ex[String(k)] !== undefined ? ex[String(k)] : ex[k];
+    const fechada = v === false || v === 'fechado';
+    const janela = Array.isArray(v) ? v[0] : (v && typeof v === 'object' ? v : null);
+    return `<div class="ds-cel${FDS.has(k)?' fds':''}">
+       <div class="ds-nome">${d}</div>
+       <input type="time" data-exp-ini="${k}" value="${janela && janela.ini ? janela.ini : ''}" ${fechada?'disabled':''} style="width:100%;margin-bottom:3px">
+       <input type="time" data-exp-fim="${k}" value="${janela && janela.fim ? janela.fim : ''}" ${fechada?'disabled':''} style="width:100%;margin-bottom:3px">
+       <label style="font-size:10px;display:flex;gap:4px;align-items:center;justify-content:center">
+         <input type="checkbox" data-exp-fechada="${k}" ${fechada?'checked':''}> fechada</label>
+     </div>`;
+  }).join('');
+  $$('#expediente-dias input[data-exp-fechada]').forEach(el=>{
+    el.onchange = ()=>{
+      const k = el.dataset.expFechada;
+      const trava = el.checked;
+      $(`#expediente-dias input[data-exp-ini="${k}"]`).disabled = trava;
+      $(`#expediente-dias input[data-exp-fim="${k}"]`).disabled = trava;
+    };
+  });
+}
+function lerExpediente(){
+  const ex = {};
+  DIAS_SEM.forEach((_d,k)=>{
+    const fechada = $(`#expediente-dias input[data-exp-fechada="${k}"]`);
+    if(fechada && fechada.checked){ ex[String(k)] = false; return; }
+    const ini = ($(`#expediente-dias input[data-exp-ini="${k}"]`)||{}).value || '';
+    const fim = ($(`#expediente-dias input[data-exp-fim="${k}"]`)||{}).value || '';
+    // Sem horário informado o dia não entra: ausência significa "não controlado".
+    if(ini && fim) ex[String(k)] = [{ini, fim}];
+  });
+  return Object.keys(ex).length ? ex : null;
+}
+
+const NOME_FUNCAO = {caixa:'Caixa', balcao:'Balcão', farmaceutico:'Farmacêutico', subgerente:'Subgerente'};
+function pintarFaixas(){
+  const p = loja().params;
+  const fx = p.faixas || {};
+  if($('#fx-dia') && !$('#fx-dia').options.length)
+    $('#fx-dia').innerHTML = DIAS_SEM.map((d,k)=>`<option value="${k}">${d}</option>`).join('');
+  let h = '<thead><tr><th>Dia</th><th>Função</th><th>Faixa</th><th>Meta</th><th>Obrigatório</th><th></th></tr></thead><tbody>';
+  let total = 0;
+  DIAS_SEM.forEach((nome,k)=>{
+    const lista = fx[String(k)] || fx[k] || [];
+    lista.forEach((f,idx)=>{
+      total++;
+      h += `<tr><td>${nome}</td><td>${esc(NOME_FUNCAO[f.funcao]||f.funcao)}</td>
+        <td class="mono">${esc(f.ini)}–${esc(f.fim)}</td>
+        <td class="mono">${f.meta!=null&&f.meta!==''?f.meta:'—'}</td>
+        <td class="mono">${f.obrigatorio!=null&&f.obrigatorio!==''?f.obrigatorio:'—'}</td>
+        <td><button class="btn alt" type="button" data-rm-faixa="${k}:${idx}">remover</button></td></tr>`;
+    });
+  });
+  if(!total) h += '<tr><td colspan="6" style="color:var(--fraco)">Nenhuma faixa configurada. A cobertura por horário fica desligada.</td></tr>';
+  $('#tab-faixas').innerHTML = h + '</tbody>';
+  $$('#tab-faixas button[data-rm-faixa]').forEach(b=>{
+    b.onclick = ()=>{
+      const [k, idx] = b.dataset.rmFaixa.split(':');
+      const lista = (loja().params.faixas||{})[k] || [];
+      lista.splice(+idx, 1);
+      if(!lista.length) delete loja().params.faixas[k];
+      pintarFaixas();
+    };
+  });
+}
+
 function lerMinDias(){
   const md = {};
   $$('#min-dias input').forEach(el=>{ md[el.dataset.md] = +el.value || 0; });
@@ -3814,6 +4299,8 @@ function lerMinDias(){
 }
 function pintarParams(){
   pintarMinDias();
+  pintarExpediente();
+  pintarFaixas();
   const p = loja().params;
   $('#r-modelo').value = p.modelo || (p.folgasSemana===1 ? '6x1' : '5x2');
   $('#r-ciclo').value=p.cicloDomingo; avisoCiclo(); $('#r-maxseq').value=p.maxSeq;
@@ -3829,6 +4316,31 @@ function pintarParams(){
   piso('#r-minsubger-obr', p.minSubgerObrigatorio);
 }
 $('#r-ciclo').onchange = avisoCiclo;
+$('#btn-add-faixa').onclick = ()=>{
+  const dia = $('#fx-dia').value, funcao = $('#fx-funcao').value;
+  const ini = $('#fx-ini').value, fim = $('#fx-fim').value;
+  const meta = $('#fx-meta').value.trim(), obr = $('#fx-obr').value.trim();
+  if(!ini || !fim){
+    $('#status-params').textContent = 'Informe o início e o fim da faixa.';
+    $('#status-params').className = 'chip mal';
+    return;
+  }
+  if(meta === '' && obr === ''){
+    $('#status-params').textContent = 'Informe a meta, o obrigatório, ou os dois.';
+    $('#status-params').className = 'chip mal';
+    return;
+  }
+  const p = loja().params;
+  p.faixas = p.faixas || {};
+  p.faixas[dia] = p.faixas[dia] || [];
+  const nova = {funcao, ini, fim};
+  if(meta !== '') nova.meta = Math.max(0, +meta);
+  if(obr !== '') nova.obrigatorio = Math.max(0, +obr);
+  p.faixas[dia].push(nova);
+  $('#status-params').textContent = 'Faixa adicionada. Salve os parâmetros para gravar.';
+  $('#status-params').className = 'chip';
+  pintarFaixas();
+};
 $('#btn-salvar-params').onclick = async ()=>{
   const modelo = $('#r-modelo').value;
   const paramsAnteriores = Object.assign({}, loja().params);
@@ -3844,6 +4356,11 @@ $('#btn-salvar-params').onclick = async ()=>{
     .forEach(([chave, sel])=>{ const v = lerPiso(sel); if(v!==null) loja().params[chave] = v; });
   if(paramsAnteriores.minDiaObrigatorio) loja().params.minDiaObrigatorio = paramsAnteriores.minDiaObrigatorio;
   if(paramsAnteriores.perfis) loja().params.perfis = paramsAnteriores.perfis;
+  if(paramsAnteriores.funcoes) loja().params.funcoes = paramsAnteriores.funcoes;
+  const expediente = lerExpediente();
+  if(expediente) loja().params.expediente = expediente;
+  if(paramsAnteriores.faixas && Object.keys(paramsAnteriores.faixas).length)
+    loja().params.faixas = paramsAnteriores.faixas;
   await store.set('escala:lojas', S.lojas);
   $('#status-params').textContent='Parâmetros salvos'; $('#status-params').className='chip ok';
   setTimeout(()=>$('#status-params').textContent='',2500);
@@ -5312,6 +5829,78 @@ function pintarGrade(){
       <td class="mono">${v.pior}</td><td><span class="chip ${ok?'ok':'mal'}">${ok?'ok':v.av.length+' ajuste(s)'}</span></td></tr>`;
   });
   $('#tab-resumo').innerHTML = r+'</tbody>';
+
+  /* Cobertura por faixa de horário. Só aparece quando a loja configurou faixas;
+     sem configuração o painel fica oculto e nada muda na tela. */
+  (function pintarIntradiaria(){
+    const painel = $('#painel-intradiaria');
+    const intra = S.val.coberturaIntradiaria;
+    if(!painel) return;
+    if(!intra || !intra.resumo.configurado){ painel.style.display='none'; return; }
+    painel.style.display='';
+
+    const linhas = [];
+    intra.dias.forEach(d=>{
+      if(d.fechado){
+        linhas.push({dia:d.dia, fechado:true});
+        return;
+      }
+      // Só o que exige atenção: segmento em ordem não vira linha de tabela.
+      d.segmentos.filter(s=>s.situacao!=='ok').forEach(s=>linhas.push(s));
+    });
+
+    const lacunasPorDia = {};
+    (intra.lacunas||[]).forEach(l=>{ (lacunasPorDia[l.dia] = lacunasPorDia[l.dia] || []).push(l); });
+
+    const partes = [];
+    if(intra.resumo.bloqueios) partes.push(`${intra.resumo.bloqueios} faixa(s) abaixo do mínimo obrigatório`);
+    if(intra.resumo.avisos) partes.push(`${intra.resumo.avisos} abaixo da meta`);
+    if(intra.resumo.lacunas) partes.push(`${intra.resumo.lacunas} sem dado para conferir`);
+    if(intra.resumo.diasFechados) partes.push(`${intra.resumo.diasFechados} dia(s) fechado(s)`);
+    $('#cont-intradiaria').textContent = partes.length
+      ? `${partes.join(' · ')}. Clique na linha para ver o dia na escala.`
+      : 'Todas as faixas configuradas estão cobertas no período.';
+
+    let h = '<thead><tr><th>Dia</th><th>Faixa</th><th>Função</th><th>Necessário</th><th>Escalado</th><th>Déficit</th><th>Situação</th></tr></thead><tbody>';
+    if(!linhas.length && !Object.keys(lacunasPorDia).length){
+      h += '<tr><td colspan="7" style="color:var(--v-fg)">Nenhuma faixa descoberta.</td></tr>';
+    }
+    linhas.forEach(s=>{
+      const d = S.res.days[s.dia];
+      const dia = `${ddmm(d)} ${DIA_ABREV[d.getDay()]}`;
+      if(s.fechado){
+        h += `<tr data-dia="${s.dia}" class="linha-intra"><td class="mono">${dia}</td><td colspan="5" style="color:var(--fraco)">Loja fechada</td>
+          <td><span class="chip">Informação</span></td></tr>`;
+        return;
+      }
+      const necessario = s.piso != null ? s.piso : s.meta;
+      const rotulo = s.piso != null ? 'Bloqueio' : 'Aviso';
+      const classe = s.piso != null ? 'mal' : '';
+      h += `<tr data-dia="${s.dia}" class="linha-intra" title="${esc((s.pessoas||[]).join(', ')) || 'ninguém no horário'}">
+        <td class="mono">${dia}</td><td class="mono">${s.iniTexto}–${s.fimTexto}</td><td>${esc(s.funcaoNome)}</td>
+        <td class="mono">${necessario}${s.piso!=null?' (obrigatório)':' (meta)'}</td>
+        <td class="mono">${s.escalados}</td><td class="mono">${s.deficit}</td>
+        <td><span class="chip ${classe}">${rotulo}</span></td></tr>`;
+    });
+    Object.keys(lacunasPorDia).forEach(iDia=>{
+      const d = S.res.days[iDia];
+      const quem = lacunasPorDia[iDia].map(l=>l.colab).join(', ');
+      h += `<tr data-dia="${iDia}" class="linha-intra"><td class="mono">${ddmm(d)} ${DIA_ABREV[d.getDay()]}</td>
+        <td colspan="4" style="color:var(--fraco)">Sem jornada ou intervalo informado: ${esc(quem)}</td>
+        <td class="mono">—</td><td><span class="chip">Informação insuficiente</span></td></tr>`;
+    });
+    $('#tab-intradiaria').innerHTML = h + '</tbody>';
+
+    // Localizar o trecho na escala: leva à coluna do dia correspondente.
+    $('#tab-intradiaria').querySelectorAll('tr.linha-intra').forEach(tr=>{
+      tr.style.cursor = 'pointer';
+      tr.onclick = ()=>{
+        const i = +tr.dataset.dia;
+        const col = $(`#grade td.cel[data-i="${i}"], #grade th[data-i="${i}"]`);
+        if(col && col.scrollIntoView) col.scrollIntoView({block:'nearest', inline:'center', behavior:'smooth'});
+      };
+    });
+  })();
 
   // faixa de cobertura
   const furos = cob.filter(c=>c.falta.length).length;

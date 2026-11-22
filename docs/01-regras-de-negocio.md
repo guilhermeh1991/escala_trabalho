@@ -190,6 +190,65 @@ distinção entre violação e impossibilidade que a
 [decisão 0005](decisoes/0005-verificador-independente.md) exigiu para o
 farmacêutico: cobrar o impossível treina a equipe a ignorar alerta.
 
+## 8c. Cobertura por faixa de horário
+
+O mínimo diário responde "quantas pessoas trabalharam neste dia". Não responde
+"havia alguém no caixa às 12h30". Uma loja pode ter nove pessoas no dia e ficar
+sem caixa durante o almoço, porque todas saem juntas.
+
+A cobertura intradiária responde a segunda pergunta. **É configuração opcional
+por loja**: sem faixas declaradas, nada muda e o mínimo diário segue valendo
+exatamente como está. Um mínimo diário nunca vira exigência contínua do
+expediente inteiro por conta própria.
+
+### Configuração
+
+| Chave | O que é |
+|---|---|
+| `expediente` | por dia da semana: janelas de funcionamento, ou `false` para fechado |
+| `faixas` | por dia da semana: lista de `{funcao, ini, fim, meta, obrigatorio}` |
+| `funcoes` | quais cargos atendem cada função |
+
+`meta` gera aviso; `obrigatorio` impede publicar. Fora do expediente e em dia
+fechado não há cobrança de cobertura.
+
+### Critérios de cálculo
+
+1. **Presença vem do que está cadastrado**: jornada estruturada, ajuste manual
+   de horário na grade, ou o texto legado quando traz entrada e saída. Nada é
+   inventado.
+2. **Intervalos são descontados.** Quem está no almoço não está no balcão.
+3. **Limites semiabertos `[entrada, saída)`.** Quem sai às 14:00 não conta às
+   14:00; quem entra às 14:00 conta. Assim a troca de turno exata não cria
+   buraco falso nem conta a mesma vaga duas vezes.
+4. **Segmentação nos instantes de mudança**, não em grade fixa de 30 ou 60
+   minutos. Uma lacuna de 10 minutos aparece como lacuna de 10 minutos.
+5. **Meia-noite**: o turno que termina às 02:00 contribui para o dia seguinte.
+6. **Cada pessoa conta uma vez.** Quem acumula competências (`SUB/FARMA` atende
+   farmacêutico e subgerente) satisfaz as duas funções sendo uma pessoa só; o
+   total de presentes no segmento não a duplica.
+
+### Cargos e funções
+
+Quais cargos atendem cada função é declaração explícita da loja. **Repositor e
+auxiliar não contam como balcão** a menos que a loja os inclua em
+`funcoes.balcao.cargos`. O padrão cobre caixa, balcão, farmacêutico e
+subgerente com os cargos de mesmo nome.
+
+### Dados faltantes
+
+Três situações distintas, que o sistema não confunde:
+
+| Situação | Tratamento |
+|---|---|
+| Jornada sem entrada e saída | lacuna: presença não verificável |
+| `intervalos: []` (lista vazia) | sem intervalo — presença cheia |
+| Duração de intervalo sem horário | lacuna: não se inventa o horário do almoço |
+
+Lacuna **não contorna bloqueio**: se a faixa está descoberta por quem tem dado
+conhecido, o bloqueio permanece e a lacuna é reportada à parte. A validação
+fica marcada como parcial.
+
 ## 9. Folga fixa
 
 Por colaborador, opcional. No 6x1 é a folga da semana; no 5x2 é o par que passa

@@ -594,6 +594,12 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           <div style="max-height:260px;overflow:auto"><table class="simples" id="tab-resumo"></table></div>
         </div>
       </div>
+
+      <div class="painel naoimprime" id="painel-intradiaria" style="display:none">
+        <h2>Cobertura por faixa de horário</h2>
+        <p class="desc" id="cont-intradiaria"></p>
+        <div style="max-height:320px;overflow:auto"><table class="simples" id="tab-intradiaria"></table></div>
+      </div>
     </section>
 
     <!-- EQUIPE -->
@@ -716,6 +722,34 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <label>Subgerentes (mínimo obrigatório)</label>
             <input type="number" id="r-minsubger-obr" class="inp" min="0" max="4" placeholder="sem piso">
           </div>
+        </div>
+
+        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:24px 0 8px">Horário de funcionamento</h3>
+        <p class="desc" style="margin-bottom:12px">Em que horas a loja abre em cada dia. Deixe em branco para não controlar horário nesse dia; marque <b>fechada</b> e o dia deixa de receber cobrança de cobertura. Os mínimos diários acima continuam valendo como estão — eles contam pessoas no dia, não presença contínua durante o expediente.</p>
+        <div id="expediente-dias" class="dias-semana"></div>
+
+        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:24px 0 8px">Demanda por faixa de horário</h3>
+        <p class="desc" style="margin-bottom:12px">Quantas pessoas de cada função a loja precisa ter <b>presentes</b> em cada intervalo. É o que enxerga o buraco do almoço: duas pessoas no dia inteiro cumprem o mínimo diário e ainda assim deixam o caixa sozinho das 12h às 13h. A meta gera aviso; o obrigatório impede publicar.</p>
+        <table class="simples" id="tab-faixas"></table>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+          <div><label style="font-size:11px;color:var(--fraco)">Dia</label><br>
+            <select id="fx-dia" class="inp" style="min-width:120px"></select></div>
+          <div><label style="font-size:11px;color:var(--fraco)">Função</label><br>
+            <select id="fx-funcao" class="inp" style="min-width:130px">
+              <option value="caixa">Caixa</option>
+              <option value="balcao">Balcão</option>
+              <option value="farmaceutico">Farmacêutico</option>
+              <option value="subgerente">Subgerente</option>
+            </select></div>
+          <div><label style="font-size:11px;color:var(--fraco)">Das</label><br>
+            <input type="time" id="fx-ini" class="inp" style="min-width:95px"></div>
+          <div><label style="font-size:11px;color:var(--fraco)">Até</label><br>
+            <input type="time" id="fx-fim" class="inp" style="min-width:95px"></div>
+          <div><label style="font-size:11px;color:var(--fraco)">Meta</label><br>
+            <input type="number" id="fx-meta" class="inp" min="0" max="20" style="min-width:70px" placeholder="—"></div>
+          <div><label style="font-size:11px;color:var(--fraco)">Obrigatório</label><br>
+            <input type="number" id="fx-obr" class="inp" min="0" max="20" style="min-width:90px" placeholder="—"></div>
+          <button class="btn" id="btn-add-faixa" type="button">Adicionar faixa</button>
         </div>
 
         <div class="params-actions">
@@ -1008,6 +1042,77 @@ function pintarMinDias(){
      </div>`).join('');
   $$('#min-dias input').forEach(el=>el.onchange=()=>{});
 }
+/* ---------- expediente e faixas de demanda ---------- */
+function pintarExpediente(){
+  const p = loja().params;
+  const ex = p.expediente || {};
+  const FDS = new Set([0,6]);
+  $('#expediente-dias').innerHTML = DIAS_SEM.map((d,k)=>{
+    const v = ex[String(k)] !== undefined ? ex[String(k)] : ex[k];
+    const fechada = v === false || v === 'fechado';
+    const janela = Array.isArray(v) ? v[0] : (v && typeof v === 'object' ? v : null);
+    return `<div class="ds-cel${FDS.has(k)?' fds':''}">
+       <div class="ds-nome">${d}</div>
+       <input type="time" data-exp-ini="${k}" value="${janela && janela.ini ? janela.ini : ''}" ${fechada?'disabled':''} style="width:100%;margin-bottom:3px">
+       <input type="time" data-exp-fim="${k}" value="${janela && janela.fim ? janela.fim : ''}" ${fechada?'disabled':''} style="width:100%;margin-bottom:3px">
+       <label style="font-size:10px;display:flex;gap:4px;align-items:center;justify-content:center">
+         <input type="checkbox" data-exp-fechada="${k}" ${fechada?'checked':''}> fechada</label>
+     </div>`;
+  }).join('');
+  $$('#expediente-dias input[data-exp-fechada]').forEach(el=>{
+    el.onchange = ()=>{
+      const k = el.dataset.expFechada;
+      const trava = el.checked;
+      $(`#expediente-dias input[data-exp-ini="${k}"]`).disabled = trava;
+      $(`#expediente-dias input[data-exp-fim="${k}"]`).disabled = trava;
+    };
+  });
+}
+function lerExpediente(){
+  const ex = {};
+  DIAS_SEM.forEach((_d,k)=>{
+    const fechada = $(`#expediente-dias input[data-exp-fechada="${k}"]`);
+    if(fechada && fechada.checked){ ex[String(k)] = false; return; }
+    const ini = ($(`#expediente-dias input[data-exp-ini="${k}"]`)||{}).value || '';
+    const fim = ($(`#expediente-dias input[data-exp-fim="${k}"]`)||{}).value || '';
+    // Sem horário informado o dia não entra: ausência significa "não controlado".
+    if(ini && fim) ex[String(k)] = [{ini, fim}];
+  });
+  return Object.keys(ex).length ? ex : null;
+}
+
+const NOME_FUNCAO = {caixa:'Caixa', balcao:'Balcão', farmaceutico:'Farmacêutico', subgerente:'Subgerente'};
+function pintarFaixas(){
+  const p = loja().params;
+  const fx = p.faixas || {};
+  if($('#fx-dia') && !$('#fx-dia').options.length)
+    $('#fx-dia').innerHTML = DIAS_SEM.map((d,k)=>`<option value="${k}">${d}</option>`).join('');
+  let h = '<thead><tr><th>Dia</th><th>Função</th><th>Faixa</th><th>Meta</th><th>Obrigatório</th><th></th></tr></thead><tbody>';
+  let total = 0;
+  DIAS_SEM.forEach((nome,k)=>{
+    const lista = fx[String(k)] || fx[k] || [];
+    lista.forEach((f,idx)=>{
+      total++;
+      h += `<tr><td>${nome}</td><td>${esc(NOME_FUNCAO[f.funcao]||f.funcao)}</td>
+        <td class="mono">${esc(f.ini)}–${esc(f.fim)}</td>
+        <td class="mono">${f.meta!=null&&f.meta!==''?f.meta:'—'}</td>
+        <td class="mono">${f.obrigatorio!=null&&f.obrigatorio!==''?f.obrigatorio:'—'}</td>
+        <td><button class="btn alt" type="button" data-rm-faixa="${k}:${idx}">remover</button></td></tr>`;
+    });
+  });
+  if(!total) h += '<tr><td colspan="6" style="color:var(--fraco)">Nenhuma faixa configurada. A cobertura por horário fica desligada.</td></tr>';
+  $('#tab-faixas').innerHTML = h + '</tbody>';
+  $$('#tab-faixas button[data-rm-faixa]').forEach(b=>{
+    b.onclick = ()=>{
+      const [k, idx] = b.dataset.rmFaixa.split(':');
+      const lista = (loja().params.faixas||{})[k] || [];
+      lista.splice(+idx, 1);
+      if(!lista.length) delete loja().params.faixas[k];
+      pintarFaixas();
+    };
+  });
+}
+
 function lerMinDias(){
   const md = {};
   $$('#min-dias input').forEach(el=>{ md[el.dataset.md] = +el.value || 0; });
@@ -1015,6 +1120,8 @@ function lerMinDias(){
 }
 function pintarParams(){
   pintarMinDias();
+  pintarExpediente();
+  pintarFaixas();
   const p = loja().params;
   $('#r-modelo').value = p.modelo || (p.folgasSemana===1 ? '6x1' : '5x2');
   $('#r-ciclo').value=p.cicloDomingo; avisoCiclo(); $('#r-maxseq').value=p.maxSeq;
@@ -1030,6 +1137,31 @@ function pintarParams(){
   piso('#r-minsubger-obr', p.minSubgerObrigatorio);
 }
 $('#r-ciclo').onchange = avisoCiclo;
+$('#btn-add-faixa').onclick = ()=>{
+  const dia = $('#fx-dia').value, funcao = $('#fx-funcao').value;
+  const ini = $('#fx-ini').value, fim = $('#fx-fim').value;
+  const meta = $('#fx-meta').value.trim(), obr = $('#fx-obr').value.trim();
+  if(!ini || !fim){
+    $('#status-params').textContent = 'Informe o início e o fim da faixa.';
+    $('#status-params').className = 'chip mal';
+    return;
+  }
+  if(meta === '' && obr === ''){
+    $('#status-params').textContent = 'Informe a meta, o obrigatório, ou os dois.';
+    $('#status-params').className = 'chip mal';
+    return;
+  }
+  const p = loja().params;
+  p.faixas = p.faixas || {};
+  p.faixas[dia] = p.faixas[dia] || [];
+  const nova = {funcao, ini, fim};
+  if(meta !== '') nova.meta = Math.max(0, +meta);
+  if(obr !== '') nova.obrigatorio = Math.max(0, +obr);
+  p.faixas[dia].push(nova);
+  $('#status-params').textContent = 'Faixa adicionada. Salve os parâmetros para gravar.';
+  $('#status-params').className = 'chip';
+  pintarFaixas();
+};
 $('#btn-salvar-params').onclick = async ()=>{
   const modelo = $('#r-modelo').value;
   const paramsAnteriores = Object.assign({}, loja().params);
@@ -1045,6 +1177,11 @@ $('#btn-salvar-params').onclick = async ()=>{
     .forEach(([chave, sel])=>{ const v = lerPiso(sel); if(v!==null) loja().params[chave] = v; });
   if(paramsAnteriores.minDiaObrigatorio) loja().params.minDiaObrigatorio = paramsAnteriores.minDiaObrigatorio;
   if(paramsAnteriores.perfis) loja().params.perfis = paramsAnteriores.perfis;
+  if(paramsAnteriores.funcoes) loja().params.funcoes = paramsAnteriores.funcoes;
+  const expediente = lerExpediente();
+  if(expediente) loja().params.expediente = expediente;
+  if(paramsAnteriores.faixas && Object.keys(paramsAnteriores.faixas).length)
+    loja().params.faixas = paramsAnteriores.faixas;
   await store.set('escala:lojas', S.lojas);
   $('#status-params').textContent='Parâmetros salvos'; $('#status-params').className='chip ok';
   setTimeout(()=>$('#status-params').textContent='',2500);
@@ -2547,6 +2684,78 @@ function pintarGrade(){
       <td class="mono">${v.pior}</td><td><span class="chip ${ok?'ok':'mal'}">${ok?'ok':v.av.length+' ajuste(s)'}</span></td></tr>`;
   });
   $('#tab-resumo').innerHTML = r+'</tbody>';
+
+  /* Cobertura por faixa de horário. Só aparece quando a loja configurou faixas;
+     sem configuração o painel fica oculto e nada muda na tela. */
+  (function pintarIntradiaria(){
+    const painel = $('#painel-intradiaria');
+    const intra = S.val.coberturaIntradiaria;
+    if(!painel) return;
+    if(!intra || !intra.resumo.configurado){ painel.style.display='none'; return; }
+    painel.style.display='';
+
+    const linhas = [];
+    intra.dias.forEach(d=>{
+      if(d.fechado){
+        linhas.push({dia:d.dia, fechado:true});
+        return;
+      }
+      // Só o que exige atenção: segmento em ordem não vira linha de tabela.
+      d.segmentos.filter(s=>s.situacao!=='ok').forEach(s=>linhas.push(s));
+    });
+
+    const lacunasPorDia = {};
+    (intra.lacunas||[]).forEach(l=>{ (lacunasPorDia[l.dia] = lacunasPorDia[l.dia] || []).push(l); });
+
+    const partes = [];
+    if(intra.resumo.bloqueios) partes.push(`${intra.resumo.bloqueios} faixa(s) abaixo do mínimo obrigatório`);
+    if(intra.resumo.avisos) partes.push(`${intra.resumo.avisos} abaixo da meta`);
+    if(intra.resumo.lacunas) partes.push(`${intra.resumo.lacunas} sem dado para conferir`);
+    if(intra.resumo.diasFechados) partes.push(`${intra.resumo.diasFechados} dia(s) fechado(s)`);
+    $('#cont-intradiaria').textContent = partes.length
+      ? `${partes.join(' · ')}. Clique na linha para ver o dia na escala.`
+      : 'Todas as faixas configuradas estão cobertas no período.';
+
+    let h = '<thead><tr><th>Dia</th><th>Faixa</th><th>Função</th><th>Necessário</th><th>Escalado</th><th>Déficit</th><th>Situação</th></tr></thead><tbody>';
+    if(!linhas.length && !Object.keys(lacunasPorDia).length){
+      h += '<tr><td colspan="7" style="color:var(--v-fg)">Nenhuma faixa descoberta.</td></tr>';
+    }
+    linhas.forEach(s=>{
+      const d = S.res.days[s.dia];
+      const dia = `${ddmm(d)} ${DIA_ABREV[d.getDay()]}`;
+      if(s.fechado){
+        h += `<tr data-dia="${s.dia}" class="linha-intra"><td class="mono">${dia}</td><td colspan="5" style="color:var(--fraco)">Loja fechada</td>
+          <td><span class="chip">Informação</span></td></tr>`;
+        return;
+      }
+      const necessario = s.piso != null ? s.piso : s.meta;
+      const rotulo = s.piso != null ? 'Bloqueio' : 'Aviso';
+      const classe = s.piso != null ? 'mal' : '';
+      h += `<tr data-dia="${s.dia}" class="linha-intra" title="${esc((s.pessoas||[]).join(', ')) || 'ninguém no horário'}">
+        <td class="mono">${dia}</td><td class="mono">${s.iniTexto}–${s.fimTexto}</td><td>${esc(s.funcaoNome)}</td>
+        <td class="mono">${necessario}${s.piso!=null?' (obrigatório)':' (meta)'}</td>
+        <td class="mono">${s.escalados}</td><td class="mono">${s.deficit}</td>
+        <td><span class="chip ${classe}">${rotulo}</span></td></tr>`;
+    });
+    Object.keys(lacunasPorDia).forEach(iDia=>{
+      const d = S.res.days[iDia];
+      const quem = lacunasPorDia[iDia].map(l=>l.colab).join(', ');
+      h += `<tr data-dia="${iDia}" class="linha-intra"><td class="mono">${ddmm(d)} ${DIA_ABREV[d.getDay()]}</td>
+        <td colspan="4" style="color:var(--fraco)">Sem jornada ou intervalo informado: ${esc(quem)}</td>
+        <td class="mono">—</td><td><span class="chip">Informação insuficiente</span></td></tr>`;
+    });
+    $('#tab-intradiaria').innerHTML = h + '</tbody>';
+
+    // Localizar o trecho na escala: leva à coluna do dia correspondente.
+    $('#tab-intradiaria').querySelectorAll('tr.linha-intra').forEach(tr=>{
+      tr.style.cursor = 'pointer';
+      tr.onclick = ()=>{
+        const i = +tr.dataset.dia;
+        const col = $(`#grade td.cel[data-i="${i}"], #grade th[data-i="${i}"]`);
+        if(col && col.scrollIntoView) col.scrollIntoView({block:'nearest', inline:'center', behavior:'smooth'});
+      };
+    });
+  })();
 
   // faixa de cobertura
   const furos = cob.filter(c=>c.falta.length).length;

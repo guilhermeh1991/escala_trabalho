@@ -509,8 +509,9 @@ conferir('mesma falta sem piso declarado continua aviso e permite publicar',
   valSoMeta.resumo.podePublicar === true &&
   verificar(resSoMeta, eqPiso, pSoMeta, {}).every(v=>v.regra!=='R12-piso-obrigatorio') ? 1 : 0, 1);
 
-/* Piso inalcançável por indisponibilidade real é impedimento operacional, não
-   violação: mantém a distinção que a decisão 0005 exigiu para o farmacêutico. */
+/* Piso obrigatório impossível ainda bloqueia. A indisponibilidade da equipe é
+   registrada como informação (impedimento), mas não rebaixa a obrigação a
+   preferência: quem abre mão do piso é quem administra a loja. */
 const eqPisoFerias = [
   {id:'cx_c', nome:'CAIXA C', cargo:'CAIXA', horario:'08:00 AS 16:20', ativo:true,
    ausencias:[{tipo:'F', ini:'2026-11-02', fim:'2026-11-03'}]},
@@ -521,11 +522,193 @@ const resPisoImpossivel = {
   grid: {cx_c:['F','F']},
   ativos: eqPisoFerias, params: pPisoImpossivel, horas: {}
 };
-conferir('piso inalcançável vira impedimento e não bloqueia a publicação',
-  E.validar(resPisoImpossivel, eqPisoFerias).alertas
-    .some(a=>a.tipo==='cobertura-minima' && a.obrigatoria===false && a.impedimento===true) &&
+const valPisoImpossivel = E.validar(resPisoImpossivel, eqPisoFerias);
+conferir('piso obrigatório impossível continua bloqueando e registra a indisponibilidade',
+  valPisoImpossivel.alertas
+    .some(a=>a.tipo==='cobertura-minima' && a.obrigatoria===true && a.impedimento===true) &&
+  valPisoImpossivel.resumo.podePublicar === false &&
   verificar(resPisoImpossivel, eqPisoFerias, pPisoImpossivel, {})
-    .some(v=>v.regra==='R12-piso-impedimento-nota') ? 1 : 0, 1);
+    .some(v=>v.regra==='R12-piso-obrigatorio') ? 1 : 0, 1);
+
+/* ------------------------------------------------------------------ */
+console.log('\n=== 3b. Cobertura intradiária por função ===\n');
+
+const COB = require('../src/motor/cobertura.js');
+const SEG = '2026-11-02';            // segunda-feira
+const TER = '2026-11-03';            // terça-feira
+
+/* Monta um cenário de um ou dois dias com jornadas estruturadas. */
+function cenarioIntra(equipe, params, grade, fim){
+  const dias = E.listDays(SEG, fim || SEG);
+  const grid = {};
+  equipe.forEach(c=>{ grid[c.id] = grade[c.id] || dias.map(()=>''); });
+  const res = {days:dias, grid, ativos:equipe, params, horas:{}};
+  return {res, analise: COB.analisarCobertura(res, equipe, params, {jornada: E.jornadaParaCobertura})};
+}
+const semIntervalo = (entrada, saida) => ({entrada, saida, intervalos:[]});
+const pessoa = (id, nome, cargo, jornada) => ({id, nome, cargo, jornada, ativo:true, ausencias:[]});
+
+/* (a) Profissionais concentrados no mesmo turno deixam a tarde descoberta.
+   Duas pessoas no dia cumprem qualquer mínimo diário de 2 — e mesmo assim a
+   loja fica sem caixa das 14h às 20h. É exatamente o furo que o mínimo diário
+   não enxerga. */
+const eqConcentrada = [
+  pessoa('k1','CAIXA UM','CAIXA', semIntervalo('08:00','14:00')),
+  pessoa('k2','CAIXA DOIS','CAIXA', semIntervalo('08:00','14:00')),
+];
+const pConcentrada = {
+  expediente:{'1':[{ini:'08:00', fim:'20:00'}]},
+  faixas:{'1':[{funcao:'caixa', ini:'08:00', fim:'20:00', obrigatorio:1}]},
+};
+const concentrada = cenarioIntra(eqConcentrada, pConcentrada, {});
+conferir('concentração no mesmo turno acusa a faixa descoberta que o mínimo diário não vê',
+  concentrada.analise.resumo.bloqueios === 1 &&
+  concentrada.analise.alertas.some(a=>a.txt.includes('14:00–20:00') && a.obrigatoria===true) ? 1 : 0, 1);
+
+/* (b) Intervalo descoberto: o único caixa almoça e ninguém cobre. */
+const eqAlmoco = [
+  Object.assign(pessoa('a1','CAIXA UNICO','CAIXA', null),
+    {jornada:{entrada:'08:00', saida:'18:00', intervalos:[{ini:'12:00', fim:'13:00'}]}}),
+];
+const pAlmoco = {
+  expediente:{'1':[{ini:'08:00', fim:'18:00'}]},
+  faixas:{'1':[{funcao:'caixa', ini:'08:00', fim:'18:00', obrigatorio:1}]},
+};
+const almocoDescoberto = cenarioIntra(eqAlmoco, pAlmoco, {});
+conferir('intervalo descoberto vira bloqueio na faixa exata do almoço',
+  almocoDescoberto.analise.resumo.bloqueios === 1 &&
+  almocoDescoberto.analise.alertas.some(a=>a.txt.includes('12:00–13:00')) ? 1 : 0, 1);
+
+/* (c) Intervalo coberto por substituição: mesma escala, mais um caixa cruzando
+   o horário do almoço. Não pode sobrar alerta. */
+const eqSubstituto = eqAlmoco.concat([pessoa('a2','CAIXA APOIO','CAIXA', semIntervalo('11:30','14:00'))]);
+const almocoCoberto = cenarioIntra(eqSubstituto, pAlmoco, {});
+conferir('intervalo coberto por substituição não gera alerta',
+  almocoCoberto.analise.resumo.bloqueios, 0, '<=');
+
+/* (d) Turno atravessando a meia-noite: quem entra 20:00 e sai 02:00 cobre o
+   começo do dia seguinte, e isso precisa ser contado no dia seguinte. */
+const eqNoturna = [pessoa('n1','NOTURNO','CAIXA', semIntervalo('20:00','02:00'))];
+const pNoturna = {
+  expediente:{'1':[{ini:'20:00', fim:'00:00'}], '2':[{ini:'00:00', fim:'02:00'}]},
+  faixas:{'1':[{funcao:'caixa', ini:'20:00', fim:'00:00', obrigatorio:1}],
+          '2':[{funcao:'caixa', ini:'00:00', fim:'02:00', obrigatorio:1}]},
+};
+const noturna = cenarioIntra(eqNoturna, pNoturna, {}, TER);
+conferir('turno que atravessa a meia-noite cobre o início do dia seguinte',
+  noturna.analise.resumo.bloqueios === 0 &&
+  noturna.analise.dias[1].segmentos.some(s=>s.iniTexto==='00:00' && s.escalados===1) ? 1 : 0, 1);
+
+/* (e) Troca de turno sem lacuna: um sai 14:00, outro entra 14:00. Com limites
+   semiabertos não há buraco às 14:00 nem dupla contagem. */
+const eqTroca = [
+  pessoa('t1','MANHA','CAIXA', semIntervalo('08:00','14:00')),
+  pessoa('t2','TARDE','CAIXA', semIntervalo('14:00','20:00')),
+];
+const pTroca = {
+  expediente:{'1':[{ini:'08:00', fim:'20:00'}]},
+  faixas:{'1':[{funcao:'caixa', ini:'08:00', fim:'20:00', obrigatorio:1, meta:1}]},
+};
+const troca = cenarioIntra(eqTroca, pTroca, {});
+conferir('troca de turno exata não abre lacuna nem conta a mesma vaga duas vezes',
+  troca.analise.resumo.bloqueios === 0 &&
+  troca.analise.dias[0].segmentos.every(s=>s.escalados===1) ? 1 : 0, 1);
+
+/* (f) Dia fechado: nenhuma falta de cobertura, mesmo sem ninguém escalado. */
+const pFechada = {
+  expediente:{'1':false},
+  faixas:{'1':[{funcao:'caixa', ini:'08:00', fim:'20:00', obrigatorio:2}]},
+};
+const fechada = cenarioIntra(eqConcentrada, pFechada, {k1:['X'], k2:['X']});
+conferir('dia fechado não recebe falta de cobertura',
+  fechada.analise.resumo.bloqueios === 0 && fechada.analise.resumo.diasFechados === 1 ? 1 : 0, 1);
+
+/* (g) Dados incompletos. Três situações que não podem ser confundidas:
+   jornada ausente, intervalo declarado vazio e intervalo desconhecido. */
+const eqSemJornada = [pessoa('s1','SEM HORARIO','CAIXA', null)];
+const semJornada = cenarioIntra(eqSemJornada, pTroca, {});
+conferir('jornada ausente vira lacuna e não presença zero silenciosa',
+  semJornada.analise.resumo.lacunas === 1 &&
+  semJornada.analise.lacunas[0].motivo === 'jornada-incompleta' ? 1 : 0, 1);
+
+const eqIntervaloDesconhecido = [
+  Object.assign(pessoa('d1','COM ALMOCO','CAIXA', null),
+    {jornada:{entrada:'08:00', saida:'18:00', intervalo:60}}),   // duração sem horário
+];
+const intervaloDesconhecido = cenarioIntra(eqIntervaloDesconhecido, pAlmoco, {});
+conferir('intervalo de horário desconhecido é lacuna, distinta de "sem intervalo"',
+  intervaloDesconhecido.analise.resumo.lacunas === 1 &&
+  intervaloDesconhecido.analise.lacunas[0].motivo === 'intervalo-desconhecido' ? 1 : 0, 1);
+
+conferir('intervalo declarado vazio significa sem intervalo e não gera lacuna',
+  almocoCoberto.analise.lacunas.filter(l=>l.colab==='CAIXA APOIO').length, 0, '<=');
+
+/* (h) Lacuna não contorna bloqueio: a faixa continua descoberta porque a outra
+   pessoa, essa sim conhecida, não cobre o horário. */
+const eqLacunaEBloqueio = eqSemJornada.concat([pessoa('s2','CAIXA MANHA','CAIXA', semIntervalo('08:00','12:00'))]);
+const lacunaEBloqueio = cenarioIntra(eqLacunaEBloqueio, pTroca, {});
+conferir('faltar dado não libera o bloqueio da faixa descoberta',
+  lacunaEBloqueio.analise.resumo.bloqueios > 0 &&
+  lacunaEBloqueio.analise.resumo.lacunas > 0 ? 1 : 0, 1);
+
+/* (i) Meta opcional não atendida: aviso, nunca bloqueio. */
+const pMeta = {
+  expediente:{'1':[{ini:'08:00', fim:'20:00'}]},
+  faixas:{'1':[{funcao:'caixa', ini:'08:00', fim:'20:00', meta:3}]},
+};
+const soMeta = cenarioIntra(eqTroca, pMeta, {});
+conferir('meta de faixa não atendida gera aviso e não bloqueio',
+  soMeta.analise.resumo.bloqueios === 0 && soMeta.analise.resumo.avisos > 0 ? 1 : 0, 1);
+
+/* (j) Cargos atendem função só quando declarado: repositor não é balcão por
+   conta própria, e quem acumula competências conta uma vez no total. */
+const eqRepositor = [pessoa('r1','REPOSITOR','REPOSITOR', semIntervalo('08:00','18:00'))];
+const pBalcao = {
+  expediente:{'1':[{ini:'08:00', fim:'18:00'}]},
+  faixas:{'1':[{funcao:'balcao', ini:'08:00', fim:'18:00', obrigatorio:1}]},
+};
+const repositor = cenarioIntra(eqRepositor, pBalcao, {});
+conferir('repositor não conta como balcão sem declaração explícita',
+  repositor.analise.resumo.bloqueios > 0 ? 1 : 0, 1);
+
+const pRepositorNoBalcao = Object.assign({}, pBalcao, {
+  funcoes:{balcao:{nome:'Balcão', cargos:['BALCONISTA','REPOSITOR']}},
+});
+const repositorDeclarado = cenarioIntra(eqRepositor, pRepositorNoBalcao, {});
+conferir('repositor conta como balcão quando a loja declara o cargo na função',
+  repositorDeclarado.analise.resumo.bloqueios, 0, '<=');
+
+/* Múltipla competência: SUB/FARMA atende farmacêutico e subgerente ao mesmo
+   tempo, mas é uma pessoa só — o total de presentes no segmento não pode
+   contá-la duas vezes. */
+const eqDuplaCompetencia = [pessoa('m1','SUB FARMA','SUB/FARMA', semIntervalo('08:00','18:00'))];
+const pDupla = {
+  expediente:{'1':[{ini:'08:00', fim:'18:00'}]},
+  faixas:{'1':[{funcao:'farmaceutico', ini:'08:00', fim:'18:00', obrigatorio:1},
+               {funcao:'subgerente',   ini:'08:00', fim:'18:00', obrigatorio:1}]},
+};
+const dupla = cenarioIntra(eqDuplaCompetencia, pDupla, {});
+conferir('múltipla competência atende duas funções sem virar duas pessoas',
+  dupla.analise.resumo.bloqueios === 0 &&
+  dupla.analise.dias[0].segmentos.length === 2 &&
+  dupla.analise.dias[0].segmentos.every(s=>s.totalPresentes===1) ? 1 : 0, 1);
+
+/* (k) Loja sem faixas configuradas não ganha cobrança nova: a etapa anterior
+   continua valendo exatamente como estava. */
+const semFaixas = cenarioIntra(eqTroca, {expediente:{'1':[{ini:'08:00', fim:'20:00'}]}}, {});
+conferir('loja sem faixas configuradas não passa a ser cobrada por horário',
+  semFaixas.analise.resumo.configurado === false &&
+  semFaixas.analise.resumo.bloqueios === 0 ? 1 : 0, 1);
+
+/* (l) Segmentação fina: uma lacuna de 10 minutos não pode sumir numa grade
+   grosseira de 30 ou 60 minutos. */
+const eqLacunaCurta = [
+  pessoa('c1','ANTES','CAIXA', semIntervalo('08:00','13:50')),
+  pessoa('c2','DEPOIS','CAIXA', semIntervalo('14:00','20:00')),
+];
+const lacunaCurta = cenarioIntra(eqLacunaCurta, pTroca, {});
+conferir('lacuna de 10 minutos aparece com o horário exato',
+  lacunaCurta.analise.alertas.some(a=>a.txt.includes('13:50–14:00')) ? 1 : 0, 1);
 
 /* ------------------------------------------------------------------ */
 console.log('\n=== 4. Documento impresso ===\n');
