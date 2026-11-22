@@ -177,14 +177,100 @@ async function main() {
     await selectCompany(page, 'Empresa Browser Ficticia');
     await waitText(page, '#admin-lojas', 'Loja Browser Editada');
 
-    /* Exercício visual real do aplicativo. A mesma escala e os mesmos índices
-       ficam intactos; só mudamos a janela para verificar os quatro alvos de
-       leitura pedidos. A grade continua dentro do seu contêiner rolável. */
+    /* Troca da autoridade de plataforma para o administrador da empresa antes
+       de exercitar escala, parâmetros e publicação. */
+    await page.locator('#btn-sair').click();
+    await page.locator('#login').waitFor({state:'visible'});
+    await login(page, OPERADOR_EMAIL, OPERADOR_PASSWORD);
+    await page.locator('#esc-rota').waitFor({state:'visible'});
+
+    /* Escala real: 100 pessoas, 30 dias, jornadas cadastradas e cobertura
+       intradiária configurada no fixture. Primeiro prova que uma troca de
+       período durante a geração descarta o resultado antigo. */
+    await page.locator('#sel-loja option').waitFor({state:'attached'});
+    await page.locator('#sel-loja').selectOption(STORE_A);
+    await page.locator('button[data-view="params"]').click();
+    await page.locator('#r-mincaixa-obr').waitFor({state:'visible'});
+    assert.equal(await page.locator('#r-mincaixa-obr').inputValue(), '1');
+    assert.equal(await page.locator('#tab-faixas tbody tr').count() >= 7, true);
+    await page.screenshot({path:`${OUT}/ui-parametros-1440.png`, fullPage:true});
     await page.locator('button[data-view="escala"]').click();
     await page.locator('#esc-rota').waitFor({state:'visible'});
+    await page.locator('#p-inicio').fill('2026-12-01');
+    await page.locator('#p-fim').fill('2026-12-30');
+    await page.locator('#btn-gerar').click();
+    await page.locator('#gerando').waitFor({state:'visible', timeout:NAVIGATION_TIMEOUT_MS});
+    await page.locator('#esc-passos').waitFor({state:'visible'});
+    const progressoDuranteGeracao = await page.locator('#gerando-barra').evaluate(el => el.style.width);
+    assert.notEqual(progressoDuranteGeracao, '');
+    /* Interação permitida enquanto gera: troca de período. O resultado antigo
+       não pode ser aplicado ao novo contexto. */
+    await page.locator('#p-fim').fill('2026-12-31');
+    await page.locator('#gerando').waitFor({state:'hidden', timeout:120000});
+    assert.equal(await page.locator('table.esc').count(), 0);
+    await page.locator('#p-fim').fill('2026-12-30');
+
+    /* Geração oficial do período de aproximadamente 30 dias. */
+    await page.locator('#btn-gerar').click();
+    await page.locator('#gerando').waitFor({state:'visible', timeout:NAVIGATION_TIMEOUT_MS});
+    await page.locator('#gerando').waitFor({state:'hidden', timeout:120000});
+    await page.locator('table.esc').waitFor({state:'visible', timeout:DEFAULT_TIMEOUT_MS});
+    assert.equal(await page.locator('table.esc thead tr.datas th').count() >= 30, true);
+    assert.equal(await page.locator('table.esc td.fixa .nome').count(), 100);
+
+    /* Edição e teclado: célula -> setas -> Enter -> diálogo -> Escape retorna
+       o foco exatamente para a mesma pessoa e dia. */
+    const celula = page.locator('table.esc td.cel[data-cod=""]').first();
+    await celula.focus();
+    const origem = {id:await celula.getAttribute('data-id'), dia:await celula.getAttribute('data-i')};
+    await celula.press('ArrowRight');
+    const vizinha = page.locator(`table.esc td.cel[data-id="${origem.id}"][data-i="${Number(origem.dia)+1}"]`);
+    assert.equal(await vizinha.evaluate(el => document.activeElement === el), true);
+    await vizinha.press('Enter');
+    await page.locator('#pop-cel').waitFor({state:'visible'});
+    await page.screenshot({path:`${OUT}/ui-dialogo-edicao-1440.png`, fullPage:true});
+    await page.keyboard.press('Escape');
+    assert.deepEqual(await page.evaluate(() => ({id:document.activeElement?.dataset?.id, dia:document.activeElement?.dataset?.i})),
+      {id:origem.id, dia:String(Number(origem.dia)+1)});
+
+    /* Reabre a célula, aplica horário explícito, salva e recarrega. */
+    await vizinha.press('Enter');
+    await page.locator('#pc-hora').fill('07:00');
+    await page.locator('#pc-saida').fill('15:20');
+    await page.locator('#pc-ok').click();
+    await page.locator('#btn-salvar').click();
+    await waitText(page, '#esc-aviso', 'Rascunho salvo');
+    await page.reload({waitUntil:'domcontentloaded', timeout:NAVIGATION_TIMEOUT_MS});
+    await page.locator('#sel-loja').selectOption(STORE_A);
+    await page.locator('table.esc').waitFor({state:'visible', timeout:DEFAULT_TIMEOUT_MS});
+    assert.equal(await page.locator('table.esc td.cel-editada').count() >= 1, true);
+
+    /* Publicação válida pelo fluxo real. */
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('#btn-publicar').click();
+    await waitText(page, '#esc-aviso', 'Escala publicada');
+
+    /* Agora aumenta explicitamente o piso de caixa para criar uma pendência
+       obrigatória controlada. A API aceita o rascunho, mas a publicação é
+       bloqueada pela validação da interface antes de ser distribuída. */
+    await page.locator('button[data-view="params"]').click();
+    await page.locator('#r-mincaixa-obr').fill('99');
+    await page.locator('#btn-salvar-params').click();
+    await waitText(page, '#status-params', 'Parâmetros salvos');
+    await page.locator('button[data-view="escala"]').click();
+    await page.locator('#btn-gerar').click();
+    await page.locator('#gerando').waitFor({state:'hidden', timeout:120000});
+    await page.locator('table.esc').waitFor({state:'visible', timeout:DEFAULT_TIMEOUT_MS});
+    await page.locator('#btn-salvar').click();
+    await waitText(page, '#esc-aviso', 'Rascunho salvo');
+    await page.locator('#btn-publicar').click();
+    await waitText(page, '#esc-aviso', 'Publicação bloqueada');
+    await page.screenshot({path:`${OUT}/ui-pendencias-1440.png`, fullPage:true});
+
+    /* Capturas da grade preenchida e dos estados reais em quatro larguras. */
     for (const [width, height] of [[1440,1000],[1024,900],[390,844],[320,760]]) {
       await page.setViewportSize({width, height});
-      await page.screenshot({path:`${OUT}/ui-${width}.png`, fullPage:true});
+      await page.screenshot({path:`${OUT}/ui-grade-${width}.png`, fullPage:true});
     }
     await page.setViewportSize({width:1440,height:1000});
 

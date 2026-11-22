@@ -89,6 +89,34 @@ LOJA_A=$(printf '%s' "$R" | json loja_id)
 EMPRESA=$(printf '%s' "$R" | json empresa_id)
 R=$(request "$COOKIE_A" dados.php '{"acao":"criar_loja","nome":"Loja Operacional B","params":{}}' "$CSRF_A")
 LOJA_B=$(printf '%s' "$R" | json id)
+
+# Equipe representativa para o exercício real da escala: 100 pessoas, quatro
+# competências, três jornadas efetivamente cadastradas e sem gerente. A faixa
+# obrigatória de caixa tem cobertura redundante nos três turnos; isso deixa a
+# publicação inicial válida e permite criar um bloqueio específico depois sem
+# que regra de loja vazia ou falta de jornada mascare o cenário.
+PARAMS_BROWSER='{"modelo":"5x2","folgasSemana":2,"cicloDomingo":3,"maxSeq":6,"inicioSemana":0,"minCaixa":0,"minBalcao":0,"minFarma":0,"minSubger":0,"minCaixaObrigatorio":1,"perfis":{"gerente-fds":{"nome":"Gerente — folga no fim de semana","base":"politica-da-casa","regras":{"folgaFixaSemanal":[0,6]}}},"minDia":{"0":0,"1":0,"2":0,"3":0,"4":0,"5":0,"6":0},"expediente":{"0":[{"ini":"07:00","fim":"22:00"}],"1":[{"ini":"07:00","fim":"22:00"}],"2":[{"ini":"07:00","fim":"22:00"}],"3":[{"ini":"07:00","fim":"22:00"}],"4":[{"ini":"07:00","fim":"22:00"}],"5":[{"ini":"07:00","fim":"22:00"}],"6":[{"ini":"07:00","fim":"22:00"}]},"faixas":{"0":[{"funcao":"caixa","ini":"08:00","fim":"20:00","meta":1,"obrigatorio":1}],"1":[{"funcao":"caixa","ini":"08:00","fim":"20:00","meta":1,"obrigatorio":1}],"2":[{"funcao":"caixa","ini":"08:00","fim":"20:00","meta":1,"obrigatorio":1}],"3":[{"funcao":"caixa","ini":"08:00","fim":"20:00","meta":1,"obrigatorio":1}],"4":[{"funcao":"caixa","ini":"08:00","fim":"20:00","meta":1,"obrigatorio":1}],"5":[{"funcao":"caixa","ini":"08:00","fim":"20:00","meta":1,"obrigatorio":1}],"6":[{"funcao":"caixa","ini":"08:00","fim":"20:00","meta":1,"obrigatorio":1}]},"funcoes":{"caixa":{"nome":"Caixa","cargos":["CAIXA"]},"balcao":{"nome":"Balcão","cargos":["BALCONISTA"]},"farmaceutico":{"nome":"Farmacêutico","cargos":["FARMACEUTICO"]},"subgerente":{"nome":"Subgerente","cargos":["SUBGERENTE"]}}}'
+PARAMS_SQL=$(printf '%s' "$PARAMS_BROWSER" | sed "s/'/''/g")
+mysql -u root -h 127.0.0.1 "$DB" -e "UPDATE lojas SET parametros='$PARAMS_SQL', versao=versao+1 WHERE id='$LOJA_A';"
+SQL_EQUIPE=$(mktemp)
+for i in $(seq 1 100); do
+  mod=$(( (i - 1) % 6 )); turno=$(( (i - 1) % 3 ));
+  case "$mod" in
+    0|5) cargo='CAIXA' ;;
+    1|4) cargo='BALCONISTA' ;;
+    2) cargo='FARMACEUTICO' ;;
+    3) cargo='SUB/FARMA' ;;
+  esac
+  case "$turno" in
+    0) entrada='07:00'; saida='15:20' ;;
+    1) entrada='09:00'; saida='17:20' ;;
+    2) entrada='13:40'; saida='22:00' ;;
+  esac
+  printf "INSERT INTO colaboradores (id,loja_id,nome,cargo,horario,jornada,gerente,ativo,ordem) VALUES (UUID(),'%s','Pessoa Browser %03d','%s','%s AS %s','{\\\"entrada\\\":\\\"%s\\\",\\\"saida\\\":\\\"%s\\\",\\\"intervalos\\\":[]}',0,1,%d);\\n" \
+    "$LOJA_A" "$i" "$cargo" "$entrada" "$saida" "$entrada" "$saida" "$i" >> "$SQL_EQUIPE"
+  done
+mysql -u root -h 127.0.0.1 "$DB" < "$SQL_EQUIPE"
+rm -f "$SQL_EQUIPE"
 CSRF_S=$(prepare "$COOKIE_S" 'Supervisor Browser' "$SUP_EMAIL" "$SUP_PASSWORD")
 request "$COOKIE_S" auth.php "{\"acao\":\"entrar_por_convite\",\"codigo\":\"$CONVITE\"}" "$CSRF_S" >/dev/null
 # A operação de vínculo da empresa é validada e deixada sem lojas pré-atribuídas
