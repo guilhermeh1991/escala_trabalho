@@ -139,6 +139,54 @@ function uuid(): string
    anterior e as jornadas antes de gravar ou publicar. Contadores ou alertas
    enviados pelo navegador nunca são aceitos como prova de conformidade. */
 
+/* Parâmetros que classificam ou afrouxam uma regra. Só valem vindos de
+   lojas.parametros; se chegarem pelo payload, viram divergência registrada. */
+const CHAVES_DE_REGRA = [
+    'modelo', 'folgasSemana', 'cicloDomingo', 'maxSeq', 'minInterjornada', 'inicioSemana',
+    'minCaixa', 'minBalcao', 'minFarma', 'minSubger', 'minDia',
+    'minCaixaObrigatorio', 'minBalcaoObrigatorio', 'minFarmaObrigatorio',
+    'minSubgerObrigatorio', 'minDiaObrigatorio', 'perfis', 'subgerFds',
+];
+
+/* Base declarada de uma regra. Nenhuma regra da casa é apresentada como
+   exigência legal: quem decidiu fica explícito no alerta. */
+const BASE_LEI = 'lei';
+const BASE_CASA = 'politica-da-casa';
+
+/** Piso obrigatório de uma função. Ausente devolve null: sem piso, só meta. */
+function pisoObrigatorio(array $P, string $chaveMeta): ?int
+{
+    $chave = $chaveMeta . 'Obrigatorio';
+    if (!isset($P[$chave]) || !is_numeric($P[$chave])) return null;
+    return max(0, (int)$P[$chave]);
+}
+
+/** Perfis operacionais da loja, normalizados. Loja sem perfis devolve lista vazia. */
+function perfisDaLoja(array $paramsLoja): array
+{
+    $brutos = is_array($paramsLoja['perfis'] ?? null) ? $paramsLoja['perfis'] : [];
+    $saida = [];
+    foreach ($brutos as $id => $perfil) {
+        if (!is_array($perfil)) continue;
+        $base = ($perfil['base'] ?? BASE_CASA) === BASE_LEI ? BASE_LEI : BASE_CASA;
+        $saida[(string)$id] = [
+            'id' => (string)$id,
+            'nome' => (string)($perfil['nome'] ?? $id),
+            'base' => $base,
+            'regras' => is_array($perfil['regras'] ?? null) ? $perfil['regras'] : [],
+        ];
+    }
+    return $saida;
+}
+
+/** Perfil aplicável a um colaborador, ou null quando a loja não definiu nenhum. */
+function perfilDoColaborador(array $colab, array $perfis): ?array
+{
+    $id = (string)($colab['perfil'] ?? '');
+    if ($id !== '' && isset($perfis[$id])) return $perfis[$id];
+    return null;
+}
+
 function minutosDaHoraServidor(?string $hora): ?int
 {
     if (!is_string($hora) || !preg_match('/^(\d{1,2}):(\d{2})$/', trim($hora), $m)) {
@@ -403,7 +451,25 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
         }
     }
 
-    $P = array_merge($paramsLoja, $paramsRecebidos);
+    /* AUTORIDADE DAS REGRAS: o banco manda, o payload não.
+       Tudo que classifica ou afrouxa uma regra (modelo, mínimos, tetos, perfis)
+       sai exclusivamente de lojas.parametros. Do payload aproveitamos apenas o
+       que é dado da escala em edição e não enfraquece bloqueio: os ajustes de
+       hora por dia. Divergências entre o que o cliente mandou e o que o banco
+       guarda viram observação, nunca permissão. */
+    $P = $paramsLoja;
+    $divergencias = [];
+    foreach (CHAVES_DE_REGRA as $chave) {
+        if (!array_key_exists($chave, $paramsRecebidos)) continue;
+        $doBanco = $paramsLoja[$chave] ?? null;
+        if (json_encode($paramsRecebidos[$chave]) !== json_encode($doBanco)) {
+            $divergencias[] = $chave;
+        }
+    }
+    if (is_array($paramsRecebidos['_horas'] ?? null)) {
+        $P['_horas'] = $paramsRecebidos['_horas'];
+    }
+    $perfis = perfisDaLoja($paramsLoja);
     $modelo = in_array($P['modelo'] ?? '5x2', ['5x2', '6x1'], true) ? (string)$P['modelo'] : '5x2';
     $folgasSemana = isset($P['folgasSemana']) && is_numeric($P['folgasSemana'])
         ? max(1, (int)$P['folgasSemana'])
@@ -417,6 +483,17 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
     $minFarma = isset($P['minFarma']) && is_numeric($P['minFarma']) ? max(0, (int)$P['minFarma']) : 0;
     $minSubger = isset($P['minSubger']) && is_numeric($P['minSubger']) ? max(0, (int)$P['minSubger']) : 0;
     $minDia = is_array($P['minDia'] ?? null) ? $P['minDia'] : [];
+
+    /* PISOS OBRIGATÓRIOS POR LOJA E FUNÇÃO
+       Os valores acima continuam sendo metas: faltar contra eles é aviso. Um piso
+       só existe quando a loja o definiu explicitamente; ausente, nada vira
+       bloqueio e a configuração anterior segue valendo como estava. */
+    $pisoCaixa = pisoObrigatorio($P, 'minCaixa');
+    $pisoBalcao = pisoObrigatorio($P, 'minBalcao');
+    $pisoFarma = pisoObrigatorio($P, 'minFarma');
+    $pisoSubger = pisoObrigatorio($P, 'minSubger');
+    $pisoDia = is_array($P['minDiaObrigatorio'] ?? null) ? $P['minDiaObrigatorio'] : [];
+
     $horasMapa = is_array($P['_horas'] ?? null)
         ? $P['_horas']
         : (is_array($snapshot['horas'] ?? null) ? $snapshot['horas'] : []);
@@ -545,14 +622,29 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
             return in_array((string)($arr[$idx] ?? ''), ['X', 'F', 'FC', 'AT', 'LC'], true);
         };
 
-        if (!empty($c['gerente'])) {
+        /* Perfil operacional da pessoa. A folga de fim de semana do gerente é
+           política da casa, não exigência legal: quando a loja define perfis, os
+           dias vêm do perfil; sem perfis definidos, mantém-se sábado e domingo,
+           como nas lojas já configuradas. */
+        $perfil = perfilDoColaborador($c, $perfis);
+        $regrasPerfil = $perfil['regras'] ?? [];
+        $baseFolgaFds = $perfil['base'] ?? BASE_CASA;
+        $nomePerfil = $perfil['nome'] ?? 'gerente (padrão da casa)';
+        $diasFolgaPerfil = is_array($regrasPerfil['folgaFixaSemanal'] ?? null)
+            ? array_map('intval', $regrasPerfil['folgaFixaSemanal'])
+            : (!empty($c['gerente']) ? [0, 6] : []);
+
+        if ($diasFolgaPerfil) {
             foreach ($days as $i => $d) {
                 $wd = (int)$d->format('w');
-                if (($wd === 0 || $wd === 6) && !$ehFolga($i)) {
+                if (in_array($wd, $diasFolgaPerfil, true) && !$ehFolga($i)) {
                     $alertas[] = [
-                        'colab' => $nome, 'tipo' => 'gerente', 'categoria' => 'obrigatoria',
+                        'colab' => $nome, 'tipo' => 'perfil-folga-fixa', 'categoria' => 'obrigatoria',
                         'obrigatoria' => true, 'nivel' => 'regra', 'dia' => $i,
-                        'txt' => 'Gerente escalado para trabalhar em ' . $d->format('d/m') . ' (' . $nomesDia[$wd] . ')',
+                        'perfil' => $perfil['id'] ?? 'gerente',
+                        'base' => $baseFolgaFds,
+                        'txt' => 'Perfil "' . $nomePerfil . '" prevê folga em ' . $nomesDia[$wd]
+                               . ', mas a pessoa está escalada em ' . $d->format('d/m'),
                     ];
                 }
             }
@@ -576,15 +668,15 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
                 if (($nFolgas + min($ferias, $folgasSemana)) < $folgasSemana) {
                     $alertas[] = [
                         'colab' => $nome, 'tipo' => 'folgas-semana', 'categoria' => 'obrigatoria',
-                        'obrigatoria' => true, 'nivel' => 'regra',
+                        'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI,
                         'txt' => 'Semana de ' . $days[$s['ini']]->format('d/m') . ': ' . $nFolgas . ' folga(s), mínimo ' . $folgasSemana,
                     ];
                 }
                 if ($modelo === '6x1' && $ferias < 4 && $domFolga && $nFolgas < 2) {
                     $alertas[] = [
                         'colab' => $nome, 'tipo' => '6x1-domingo', 'categoria' => 'obrigatoria',
-                        'obrigatoria' => true, 'nivel' => 'regra',
-                        'txt' => 'Semana de ' . $days[$s['ini']]->format('d/m') . ': folgou no domingo do ciclo mas ficou sem a folga semanal do 6x1',
+                        'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_CASA,
+                        'txt' => 'Semana de ' . $days[$s['ini']]->format('d/m') . ': folgou no domingo do ciclo mas ficou sem a folga semanal do 6x1 (política da casa)',
                     ];
                 }
             }
@@ -610,7 +702,7 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
             if ($pior > $maxSeq && $quando !== null) {
                 $alertas[] = [
                     'colab' => $nome, 'tipo' => 'sequencia', 'categoria' => 'obrigatoria',
-                    'obrigatoria' => true, 'nivel' => 'regra',
+                    'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI,
                     'txt' => $pior . ' dias seguidos sem folga (até ' . $quando->format('d/m') . '), máximo ' . $maxSeq,
                 ];
             }
@@ -627,7 +719,7 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
                     if ($corrida > $cicloDomingo - 1 && !$avisouDom) {
                         $alertas[] = [
                             'colab' => $nome, 'tipo' => 'domingo', 'categoria' => 'obrigatoria',
-                            'obrigatoria' => true, 'nivel' => 'regra',
+                            'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI,
                             'txt' => $corrida . ' domingos seguidos trabalhados até ' . $d->format('d/m') . ' — máximo configurado ' . ($cicloDomingo - 1),
                         ];
                         $avisouDom = true;
@@ -723,7 +815,8 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
                     $liberado0 = horaDosMinutosServidor((int)$fimUltAnt + $minInterjornada);
                     $alertas[] = [
                         'colab' => $nome, 'tipo' => 'interjornada', 'categoria' => 'obrigatoria',
-                        'obrigatoria' => true, 'nivel' => 'regra', 'dia' => 0, 'transicaoPeriodo' => true,
+                        'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI,
+                        'dia' => 0, 'transicaoPeriodo' => true,
                         'txt' => 'Sai ' . $saidaUltAnt . ' no fim do período anterior (' . $dataUltAnt . ') e entra ' . $ent0 . ' em ' . $days[0]->format('d/m') . ': ' . textoDuracaoServidor($descanso0) . ' de descanso, mínimo 11h (só pode entrar a partir das ' . $liberado0 . ')',
                     ];
                 }
@@ -759,7 +852,7 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
                 $saidaI = horaDosMinutosServidor($fimI);
                 $alertas[] = [
                     'colab' => $nome, 'tipo' => 'interjornada', 'categoria' => 'obrigatoria',
-                    'obrigatoria' => true, 'nivel' => 'regra', 'dia' => $i + 1,
+                    'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI, 'dia' => $i + 1,
                     'txt' => 'Sai ' . $saidaI . ' em ' . $days[$i]->format('d/m') . ' e entra ' . $entSeg . ' em ' . $days[$i + 1]->format('d/m') . ': ' . textoDuracaoServidor($descanso) . ' de descanso, mínimo 11h (só pode entrar a partir das ' . $liberado . ')',
                 ];
             }
@@ -844,12 +937,46 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
             $falta[] = $msg;
             if ($imp) $impedimentos[] = $msg;
         }
+        /* PISOS OBRIGATÓRIOS: só existem onde a loja definiu. Faltar contra o
+           piso bloqueia a publicação; faltar contra a meta continua aviso.
+           Quando não há gente disponível, o dia é impedimento operacional e não
+           falha da escala — não bloqueia, mas fica registrado. */
+        $pisos = [
+            ['piso' => $pisoCaixa, 'tem' => $cx, 'disp' => $cxDisp, 'rotulo' => 'caixa'],
+            ['piso' => $pisoBalcao, 'tem' => $bl, 'disp' => $blDisp, 'rotulo' => 'balcão'],
+            ['piso' => $pisoFarma, 'tem' => $fa, 'disp' => $faDisp, 'rotulo' => 'farmacêutico'],
+            ['piso' => $pisoSubger, 'tem' => $sg, 'disp' => $sgDisp, 'rotulo' => 'subgerente'],
+        ];
+        $wdPiso = (int)$d->format('w');
+        $pisoDiaSem = isset($pisoDia[$wdPiso]) ? (int)$pisoDia[$wdPiso]
+            : (isset($pisoDia[(string)$wdPiso]) ? (int)$pisoDia[(string)$wdPiso] : null);
+        if ($pisoDiaSem !== null) {
+            $pisos[] = ['piso' => $pisoDiaSem, 'tem' => $total, 'disp' => $totDisp, 'rotulo' => 'equipe'];
+        }
+        foreach ($pisos as $p) {
+            if ($p['piso'] === null || $p['piso'] <= 0 || $p['tem'] >= $p['piso']) continue;
+            $impossivel = $p['disp'] < $p['piso'];
+            $alertas[] = [
+                'colab' => '—', 'tipo' => 'cobertura-minima',
+                'categoria' => $impossivel ? 'observacao' : 'obrigatoria',
+                'obrigatoria' => !$impossivel,
+                'impedimento' => $impossivel,
+                'nivel' => $impossivel ? 'nota' : 'regra',
+                'base' => BASE_CASA, 'dia' => $i,
+                'txt' => $d->format('d/m') . ': ' . $p['rotulo'] . ' ' . $p['tem'] . '/' . $p['piso']
+                       . ($impossivel
+                           ? ' — mínimo obrigatório não alcançável (' . $p['disp'] . ' disponível(is))'
+                           : ' — abaixo do mínimo obrigatório da loja'),
+            ];
+        }
+
         if (count($ativosParticipantes) > 0 && $total === 0) {
             $msg = 'loja sem ninguém escalado';
             if (!in_array($msg, $falta, true)) $falta[] = $msg;
             $alertas[] = [
                 'colab' => '—', 'tipo' => 'loja-vazia', 'categoria' => 'obrigatoria',
                 'obrigatoria' => true, 'impedimento' => ($totDisp === 0), 'nivel' => 'regra', 'dia' => $i,
+                'base' => BASE_CASA,
                 'txt' => $d->format('d/m') . ': ' . $msg . ($totDisp === 0 ? ' (impedimento: 0 disponíveis)' : ''),
             ];
         }
@@ -869,11 +996,47 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
         }
     }
 
+    /* DIVERGÊNCIA DE PARÂMETROS: o cliente mandou regra diferente da que o banco
+       guarda. A regra do banco prevaleceu; o fato fica registrado para auditoria
+       e aparece como observação, nunca como permissão. */
+    foreach ($divergencias as $chave) {
+        $alertas[] = [
+            'colab' => '—', 'tipo' => 'parametro-divergente', 'categoria' => 'observacao',
+            'obrigatoria' => false, 'nivel' => 'nota', 'base' => BASE_CASA,
+            'txt' => 'Parâmetro "' . $chave . '" enviado pelo navegador difere do configurado na loja; '
+                   . 'a validação usou o valor configurado.',
+        ];
+    }
+
     $obrigatorias = array_values(array_filter($alertas, function ($a) { return !empty($a['obrigatoria']); }));
     $preferencias = array_values(array_filter($alertas, function ($a) { return empty($a['obrigatoria']) && ($a['nivel'] ?? '') !== 'nota'; }));
     $observacoes = array_values(array_filter($alertas, function ($a) { return ($a['nivel'] ?? '') === 'nota'; }));
     $impedimentos = array_values(array_filter($alertas, function ($a) { return !empty($a['impedimento']); }));
     $lacunas = array_values(array_filter($alertas, function ($a) { return !empty($a['lacuna']); }));
+
+    /* COBERTURA DA VALIDAÇÃO: sem os dados, uma regra não foi conferida — e não
+       conferir não é o mesmo que estar conforme. Cada lacuna é nomeada para que
+       a tela e os testes distingam "sem problema" de "não deu para verificar". */
+    $naoVerificadas = [];
+    if (!$mapaBanco) {
+        $naoVerificadas[] = [
+            'regra' => 'ausencias-e-cadastro',
+            'txt' => 'Equipe não lida do banco nesta validação: ausências, cargos e perfis não foram conferidos.',
+        ];
+    }
+    if (count($lacunas) > 0) {
+        $naoVerificadas[] = [
+            'regra' => 'interjornada',
+            'txt' => count($lacunas) . ' jornada(s) sem entrada e saída completas: o descanso de 11h não pôde ser conferido nesses dias.',
+        ];
+    }
+    if (!$paramsLoja) {
+        $naoVerificadas[] = [
+            'regra' => 'parametros-da-loja',
+            'txt' => 'Loja sem parâmetros salvos: mínimos e perfis foram tratados pelos padrões do sistema.',
+        ];
+    }
+    $validacaoParcial = count($naoVerificadas) > 0;
 
     $folgasTotais = 0;
     foreach ($grade as $linha) {
@@ -892,6 +1055,8 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
         'obrigatorias' => $obrigatorias,
         'preferencias' => $preferencias,
         'observacoes' => $observacoes,
+        'nao_verificadas' => $naoVerificadas,
+        'divergencias' => $divergencias,
         'resumo' => [
             'pessoas' => count($grade),
             'dias' => $N,
@@ -904,6 +1069,13 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
             'notas' => count($observacoes),
             'impedimentos' => count($impedimentos),
             'lacunas' => count($lacunas),
+            'nao_verificadas' => count($naoVerificadas),
+            'validacao_parcial' => $validacaoParcial,
+            'conformidade' => count($obrigatorias) > 0
+                ? 'reprovada'
+                : ($validacaoParcial ? 'parcial' : 'completa'),
+            'divergencias' => count($divergencias),
+            'perfis_aplicados' => count($perfis),
             'pode_publicar' => count($obrigatorias) === 0,
         ],
     ];
@@ -939,6 +1111,13 @@ function resumoDaGrade(array $grade, array $params = []): array
         'notas' => 0,
         'impedimentos' => 0,
         'lacunas' => 0,
+        // Sem período não há como conferir regra nenhuma: contadores zerados aqui
+        // significam "não verificado", e o resumo diz isso em vez de alegar conformidade.
+        'nao_verificadas' => 1,
+        'validacao_parcial' => true,
+        'conformidade' => 'nao-verificada',
+        'divergencias' => 0,
+        'perfis_aplicados' => 0,
         'pode_publicar' => true,
     ];
 }

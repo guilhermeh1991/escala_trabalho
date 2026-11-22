@@ -440,6 +440,93 @@ conferir('folga fixa e folga isolada são classificadas como preferências (não
   valSeparacao.alertas.some(a=>a.tipo==='dia-fixo' && a.obrigatoria===false && a.categoria==='preferencia') &&
   valSeparacao.alertas.some(a=>a.tipo==='isolada' && a.obrigatoria===false && a.categoria==='preferencia') ? 1 : 0, 1);
 
+/* Perfil operacional explícito: a folga de fim de semana é política da casa, não
+   exigência legal. O perfil da loja diz quais dias, e o alerta cita o perfil que
+   decidiu em vez de apresentar a regra como obrigação universal. */
+const colabPerfil = {id:'pf1', nome:'PESSOA PERFIL', cargo:'BALCONISTA', horario:'08:00 AS 16:20',
+  perfil:'folga-segunda', ativo:true, ausencias:[]};
+const pPerfil = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0,
+  minCaixa:0, minBalcao:0, minFarma:0, minSubger:0,
+  perfis:{'folga-segunda':{id:'folga-segunda', nome:'Apoio — folga na segunda',
+    base:'politica-da-casa', regras:{folgaFixaSemanal:[1]}}}};
+const resPerfil = {
+  days: E.listDays('2026-11-02', '2026-11-03'),   // 02/11 é segunda-feira
+  grid: {pf1:['','']},
+  ativos: [colabPerfil],
+  params: pPerfil,
+  horas: {}
+};
+const valPerfil = E.validar(resPerfil, [colabPerfil]);
+const verPerfil = verificar(resPerfil, [colabPerfil], pPerfil, {});
+conferir('folga fixa do perfil é cobrada citando o perfil e a base de política da casa',
+  valPerfil.alertas.some(a=>a.tipo==='perfil-folga-fixa' && a.obrigatoria===true
+    && a.base==='politica-da-casa' && a.txt.includes('Apoio — folga na segunda')) &&
+  verPerfil.some(v=>v.regra==='R6-perfil-folga-fixa') ? 1 : 0, 1);
+
+/* Sem perfis configurados, o gerente mantém sábado e domingo: a configuração
+   existente continua valendo até uma alteração explícita. */
+const colabGerente = {id:'gr1', nome:'GERENTE', cargo:'GERENTE', horario:'08:00 AS 16:20',
+  gerente:true, ativo:true, ausencias:[]};
+const pSemPerfis = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0,
+  minCaixa:0, minBalcao:0, minFarma:0, minSubger:0};
+const resGerente = {
+  days: E.listDays('2026-11-07', '2026-11-08'),   // sábado e domingo
+  grid: {gr1:['','']},
+  ativos: [colabGerente],
+  params: pSemPerfis,
+  horas: {}
+};
+conferir('loja sem perfis preserva a folga de fim de semana do gerente',
+  E.validar(resGerente, [colabGerente]).alertas.filter(a=>a.tipo==='perfil-folga-fixa').length === 2 &&
+  verificar(resGerente, [colabGerente], pSemPerfis, {}).filter(v=>v.regra==='R6-perfil-folga-fixa').length === 2 ? 1 : 0, 1);
+
+/* Mínimo de cobertura: a meta avisa, o piso obrigatório bloqueia. Os dois convivem
+   para a mesma função, e o piso só existe onde a loja o declarou. */
+const eqPiso = [
+  {id:'cx_a', nome:'CAIXA A', cargo:'CAIXA', horario:'08:00 AS 16:20', ativo:true, ausencias:[]},
+  {id:'cx_b', nome:'CAIXA B', cargo:'CAIXA', horario:'08:00 AS 16:20', ativo:true, ausencias:[]},
+];
+const basePiso = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0,
+  minBalcao:0, minFarma:0, minSubger:0};
+const montarPiso = params => ({
+  days: E.listDays('2026-11-02', '2026-11-03'),
+  grid: {cx_a:['',''], cx_b:['X','X']},          // só uma pessoa trabalha
+  ativos: eqPiso, params, horas: {}
+});
+const pComPiso = Object.assign({}, basePiso, {minCaixa:2, minCaixaObrigatorio:2});
+const resComPiso = montarPiso(pComPiso);
+const valComPiso = E.validar(resComPiso, eqPiso);
+conferir('piso obrigatório de cobertura bloqueia a publicação',
+  valComPiso.alertas.some(a=>a.tipo==='cobertura-minima' && a.obrigatoria===true) &&
+  valComPiso.resumo.podePublicar === false &&
+  verificar(resComPiso, eqPiso, pComPiso, {}).some(v=>v.regra==='R12-piso-obrigatorio') ? 1 : 0, 1);
+
+const pSoMeta = Object.assign({}, basePiso, {minCaixa:2});
+const resSoMeta = montarPiso(pSoMeta);
+const valSoMeta = E.validar(resSoMeta, eqPiso);
+conferir('mesma falta sem piso declarado continua aviso e permite publicar',
+  valSoMeta.alertas.some(a=>a.tipo==='cobertura' && a.obrigatoria===false) &&
+  valSoMeta.resumo.podePublicar === true &&
+  verificar(resSoMeta, eqPiso, pSoMeta, {}).every(v=>v.regra!=='R12-piso-obrigatorio') ? 1 : 0, 1);
+
+/* Piso inalcançável por indisponibilidade real é impedimento operacional, não
+   violação: mantém a distinção que a decisão 0005 exigiu para o farmacêutico. */
+const eqPisoFerias = [
+  {id:'cx_c', nome:'CAIXA C', cargo:'CAIXA', horario:'08:00 AS 16:20', ativo:true,
+   ausencias:[{tipo:'F', ini:'2026-11-02', fim:'2026-11-03'}]},
+];
+const pPisoImpossivel = Object.assign({}, basePiso, {minCaixa:1, minCaixaObrigatorio:1});
+const resPisoImpossivel = {
+  days: E.listDays('2026-11-02', '2026-11-03'),
+  grid: {cx_c:['F','F']},
+  ativos: eqPisoFerias, params: pPisoImpossivel, horas: {}
+};
+conferir('piso inalcançável vira impedimento e não bloqueia a publicação',
+  E.validar(resPisoImpossivel, eqPisoFerias).alertas
+    .some(a=>a.tipo==='cobertura-minima' && a.obrigatoria===false && a.impedimento===true) &&
+  verificar(resPisoImpossivel, eqPisoFerias, pPisoImpossivel, {})
+    .some(v=>v.regra==='R12-piso-impedimento-nota') ? 1 : 0, 1);
+
 /* ------------------------------------------------------------------ */
 console.log('\n=== 4. Documento impresso ===\n');
 

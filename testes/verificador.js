@@ -103,13 +103,21 @@ function verificar(res, colabs, P, estadoInicial){
         add('R11-interjornada', c.nome, `${dd(days[i])}→${dd(days[i+1])}: ${Math.floor(descanso/60)}h${String(descanso%60).padStart(2,'0')} de descanso`);
     }
 
-    // R6 — gerente folga todo sábado e domingo
-    if(c.gerente){
+    // R6 — folga fixa semanal vinda do perfil operacional da pessoa.
+    // Reimplementada aqui a partir do enunciado: o perfil declara os dias; sem
+    // perfil definido, o gerente mantém sábado e domingo, como antes.
+    const perfisLoja = (P && P.perfis) || {};
+    const perfilDaPessoa = c.perfil && perfisLoja[c.perfil] ? perfisLoja[c.perfil] : null;
+    const diasDoPerfil = perfilDaPessoa && Array.isArray(perfilDaPessoa.regras && perfilDaPessoa.regras.folgaFixaSemanal)
+      ? perfilDaPessoa.regras.folgaFixaSemanal.map(Number)
+      : (c.gerente ? [0,6] : []);
+    if(diasDoPerfil.length){
+      const nomePerfil = perfilDaPessoa ? perfilDaPessoa.nome : 'gerente (padrão da casa)';
       days.forEach((d,i)=>{
-        if((d.getDay()===0||d.getDay()===6) && !descansa(i))
-          add('R6-gerente', c.nome, `trabalhando em ${dd(days[i])} (${d.getDay()===0?'domingo':'sábado'})`);
+        if(diasDoPerfil.includes(d.getDay()) && !descansa(i))
+          add('R6-perfil-folga-fixa', c.nome, `perfil "${nomePerfil}" prevê folga, mas trabalha em ${dd(days[i])}`);
       });
-      return;   // as demais regras não se aplicam ao gerente
+      return;   // quem tem folga fixa de perfil não entra nas demais regras de folga
     }
 
     // R2 — nunca mais de maxSeq dias seguidos trabalhados
@@ -211,6 +219,24 @@ function verificar(res, colabs, P, estadoInicial){
       if(alvo && tot < alvo) add('R7-equipe','—', `${dd(d)}: ${tot}/${alvo}`);
     }
     if(tot === 0) add('R7-loja-vazia','—', `${dd(d)}: ninguém na loja`);
+
+    /* R12 — pisos obrigatórios por loja e função. Independente de R7: lá os
+       números são metas, aqui é o mínimo que a loja declarou obrigatório.
+       Sem gente disponível o dia é impedimento operacional, não violação —
+       a distinção é a mesma que a decisão 0005 exigiu para o farmacêutico. */
+    const piso = chave => (P[chave] == null || P[chave] === '') ? null : Number(P[chave]);
+    const pisoDiaSem = P.minDiaObrigatorio ? Number(P.minDiaObrigatorio[d.getDay()] || 0) : null;
+    [
+      {p: piso('minCaixaObrigatorio'), tem: cx, disp: cxDisp, rotulo: 'caixa'},
+      {p: piso('minBalcaoObrigatorio'), tem: bl, disp: blDisp, rotulo: 'balcão'},
+      {p: piso('minFarmaObrigatorio'), tem: fa, disp: faDisp, rotulo: 'farmacêutico'},
+      {p: piso('minSubgerObrigatorio'), tem: sg, disp: sgDisp, rotulo: 'subgerente'},
+      {p: pisoDiaSem, tem: tot, disp: ativos.filter(c=>disp(c)).length, rotulo: 'equipe'},
+    ].forEach(({p, tem, disp: d2, rotulo})=>{
+      if(p == null || !(p > 0) || tem >= p) return;
+      if(d2 < p) add('R12-piso-impedimento-nota','—', `${dd(d)}: ${rotulo} ${tem}/${p} — mínimo obrigatório não alcançável (${d2} disponível(is))`);
+      else add('R12-piso-obrigatorio','—', `${dd(d)}: ${rotulo} ${tem}/${p} — abaixo do mínimo obrigatório da loja`);
+    });
   });
 
   return V;

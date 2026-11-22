@@ -782,22 +782,22 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <div class="hint">Define onde começa e termina cada semana de folgas.</div>
           </div>
           <div class="pg-cel">
-            <label>Mín. de caixas por dia</label>
+            <label>Caixas por dia (meta)</label>
             <input type="number" id="r-mincaixa" class="inp" min="0" max="12">
           </div>
           <div class="pg-cel">
-            <label>Mín. de balcão por dia</label>
+            <label>Balcão por dia (meta)</label>
             <input type="number" id="r-minbalcao" class="inp" min="0" max="15">
           </div>
 
           <!-- linha 3: farmacêutico, subgerente, prioridade -->
           <div class="pg-cel">
-            <label>Farmacêuticos na loja (alvo)</label>
+            <label>Farmacêuticos na loja (meta)</label>
             <input type="number" id="r-minfarma" class="inp" min="0" max="5">
             <div class="hint">1 é tolerado em último caso · 0 o sistema evita ao máximo</div>
           </div>
           <div class="pg-cel">
-            <label>Subgerentes na loja (mín.)</label>
+            <label>Subgerentes na loja (meta)</label>
             <input type="number" id="r-minsubger" class="inp" min="0" max="4">
             <div class="hint">Recomendado: pelo menos 1 todos os dias.</div>
           </div>
@@ -824,6 +824,27 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <p class="desc" style="margin-bottom:12px">É o alvo que o gerador persegue ao distribuir as folgas: dias de maior movimento recebem menos folga. Zero desativa o controle para aquele dia.</p>
         <div class="dias-semana" id="min-dias"></div>
 
+        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:24px 0 8px">Mínimos obrigatórios desta loja</h3>
+        <p class="desc" style="margin-bottom:12px">Os números acima são metas: ficar abaixo deles gera aviso. O que você preencher aqui é piso obrigatório e <b>impede a publicação</b> da escala. Em branco significa que não há piso e só a meta vale — é como as lojas já configuradas continuam funcionando. Quando não há gente disponível para alcançar o piso, o dia é registrado como impedimento operacional e não bloqueia.</p>
+        <div class="pg-grade">
+          <div class="pg-cel">
+            <label>Caixas (mínimo obrigatório)</label>
+            <input type="number" id="r-mincaixa-obr" class="inp" min="0" max="12" placeholder="sem piso">
+          </div>
+          <div class="pg-cel">
+            <label>Balcão (mínimo obrigatório)</label>
+            <input type="number" id="r-minbalcao-obr" class="inp" min="0" max="15" placeholder="sem piso">
+          </div>
+          <div class="pg-cel">
+            <label>Farmacêuticos (mínimo obrigatório)</label>
+            <input type="number" id="r-minfarma-obr" class="inp" min="0" max="5" placeholder="sem piso">
+          </div>
+          <div class="pg-cel" style="border-bottom:0">
+            <label>Subgerentes (mínimo obrigatório)</label>
+            <input type="number" id="r-minsubger-obr" class="inp" min="0" max="4" placeholder="sem piso">
+          </div>
+        </div>
+
         <div class="params-actions">
           <button class="btn" id="btn-salvar-params">Salvar parâmetros</button>
           <span class="chip" id="status-params"></span>
@@ -834,7 +855,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <h2>Como o gerador decide</h2>
         <ol style="font-size:13.5px;color:var(--tinta2);line-height:1.75;margin:0;padding-left:20px">
           <li>Trava férias, atestados e licenças. Só isso é intocável — todo o resto tem peso.</li>
-          <li>Gerente folga em todos os sábados e domingos, sem outra regra.</li>
+          <li>Quem tem perfil com folga fixa semanal folga nesses dias, sem outra regra. Sem perfis configurados, o gerente folga sábado e domingo — é política da casa, não exigência legal.</li>
           <li>No <b>5x2</b>, procura duas folgas por semana em dias seguidos. No <b>6x1</b>, uma folga por semana — e na semana em que cai o domingo do ciclo a pessoa folga duas vezes, porque a folga da semana e a do domingo são direitos separados.</li>
           <li>Para cada pessoa, monta todas as combinações possíveis de folga de cada semana e escolhe a sequência do mês inteiro de menor custo. Não decide semana a semana: colar o fim de semana depende do que foi feito na semana anterior.</li>
           <li>As exigências da lei viajam dentro dessa conta com peso em outra ordem de grandeza, de propósito: a soma de todos os furos de cobertura de um mês inteiro ainda é menor que uma única infração legal. São elas o limite de dias seguidos trabalhados e o teto de domingos seguidos (Lei 10.101/2000: no máximo dois).</li>
@@ -1813,12 +1834,22 @@ function validar(res, colabs){
       }
     });
 
-    // 0b) perfil gerente: folga sábado e domingo (obrigatória conforme perfil)
-    if(c.gerente){
+    /* 0b) folga fixa semanal do perfil operacional. É política da casa, não
+       exigência legal: o perfil da loja diz quais dias, e o alerta cita o perfil
+       que decidiu. Loja sem perfis mantém sábado e domingo para o gerente. */
+    const perfisLoja = P.perfis || {};
+    const perfilPessoa = c.perfil && perfisLoja[c.perfil] ? perfisLoja[c.perfil] : null;
+    const diasPerfil = perfilPessoa && Array.isArray(perfilPessoa.regras && perfilPessoa.regras.folgaFixaSemanal)
+      ? perfilPessoa.regras.folgaFixaSemanal.map(Number)
+      : (c.gerente ? [0,6] : []);
+    if(diasPerfil.length){
+      const nomePerfil = perfilPessoa ? perfilPessoa.nome : 'gerente (padrão da casa)';
+      const basePerfil = perfilPessoa ? (perfilPessoa.base || 'politica-da-casa') : 'politica-da-casa';
       days.forEach((d,i)=>{
-        if((d.getDay()===0 || d.getDay()===6) && !folga(i)){
-          av.push({tipo:'gerente', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
-            txt:`Gerente escalado para trabalhar em ${ddmm(d)} (${DIA_NOME[d.getDay()]})`});
+        if(diasPerfil.includes(d.getDay()) && !folga(i)){
+          av.push({tipo:'perfil-folga-fixa', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
+            perfil:(perfilPessoa ? perfilPessoa.id || c.perfil : 'gerente'), base:basePerfil,
+            txt:`Perfil "${nomePerfil}" prevê folga em ${DIA_NOME[d.getDay()]}, mas a pessoa está escalada em ${ddmm(d)}`});
         }
       });
     }
@@ -1830,13 +1861,13 @@ function validar(res, colabs){
       const ferias = s.dias.filter(i=>arr[i]==='F'||arr[i]==='AT'||arr[i]==='LC').length;
       if(ferias>=5) return;
       if(!c.gerente && (n + Math.min(ferias, P.folgasSemana)) < P.folgasSemana)
-        av.push({tipo:'folgas-semana', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+        av.push({tipo:'folgas-semana', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', base:'lei',
           txt:`Semana de ${ddmm(days[s.ini])}: ${n} folga(s), mínimo ${P.folgasSemana}`});
       if(!c.gerente && P.modelo === '6x1' && ferias < 4){
         const domFolga = s.dias.some(i=>days[i].getDay()===0 && (arr[i]==='X'||arr[i]==='FC'));
         if(domFolga && n < 2){
-          av.push({tipo:'6x1-domingo', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
-            txt:`Semana de ${ddmm(days[s.ini])}: folgou no domingo do ciclo mas ficou sem a folga semanal do 6x1`});
+          av.push({tipo:'6x1-domingo', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', base:'politica-da-casa',
+            txt:`Semana de ${ddmm(days[s.ini])}: folgou no domingo do ciclo mas ficou sem a folga semanal do 6x1 (política da casa)`});
         }
       }
     });
@@ -1852,7 +1883,7 @@ function validar(res, colabs){
       seq++; if(seq>pior){ pior=seq; quando=days[i]; }
     }
     if(!c.gerente && pior > P.maxSeq)
-      av.push({tipo:'sequencia', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+      av.push({tipo:'sequencia', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', base:'lei',
         txt:`${pior} dias seguidos sem folga (até ${ddmm(quando)}), máximo ${P.maxSeq}`});
 
     // 3) domingos (obrigatória para não-gerentes)
@@ -1868,7 +1899,7 @@ function validar(res, colabs){
         if(arr[i]===''){
           corrida++;
           if(corrida > P.cicloDomingo-1 && !avisouDom){
-            av.push({tipo:'domingo', categoria:'obrigatoria', obrigatoria:true, nivel:'regra',
+            av.push({tipo:'domingo', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', base:'lei',
               txt:`${corrida} domingos seguidos trabalhados até ${ddmm(days[i])} — máximo configurado ${P.cicloDomingo-1}`});
             avisouDom = true;
           }
@@ -1925,7 +1956,7 @@ function validar(res, colabs){
         const descanso0 = ent0Min + 1440 - fimUltAnt;
         if(descanso0 < minimoInterjornada){
           const liberado0 = horaDosMinutos(fimUltAnt + minimoInterjornada);
-          av.push({tipo:'interjornada', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:0, transicaoPeriodo:true,
+          av.push({tipo:'interjornada', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', base:'lei', dia:0, transicaoPeriodo:true,
             txt:`Sai ${saidaUltAnt} no fim do período anterior (${dataUltAnt}) e entra ${ent0} em ${ddmm(days[0])}: ${textoDuracao(descanso0)} de descanso, mínimo 11h (só pode entrar a partir das ${liberado0})`});
         }
       } else {
@@ -1950,7 +1981,7 @@ function validar(res, colabs){
       if(descanso>=minimoInterjornada) continue;
       const fimMin=fimDoDiaMinutos(c,i,res);
       const liberado=fimMin!=null ? horaDosMinutos(fimMin+minimoInterjornada) : null;
-      av.push({tipo:'interjornada', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i+1,
+      av.push({tipo:'interjornada', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', base:'lei', dia:i+1,
         txt:`Sai ${saidaDoDia(c,i,res)} em ${ddmm(days[i])} e entra ${entradaDoDia(c,i+1,res)} em ${ddmm(days[i+1])}: ${textoDuracao(descanso)} de descanso, mínimo 11h${liberado?` (só pode entrar a partir das ${liberado})`:''}`});
     }
     if(diasSemJornadaCompleta > 0){
@@ -2024,10 +2055,33 @@ function validar(res, colabs){
         if(imp) impedimentos.push(msg);
       }
     }
+    /* Pisos obrigatórios por loja e função. Os alvos acima continuam metas; o
+       piso só existe onde a loja o definiu. Sem gente disponível, o dia é
+       impedimento operacional e vira nota, não bloqueio. */
+    const pisoDe = chave => (P[chave] == null || P[chave] === '') ? null : Number(P[chave]);
+    const pisoDiaSem = P.minDiaObrigatorio ? Number(P.minDiaObrigatorio[d.getDay()] || 0) : null;
+    [
+      {piso:pisoDe('minCaixaObrigatorio'), tem:cx, disp:cxDisp, rotulo:'caixa'},
+      {piso:pisoDe('minBalcaoObrigatorio'), tem:bl, disp:blDisp, rotulo:'balcão'},
+      {piso:pisoDe('minFarmaObrigatorio'), tem:fa, disp:faDisp, rotulo:'farmacêutico'},
+      {piso:pisoDe('minSubgerObrigatorio'), tem:sg, disp:sgDisp, rotulo:'subgerente'},
+      {piso:pisoDiaSem, tem:total, disp:totDisp, rotulo:'equipe'},
+    ].forEach(({piso, tem, disp, rotulo})=>{
+      if(piso == null || !(piso > 0) || tem >= piso) return;
+      const impossivel = disp < piso;
+      alertas.push({colab:'—', tipo:'cobertura-minima',
+        categoria: impossivel ? 'observacao' : 'obrigatoria',
+        obrigatoria: !impossivel, impedimento: impossivel,
+        nivel: impossivel ? 'nota' : 'regra', base:'politica-da-casa', dia:i,
+        txt:`${ddmm(d)}: ${rotulo} ${tem}/${piso}${impossivel
+          ? ` — mínimo obrigatório não alcançável (${disp} disponível(is))`
+          : ' — abaixo do mínimo obrigatório da loja'}`});
+    });
+
     if(ativos.length > 0 && total === 0){
       const msg = 'loja sem ninguém escalado';
       if(!falta.includes(msg)) falta.push(msg);
-      alertas.push({colab:'—', tipo:'loja-vazia', categoria:'obrigatoria', obrigatoria:true, impedimento:totDisp===0, nivel:'regra', dia:i,
+      alertas.push({colab:'—', tipo:'loja-vazia', categoria:'obrigatoria', obrigatoria:true, impedimento:totDisp===0, nivel:'regra', dia:i, base:'politica-da-casa',
         txt:`${ddmm(d)}: ${msg}${totDisp===0 ? ' (impedimento: 0 disponíveis)' : ''}`});
     }
     if(falta.length){
@@ -3767,14 +3821,29 @@ function pintarParams(){
   $('#r-minfarma').value=p.minFarma; $('#r-minsubger').value = p.minSubger!=null?p.minSubger:1;
   $('#r-subger').checked = p.subgerFds!==false;
   $('#r-prioridade').value = p.prioridade || 'par';
+  // Piso vazio é ausência de piso, não zero: campo em branco preserva o que a loja já tinha.
+  const piso = (campo, valor) => { $(campo).value = (valor==null || valor==='') ? '' : valor; };
+  piso('#r-mincaixa-obr', p.minCaixaObrigatorio);
+  piso('#r-minbalcao-obr', p.minBalcaoObrigatorio);
+  piso('#r-minfarma-obr', p.minFarmaObrigatorio);
+  piso('#r-minsubger-obr', p.minSubgerObrigatorio);
 }
 $('#r-ciclo').onchange = avisoCiclo;
 $('#btn-salvar-params').onclick = async ()=>{
   const modelo = $('#r-modelo').value;
+  const paramsAnteriores = Object.assign({}, loja().params);
   loja().params = {modelo, folgasSemana: modelo==='6x1' ? 1 : 2,
     cicloDomingo:+$('#r-ciclo').value, maxSeq:+$('#r-maxseq').value,
     inicioSemana:($('#r-semana').value==='P'?'P':+$('#r-semana').value), minCaixa:+$('#r-mincaixa').value, minBalcao:+$('#r-minbalcao').value, minFarma:+$('#r-minfarma').value, minSubger:+$('#r-minsubger').value,
     subgerFds:$('#r-subger').checked, minDia:lerMinDias(), prioridade:$('#r-prioridade').value};
+  /* Piso em branco é removido do objeto: ausência de chave significa "sem piso",
+     e nunca zero. Perfis já configurados na loja são preservados como estão. */
+  const lerPiso = sel => { const v = $(sel).value.trim(); return v==='' ? null : Math.max(0, +v); };
+  [['minCaixaObrigatorio','#r-mincaixa-obr'], ['minBalcaoObrigatorio','#r-minbalcao-obr'],
+   ['minFarmaObrigatorio','#r-minfarma-obr'], ['minSubgerObrigatorio','#r-minsubger-obr']]
+    .forEach(([chave, sel])=>{ const v = lerPiso(sel); if(v!==null) loja().params[chave] = v; });
+  if(paramsAnteriores.minDiaObrigatorio) loja().params.minDiaObrigatorio = paramsAnteriores.minDiaObrigatorio;
+  if(paramsAnteriores.perfis) loja().params.perfis = paramsAnteriores.perfis;
   await store.set('escala:lojas', S.lojas);
   $('#status-params').textContent='Parâmetros salvos'; $('#status-params').className='chip ok';
   setTimeout(()=>$('#status-params').textContent='',2500);
@@ -5211,9 +5280,18 @@ function pintarGrade(){
   if(obrigatorias.length) partesCont.push(`${obrigatorias.length} restrição(ões) obrigatória(s)`);
   if(preferencias.length) partesCont.push(`${preferencias.length} meta(s)/preferência(s)`);
   if(notas.length) partesCont.push(`${notas.length} observação(ões)/lacuna(s)`);
+  /* O que não deu para conferir não pode ser lido como conformidade. Lacuna de
+     jornada deixa a validação parcial, e a frase diz isso em vez de afirmar que
+     está tudo certo. */
+  const lacunas = al.filter(a=>a.lacuna);
+  const naoVerificado = lacunas.length
+    ? ` Validação parcial: ${lacunas.length} lacuna(s) de jornada impediram conferir o descanso de 11h nesses dias.`
+    : '';
   $('#cont-alertas').textContent = (partesCont.length
     ? `${regras.length} regra(s) ferida(s) (${partesCont.join(' · ')}). `
-    : 'Nenhuma regra ferida nesta escala. ') + escopoVerificado;
+    : (lacunas.length
+        ? 'Nenhuma regra ferida entre as que puderam ser conferidas. '
+        : 'Nenhuma regra ferida nesta escala. ')) + escopoVerificado + naoVerificado;
   const tagCategoria = a => a.obrigatoria
     ? '<span class="chip mal" style="font-size:10px;padding:1px 6px;margin-right:6px">Obrigatória</span>'
     : (a.impedimento
@@ -5223,7 +5301,7 @@ function pintarGrade(){
             : '<span class="chip" style="font-size:10px;padding:1px 6px;margin-right:6px">Preferência/Meta</span>'));
   $('#lista-alertas').innerHTML = al.length
     ? obrigatorias.concat(preferencias, notas).map(a=>`<li${a.nivel==='nota'?' style="color:var(--fraco)"':''}><b${a.nivel!=='nota'?' style="color:var(--alerta)"':''}>${esc(a.colab)}</b><span>${tagCategoria(a)}${esc(a.txt)}</span></li>`).join('')
-    : `<li style="color:var(--v-fg)">Todas as regras de folga fecharam.</li>`;
+    : `<li style="color:var(--v-fg)">Todas as regras de folga que puderam ser conferidas fecharam.</li>`;
 
   // resumo
   let r = `<thead><tr><th>Colaborador</th><th>Folgas</th><th>Dom. folga</th><th>Dom. trab.</th><th>Máx. seguidos</th><th>Situação</th></tr></thead><tbody>`;

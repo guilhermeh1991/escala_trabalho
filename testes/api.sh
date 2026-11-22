@@ -349,12 +349,31 @@ CID_B=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT id FROM colaborad
 chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-20\",\"fim\":\"2026-08-21\",\"grade\":{\"$CID_B\":[\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\"},\"publicar\":true}" "$CSRF_A"
 [ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "Ausência" && ok "publicação bloqueada quando férias do banco são sobrescritas" || falha "ausência não bloqueou publicação: HTTP $HTTP_STATUS $HTTP_BODY"
 
-# Publicação bloqueada por excesso de dias seguidos (maxSeq=5, 6 dias trabalhados) e ciclo de domingos
+# Publicação bloqueada por excesso de dias seguidos (maxSeq=5, 6 dias trabalhados) e ciclo de domingos.
+# Os parâmetros de regra são gravados na loja: desde a separação de autoridade, o
+# servidor lê regra de lojas.parametros e ignora o que vier no payload.
 SNAP_SEQ='{"schema":1,"incompleto":false,"participantes":[{"id":"cseq","nome":"Pessoa Sequencia","cargo":"CAIXA","horario":"08:00 AS 16:20","domTrabConsec":1,"ausencias":[],"ordem":0}]}'
+gravar_params_loja() { # $1 = json dos parâmetros
+  chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar\",\"lojas\":[{\"id\":\"$LOJA_A\",\"nome\":\"Loja Teste A\",\"params\":$1,\"colabs\":[],\"_ordem\":0}]}" "$CSRF_A" >/dev/null
+}
+gravar_params_loja '{"modelo":"5x2","maxSeq":5}'
 chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-01\",\"fim\":\"2026-10-06\",\"grade\":{\"cseq\":[\"\",\"\",\"\",\"\",\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\",\"maxSeq\":5},\"snapshot\":$SNAP_SEQ,\"publicar\":true}" "$CSRF_A"
 [ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "dias seguidos" && ok "publicação bloqueada quando sequência máxima configurada é excedida" || falha "sequência não bloqueou: HTTP $HTTP_STATUS $HTTP_BODY"
+gravar_params_loja '{"modelo":"5x2","cicloDomingo":2}'
 chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-04\",\"fim\":\"2026-10-05\",\"grade\":{\"cseq\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\",\"cicloDomingo\":2},\"snapshot\":$SNAP_SEQ,\"publicar\":true}" "$CSRF_A"
 [ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "domingos seguidos" && ok "publicação bloqueada quando ciclo configurado de domingos é excedido" || falha "domingo não bloqueou: HTTP $HTTP_STATUS $HTTP_BODY"
+
+# TENTATIVA DE MANIPULAÇÃO: afrouxar a regra pelo payload não pode liberar a publicação.
+# A loja mantém maxSeq=5; o payload tenta maxSeq=365.
+gravar_params_loja '{"modelo":"5x2","maxSeq":5}'
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-01\",\"fim\":\"2026-10-06\",\"grade\":{\"cseq\":[\"\",\"\",\"\",\"\",\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\",\"maxSeq\":365},\"snapshot\":$SNAP_SEQ,\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "dias seguidos" && ok "maxSeq afrouxado no payload não enfraquece o bloqueio" || falha "payload afrouxou maxSeq: HTTP $HTTP_STATUS $HTTP_BODY"
+
+# A divergência entre payload e banco é registrada como observação e na auditoria.
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-02\",\"fim\":\"2026-11-03\",\"grade\":{\"cseq\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\",\"maxSeq\":365},\"snapshot\":$SNAP_SEQ}" "$CSRF_A")
+echo "$R" | grep -q '"divergencias":\[' && echo "$R" | grep -q 'maxSeq' && ok "parâmetro divergente do banco é registrado no resultado" || falha "divergência não registrada: $R"
+AUD=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM registro_acoes WHERE acao='parametros_divergentes';")
+[ "$AUD" -ge 1 ] && ok "tentativa de reclassificação fica na trilha de auditoria" || falha "auditoria sem registro de divergência: $AUD"
 
 # Descanso insuficiente entre períodos contíguos (sai 23:00 em 12/10 e entra 07:00 em 13/10)
 SNAP_ANT='{"schema":1,"incompleto":false,"participantes":[{"id":"cij","nome":"Pessoa Turno","cargo":"CAIXA","horario":"14:40 AS 23:00","ausencias":[],"ordem":0},{"id":"cij2","nome":"Pessoa Apoio","cargo":"BALCONISTA","horario":"08:00 AS 16:20","ausencias":[],"ordem":1}]}'
@@ -367,6 +386,24 @@ chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\
 SNAP_INC='{"schema":1,"incompleto":false,"participantes":[{"id":"cinc","nome":"Pessoa Incompleta","cargo":"CAIXA","horario":"08:00","ausencias":[],"ordem":0}]}'
 R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-20\",\"fim\":\"2026-10-21\",\"grade\":{\"cinc\":[\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\",\"minFarma\":2,\"minSubger\":1},\"snapshot\":$SNAP_INC}" "$CSRF_A")
 echo "$R" | grep -q '"impedimentos":2' && echo "$R" | grep -q '"lacunas":1' && ok "servidor registra impedimentos de disponibilidade zero e lacuna de jornada incompleta" || falha "impedimentos/lacunas: $R"
+
+# MÍNIMO OBRIGATÓRIO POR LOJA E FUNÇÃO: a meta avisa, o piso bloqueia.
+# A loja pede meta de 2 caixas e piso obrigatório de 2; só uma pessoa trabalha.
+SNAP_PISO='{"schema":1,"incompleto":false,"participantes":[{"id":"cpiso","nome":"Pessoa Caixa","cargo":"CAIXA","horario":"08:00 AS 16:20","jornada":{"entrada":"08:00","saida":"16:20"},"ausencias":[],"ordem":0},{"id":"cpiso2","nome":"Outra Caixa","cargo":"CAIXA","horario":"08:00 AS 16:20","jornada":{"entrada":"08:00","saida":"16:20"},"ausencias":[],"ordem":1}]}'
+gravar_params_loja '{"modelo":"5x2","minCaixa":2,"minCaixaObrigatorio":2}'
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-10\",\"fim\":\"2026-11-11\",\"grade\":{\"cpiso\":[\"\",\"\"],\"cpiso2\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP_PISO,\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "mínimo obrigatório" && ok "piso obrigatório de cobertura bloqueia a publicação" || falha "piso obrigatório não bloqueou: HTTP $HTTP_STATUS $HTTP_BODY"
+
+# Sem piso declarado, o mesmo quadro continua publicável: a meta é só aviso e a
+# configuração anterior da loja segue valendo sem alteração explícita.
+gravar_params_loja '{"modelo":"5x2","minCaixa":2}'
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-10\",\"fim\":\"2026-11-11\",\"grade\":{\"cpiso\":[\"\",\"\"],\"cpiso2\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP_PISO,\"publicar\":true}" "$CSRF_A"
+[ "$HTTP_STATUS" = 200 ] && ok "meta sem piso obrigatório permanece aviso e não bloqueia" || falha "meta virou bloqueio: HTTP $HTTP_STATUS $HTTP_BODY"
+
+# VALIDAÇÃO PARCIAL: jornada incompleta não pode ser apresentada como conformidade completa.
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-20\",\"fim\":\"2026-10-21\",\"grade\":{\"cinc\":[\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP_INC}" "$CSRF_A")
+echo "$R" | grep -q '"conformidade":"parcial"' && ok "jornada incompleta resulta em conformidade parcial, não completa" || falha "conformidade não é parcial: $R"
+echo "$R" | grep -q '"nao_verificadas":\[' && echo "$R" | grep -q 'interjornada' && ok "resposta nomeia a regra que não pôde ser conferida" || falha "regras não verificadas não nomeadas: $R"
 
 R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\"}" "$CSRF_A")
 echo "$R" | grep -q 'Pessoa Historica' && ok "snapshot recupera participante histórico" || falha "snapshot não recuperado: $R"

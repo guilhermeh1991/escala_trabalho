@@ -99,12 +99,37 @@ seguidos. Metade da equipe é direcionada ao sábado e metade à segunda; sem is
 a segunda-feira fica deserta, porque o par sábado+domingo é sempre mais fácil
 de formar.
 
-## 5. Gerente
+## 5. Perfis operacionais
 
-> Folga todo sábado e domingo, ignorando as demais regras.
+> Folga fixa semanal vem do perfil da pessoa, não de uma exigência legal.
 
-Consequência operacional: a loja fica sem gerente todo fim de semana. Foi por
-isso que a regra do subgerente existe.
+Cada loja define seus perfis em `parametros.perfis`. Um perfil declara o nome
+que aparece nos alertas, a **base** da regra (`lei` ou `politica-da-casa`) e as
+regras em si:
+
+```json
+"perfis": {
+  "gerente-fds": {
+    "nome": "Gerente — folga no fim de semana",
+    "base": "politica-da-casa",
+    "regras": { "folgaFixaSemanal": [0, 6] }
+  }
+}
+```
+
+O colaborador aponta para um perfil pelo campo `perfil`. **Loja sem perfis
+configurados mantém o comportamento anterior**: quem está marcado como gerente
+folga sábado e domingo. Nada muda até alguém configurar perfis.
+
+Isso importa porque a folga de fim de semana do gerente nunca foi exigência da
+lei — é política da casa. O alerta agora diz qual perfil decidiu, em vez de
+apresentar a regra como obrigação universal. Pela mesma razão, a regra do 6x1
+(folga da semana além do domingo do ciclo) é marcada como `politica-da-casa`,
+enquanto limite de dias seguidos, ciclo de domingos, folgas semanais mínimas e
+descanso de 11h são marcados como `lei`.
+
+Consequência operacional do perfil de gerente: a loja fica sem gerente todo fim
+de semana. Foi por isso que a regra do subgerente existe.
 
 ## 6. Farmacêuticos
 
@@ -145,6 +170,25 @@ simulações, 13 de 14 pessoas folgaram no mesmo domingo.
 
 Quando o campo fica zerado, o sistema deduz um alvo plano a partir da própria
 capacidade da equipe.
+
+## 8b. Meta e mínimo obrigatório
+
+Os mínimos de cobertura têm dois níveis, configuráveis por loja e por função:
+
+| Nível | Chave | Efeito |
+|---|---|---|
+| Meta | `minCaixa`, `minBalcao`, `minFarma`, `minSubger`, `minDia` | aviso; não impede publicar |
+| Piso obrigatório | as mesmas com sufixo `Obrigatorio` | **bloqueia a publicação** |
+
+O piso só existe onde a loja o declarou. Chave ausente significa "sem piso", e
+não zero — por isso as lojas já configuradas continuam exatamente como estavam:
+nenhuma meta vira bloqueio sem uma alteração explícita de quem administra.
+
+Quando não há gente disponível para alcançar o piso (férias, atestado, licença),
+o dia é registrado como **impedimento operacional** e não bloqueia. É a mesma
+distinção entre violação e impossibilidade que a
+[decisão 0005](decisoes/0005-verificador-independente.md) exigiu para o
+farmacêutico: cobrar o impossível treina a equipe a ignorar alerta.
 
 ## 9. Folga fixa
 

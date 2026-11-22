@@ -455,6 +455,8 @@ case 'salvar_escala':
                 'erro' => 'Publicação bloqueada por restrição obrigatória: ' . implode(' | ', $primeiros),
                 'bloqueios' => $validacao['obrigatorias'],
                 'alertas' => $validacao['alertas'],
+                'nao_verificadas' => $validacao['nao_verificadas'],
+                'divergencias' => $validacao['divergencias'],
                 'resumo' => $resumo,
             ], 422);
         }
@@ -490,7 +492,16 @@ case 'salvar_escala':
             json_encode($resumo, JSON_UNESCAPED_UNICODE), json_encode($snapshot, JSON_UNESCAPED_UNICODE),
             $publicar, $publicar ? date('Y-m-d H:i:s') : null, $idempotencia !== '' ? $idempotencia : null, $u['id']]);
         registrar($u['id'], $u['empresa_id'], $publicar ? 'escala_publicada' : 'escala_salva',
-            ['loja' => $lojaId, 'inicio' => $inicio, 'fim' => $fim, 'versao' => $versao]);
+            ['loja' => $lojaId, 'inicio' => $inicio, 'fim' => $fim, 'versao' => $versao,
+             'conformidade' => $resumo['conformidade'] ?? null,
+             'nao_verificadas' => $resumo['nao_verificadas'] ?? 0]);
+        /* Parâmetro de regra divergente do banco é tentativa de reclassificação:
+           a regra do banco já prevaleceu, e o fato fica na trilha de auditoria. */
+        if (!empty($validacao['divergencias'])) {
+            registrar($u['id'], $u['empresa_id'], 'parametros_divergentes',
+                ['loja' => $lojaId, 'inicio' => $inicio, 'fim' => $fim, 'versao' => $versao,
+                 'chaves' => $validacao['divergencias']]);
+        }
         bd()->commit();
     } catch (Throwable $e) {
         if (bd()->inTransaction()) bd()->rollBack();
@@ -503,6 +514,8 @@ case 'salvar_escala':
         'publicada' => (bool)$publicar,
         'resumo' => $resumo,
         'alertas' => $validacao['alertas'],
+        'nao_verificadas' => $validacao['nao_verificadas'],
+        'divergencias' => $validacao['divergencias'],
     ]);
 
     // -----------------------------------------------------------------------------
