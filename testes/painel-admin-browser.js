@@ -246,6 +246,12 @@ async function main() {
     await waitText(page, '#esc-aviso', 'Rascunho salvo');
     await page.reload({waitUntil:'domcontentloaded', timeout:NAVIGATION_TIMEOUT_MS});
     await page.locator('#sel-loja').selectOption(STORE_A);
+    /* Recarregar volta ao período padrão; abrir o registro salvo pela lista
+       exercita a recuperação real, sem gerar uma nova grade. */
+    await page.locator('#painel-salvas').waitFor({state:'visible', timeout:DEFAULT_TIMEOUT_MS});
+    const salvo = page.locator('#lista-salvas .salva').filter({hasText:'01/12'}).first();
+    await salvo.waitFor({state:'visible'});
+    await salvo.locator('button[data-abrir], button[data-editar]').first().click();
     await page.locator('table.esc').waitFor({state:'visible', timeout:DEFAULT_TIMEOUT_MS});
     assert.equal(await page.locator('table.esc td.cel-editada').count() >= 1, true);
 
