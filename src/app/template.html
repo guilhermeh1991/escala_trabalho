@@ -3,25 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Quadro de Escala — Exemplo</title>
+<title>Shiftflow — Exemplo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --tinta:#12262D; --tinta2:#1D3A42; --fundo:#F2F5F3; --painel:#FFFFFF; --linha:#D5DED9;
-  --linha-suave:#E8EEEA; --texto:#17272C; --fraco:#62736E; --teal:#087773; --teal-escuro:#075F5D;
-  --teal-suave:#E5F3F0; --superficie:#F7F9F8;
+  /* Shiftflow — superfícies claras, bordas discretas, um único verde de destaque.
+     Sem gradiente decorativo: a cor forte fica reservada para ação e estado. */
+  --tinta:#22352C; --tinta2:#2E463A; --fundo:#F5F6F3; --painel:#FFFFFF; --linha:#D8DED7;
+  --linha-suave:#E9EDE8; --texto:#22352C; --fraco:#5C6B62; --teal:#16634C; --teal-escuro:#114E3C;
+  --teal-suave:#E6F0EB; --superficie:#FAFBF9;
   --v-bg:#DDF1E5; --v-fg:#12633E;   /* folga */
   --a-bg:#DFECF6; --a-fg:#215A82;   /* férias */
   --m-bg:#F8EAC9; --m-fg:#835A09;   /* folga compensatória */
   --r-bg:#F6E1DE; --r-fg:#963A32;   /* atestado */
   --p-bg:#EAE4F5; --p-fg:#584587;   /* licença */
-  --alerta:#B74339; --rota:#F2C94C; --rota-escura:#5B4700;
+  --alerta:#A33A31; --rota:#F2C94C; --rota-escura:#5B4700;
   --info-bg:#E1EDF6; --info-fg:#1D5B7A;
-  --radius:9px; --radius-sm:6px; --radius-lg:14px;
-  --sombra:0 1px 2px rgba(18,38,45,.04),0 8px 24px rgba(18,38,45,.055);
-  --sombra-alta:0 16px 44px rgba(8,30,35,.18);
+  --radius:8px; --radius-sm:6px; --radius-lg:12px;
+  --sombra:0 1px 2px rgba(34,53,44,.05);
+  --sombra-alta:0 12px 32px rgba(34,53,44,.16);
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -254,10 +256,44 @@ main{padding:24px;max-width:1900px;margin:0 auto}
 
 /* ---------- comando da escala ---------- */
 .esc-comandos{padding:0;overflow:hidden}
-.esc-rota{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:22px;background:var(--rota);color:#211A00;padding:16px 20px;border-bottom:1px solid #D6AE24}
+.esc-rota{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:22px;background:var(--superficie);color:var(--texto);padding:16px 20px;border-bottom:1px solid var(--linha)}
 .esc-rota strong{display:block;font-family:Archivo,Inter,sans-serif;font-size:20px;letter-spacing:-.015em;line-height:1.15}
-.esc-rota p{margin:3px 0 0;font-size:13px;line-height:1.4;color:#4A3A00}
-.esc-rota .chip{background:#211A00;color:#fff;font-size:12px;padding:5px 10px}
+.esc-rota p{margin:3px 0 0;font-size:13px;line-height:1.4;color:var(--fraco)}
+.esc-rota .chip{background:var(--tinta);color:#fff;font-size:12px;padding:5px 10px}
+
+/* Fluxo em quatro passos. O estado vem do atributo data-estado e aparece também
+   no texto (aria-label) — a cor sozinha não informa em que etapa se está. */
+.esc-passos{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:14px 20px 0;list-style:none}
+.esc-passos li{display:flex;align-items:center;gap:7px;padding:6px 12px 6px 7px;border:1px solid var(--linha);
+  border-radius:999px;background:#fff;font-size:12.5px;color:var(--fraco)}
+.esc-passos .ep-n{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;
+  background:var(--linha-suave);color:var(--fraco);font-size:11px;font-weight:700;flex:none}
+.esc-passos li[data-estado="atual"]{border-color:var(--teal);color:var(--teal-escuro);font-weight:600;
+  box-shadow:inset 0 0 0 1px var(--teal)}
+.esc-passos li[data-estado="atual"] .ep-n{background:var(--teal);color:#fff}
+.esc-passos li[data-estado="feito"]{color:var(--texto);border-color:#BFD4C9;background:var(--teal-suave)}
+.esc-passos li[data-estado="feito"] .ep-n{background:var(--teal-escuro);color:#fff}
+.esc-passos li[data-estado="feito"] .ep-n::after{content:'✓';font-size:11px}
+.esc-passos li[data-estado="feito"] .ep-n{font-size:0}
+
+/* Progresso real da geração: a barra reflete pessoas já planejadas. */
+.gerando{margin:14px 20px 0;padding:11px 14px;border:1px solid var(--linha);border-radius:var(--radius);background:var(--superficie)}
+.gerando-linha{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--texto);margin-bottom:9px}
+.gerando-spinner{width:14px;height:14px;border:2px solid var(--linha);border-top-color:var(--teal);
+  border-radius:50%;animation:girar .8s linear infinite;flex:none}
+@keyframes girar{to{transform:rotate(360deg)}}
+.gerando-trilho{height:5px;background:var(--linha-suave);border-radius:999px;overflow:hidden}
+.gerando-barra{height:100%;width:0;background:var(--teal);border-radius:999px;transition:width .15s linear}
+@media (prefers-reduced-motion:reduce){
+  .gerando-spinner{animation:none}
+  .gerando-barra{transition:none}
+}
+
+/* Aviso da última ação, no lugar dos alert() que interrompiam o trabalho. */
+.esc-aviso{margin:12px 20px 0;padding:9px 13px;border-radius:var(--radius-sm);font-size:13px;line-height:1.45;
+  border:1px solid var(--linha);background:var(--superficie);color:var(--texto)}
+.esc-aviso.ok{border-color:#BFD4C9;background:var(--teal-suave);color:var(--teal-escuro)}
+.esc-aviso.erro{border-color:#E2BDB8;background:#FBEDEB;color:#8C2F27}
 .esc-barra{display:grid;grid-template-columns:minmax(300px,auto) auto minmax(280px,1fr);align-items:end;gap:18px;padding:18px 20px 0}
 .esc-status{margin-inline:20px}
 .esc-status:empty{display:none}
@@ -318,6 +354,23 @@ main{padding:24px;max-width:1900px;margin:0 auto}
   .esc-rota{padding:14px 16px;gap:10px}
   .esc-rota strong{font-size:18px}
   .esc-visao{padding:13px 16px 15px}
+  .esc-passos{padding:12px 16px 0}
+  .esc-passos li{flex:1 1 calc(50% - 6px);font-size:12px}
+  .gerando,.esc-aviso{margin-inline:16px}
+}
+/* 320px: o menor aparelho que ainda precisa operar. Os passos viram uma coluna
+   e o cabeçalho encolhe, mas nada é removido — só reorganizado. */
+@media(max-width:360px){
+  main{padding:12px}
+  .painel{padding:13px}
+  .esc-passos{padding:10px 13px 0;gap:4px}
+  .esc-passos li{flex:1 1 100%;padding:5px 10px 5px 6px}
+  .gerando,.esc-aviso,.esc-status{margin-inline:13px}
+  .esc-rota{padding:12px 13px}
+  .esc-rota strong{font-size:17px}
+  .esc-saidas{grid-template-columns:1fr 1fr}
+  header.top{padding-inline:13px;gap:10px}
+  header.top .marca{font-size:11.5px;letter-spacing:.1em}
 }
 
 /* ---------- tabela escala ----------
@@ -484,8 +537,8 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
 <!-- ============ LOGIN ============ -->
 <section id="login">
   <div class="card-login">
-    <div class="marca">Rede Exemplo &middot; Demonstração</div>
-    <h1>Quadro de escala</h1>
+    <div class="marca">Shiftflow &middot; Demonstração</div>
+    <h1>Escala da loja</h1>
     <p class="sub">Monte a escala do mês seguindo as regras de folga da loja.</p>
     <label for="lg-user">Usuário</label>
     <input id="lg-user" class="inp" autocomplete="username">
@@ -500,7 +553,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
 <!-- ============ APP ============ -->
 <div id="app">
   <header class="top">
-    <div class="marca">Quadro de escala</div>
+    <div class="marca">Shiftflow</div>
     <div class="sel">
       <select id="sel-loja" aria-label="Trocar de loja"></select>
       <span class="unidade" id="nome-unidade" aria-label="Loja atual"></span>
@@ -528,14 +581,20 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           </div>
           <span class="chip" id="esc-rota-status">Aguardando geração</span>
         </div>
+        <ol class="esc-passos" id="esc-passos" aria-label="Etapas da escala">
+          <li data-passo="gerar"><span class="ep-n">1</span><span class="ep-t">Gerar proposta</span></li>
+          <li data-passo="revisar"><span class="ep-n">2</span><span class="ep-t">Revisar pendências</span></li>
+          <li data-passo="salvar"><span class="ep-n">3</span><span class="ep-t">Salvar rascunho</span></li>
+          <li data-passo="publicar"><span class="ep-n">4</span><span class="ep-t">Publicar</span></li>
+        </ol>
         <div class="esc-barra">
           <div class="esc-periodo" aria-label="Período da escala">
-            <label>Início<input type="date" id="p-inicio" class="inp"></label>
-            <label>Fim<input type="date" id="p-fim" class="inp"></label>
+            <label for="p-inicio">Início<input type="date" id="p-inicio" class="inp"></label>
+            <label for="p-fim">Fim<input type="date" id="p-fim" class="inp"></label>
           </div>
           <div class="esc-fluxo">
-            <button class="btn primary" id="btn-gerar">Gerar escala</button>
-            <button class="btn ghost" id="btn-salvar" disabled>Salvar</button>
+            <button class="btn primary" id="btn-gerar">Gerar proposta</button>
+            <button class="btn ghost" id="btn-salvar" disabled>Salvar rascunho</button>
             <button class="btn publish" id="btn-publicar" style="display:none">Publicar</button>
           </div>
           <div class="esc-saidas" aria-label="Exportar escala">
@@ -545,6 +604,16 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <button class="btn ghost" id="btn-print">Imprimir</button>
           </div>
         </div>
+        <div class="gerando" id="gerando" hidden>
+          <div class="gerando-linha">
+            <span class="gerando-spinner" aria-hidden="true"></span>
+            <span id="gerando-texto">Preparando…</span>
+          </div>
+          <div class="gerando-trilho" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="gerando-texto">
+            <div class="gerando-barra" id="gerando-barra"></div>
+          </div>
+        </div>
+        <p class="esc-aviso" id="esc-aviso" role="status" hidden></p>
         <div class="esc-status" id="esc-status" hidden>
           <div id="resumo-cobertura"></div>
           <span id="status-salvo" class="chip"></span>
@@ -628,7 +697,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <div class="params-grid">
           <!-- linha 1: modelo e ciclo de domingos -->
           <div class="pg-cel">
-            <label>Modelo de escala</label>
+            <label for="r-modelo">Modelo de escala</label>
             <select id="r-modelo" class="inp">
               <option value="5x2">5x2 — duas folgas por semana</option>
               <option value="6x1">6x1 — uma folga por semana</option>
@@ -636,7 +705,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <div class="hint">No 6x1, o domingo do ciclo vem por cima da folga semanal.</div>
           </div>
           <div class="pg-cel">
-            <label>Ciclo de domingos</label>
+            <label for="r-ciclo">Ciclo de domingos</label>
             <select id="r-ciclo" class="inp">
               <option value="2">Trabalha 1 domingo, folga 1</option>
               <option value="3">Trabalha 2 domingos, folga 1</option>
@@ -645,14 +714,14 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <div class="hint" id="hint-ciclo"></div>
           </div>
           <div class="pg-cel">
-            <label>Máx. dias seguidos trabalhados</label>
+            <label for="r-maxseq">Máx. dias seguidos trabalhados</label>
             <input type="number" id="r-maxseq" class="inp" min="3" max="12">
             <div class="hint">Nenhum colaborador passa desse limite.</div>
           </div>
 
           <!-- linha 2: semana, cobertura -->
           <div class="pg-cel">
-            <label>Semana conta de</label>
+            <label for="r-semana">Semana conta de</label>
             <select id="r-semana" class="inp">
               <option value="P">Blocos de 7 a partir do dia 11</option>
               <option value="0">Domingo a sábado</option>
@@ -661,27 +730,27 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <div class="hint">Define onde começa e termina cada semana de folgas.</div>
           </div>
           <div class="pg-cel">
-            <label>Caixas por dia (meta)</label>
+            <label for="r-mincaixa">Caixas por dia (meta)</label>
             <input type="number" id="r-mincaixa" class="inp" min="0" max="12">
           </div>
           <div class="pg-cel">
-            <label>Balcão por dia (meta)</label>
+            <label for="r-minbalcao">Balcão por dia (meta)</label>
             <input type="number" id="r-minbalcao" class="inp" min="0" max="15">
           </div>
 
           <!-- linha 3: farmacêutico, subgerente, prioridade -->
           <div class="pg-cel">
-            <label>Farmacêuticos na loja (meta)</label>
+            <label for="r-minfarma">Farmacêuticos na loja (meta)</label>
             <input type="number" id="r-minfarma" class="inp" min="0" max="5">
             <div class="hint">1 é tolerado em último caso · 0 o sistema evita ao máximo</div>
           </div>
           <div class="pg-cel">
-            <label>Subgerentes na loja (meta)</label>
+            <label for="r-minsubger">Subgerentes na loja (meta)</label>
             <input type="number" id="r-minsubger" class="inp" min="0" max="4">
             <div class="hint">Recomendado: pelo menos 1 todos os dias.</div>
           </div>
           <div class="pg-cel">
-            <label>Quando não couber tudo</label>
+            <label for="r-prioridade">Quando não couber tudo</label>
             <select id="r-prioridade" class="inp">
               <option value="par">Priorizar descanso do colaborador</option>
               <option value="equilibrado">Equilibrar as duas coisas</option>
@@ -691,7 +760,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
 
           <!-- linha 4: fim de semana (span3) -->
           <div class="pg-cel span3" style="border-bottom:0">
-            <label>Fim de semana</label>
+            <label for="r-subger">Fim de semana</label>
             <div class="ck-row">
               <input type="checkbox" id="r-subger">
               <span>Reforçar o subgerente no sábado e no domingo (exige ao menos 1 presente mesmo com folga marcada)</span>
@@ -707,19 +776,19 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <p class="desc" style="margin-bottom:12px">Os números acima são metas: ficar abaixo deles gera aviso. O que você preencher aqui é piso obrigatório e <b>impede a publicação</b> da escala. Em branco significa que não há piso e só a meta vale — é como as lojas já configuradas continuam funcionando. Quando não há gente disponível para alcançar o piso, o dia é registrado como impedimento operacional e não bloqueia.</p>
         <div class="pg-grade">
           <div class="pg-cel">
-            <label>Caixas (mínimo obrigatório)</label>
+            <label for="r-mincaixa-obr">Caixas (mínimo obrigatório)</label>
             <input type="number" id="r-mincaixa-obr" class="inp" min="0" max="12" placeholder="sem piso">
           </div>
           <div class="pg-cel">
-            <label>Balcão (mínimo obrigatório)</label>
+            <label for="r-minbalcao-obr">Balcão (mínimo obrigatório)</label>
             <input type="number" id="r-minbalcao-obr" class="inp" min="0" max="15" placeholder="sem piso">
           </div>
           <div class="pg-cel">
-            <label>Farmacêuticos (mínimo obrigatório)</label>
+            <label for="r-minfarma-obr">Farmacêuticos (mínimo obrigatório)</label>
             <input type="number" id="r-minfarma-obr" class="inp" min="0" max="5" placeholder="sem piso">
           </div>
           <div class="pg-cel" style="border-bottom:0">
-            <label>Subgerentes (mínimo obrigatório)</label>
+            <label for="r-minsubger-obr">Subgerentes (mínimo obrigatório)</label>
             <input type="number" id="r-minsubger-obr" class="inp" min="0" max="4" placeholder="sem piso">
           </div>
         </div>
@@ -765,7 +834,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           <li>Quem tem perfil com folga fixa semanal folga nesses dias, sem outra regra. Sem perfis configurados, o gerente folga sábado e domingo — é política da casa, não exigência legal.</li>
           <li>No <b>5x2</b>, procura duas folgas por semana em dias seguidos. No <b>6x1</b>, uma folga por semana — e na semana em que cai o domingo do ciclo a pessoa folga duas vezes, porque a folga da semana e a do domingo são direitos separados.</li>
           <li>Para cada pessoa, monta todas as combinações possíveis de folga de cada semana e escolhe a sequência do mês inteiro de menor custo. Não decide semana a semana: colar o fim de semana depende do que foi feito na semana anterior.</li>
-          <li>As exigências da lei viajam dentro dessa conta com peso em outra ordem de grandeza, de propósito: a soma de todos os furos de cobertura de um mês inteiro ainda é menor que uma única infração legal. São elas o limite de dias seguidos trabalhados e o teto de domingos seguidos (Lei 10.101/2000: no máximo dois).</li>
+          <li>As regras marcadas como referência trabalhista viajam dentro dessa conta com peso em outra ordem de grandeza, de propósito. O sistema sinaliza os limites configurados e não substitui a conferência jurídica da operação.</li>
           <li>Depois vêm, nesta ordem: ficar sem nenhum farmacêutico (quase proibido), manter o subgerente na loja, chegar a dois farmacêuticos, o mínimo do dia da semana, o mínimo de caixa e balcão, e o equilíbrio entre os dias.</li>
           <li>Refaz o plano de cada pessoa em quatro rodadas, cada uma enxergando a escala dos outros já montada. Sem isso, quem é planejado primeiro fica com os melhores dias.</li>
           <li>O que não coube aparece em Pendências, separado entre regra ferida e observação.</li>
@@ -1165,23 +1234,29 @@ $('#btn-add-faixa').onclick = ()=>{
 $('#btn-salvar-params').onclick = async ()=>{
   const modelo = $('#r-modelo').value;
   const paramsAnteriores = Object.assign({}, loja().params);
-  loja().params = {modelo, folgasSemana: modelo==='6x1' ? 1 : 2,
+  /* Começa do objeto anterior: salvar os campos visíveis não pode apagar perfis,
+     pisos, expediente, faixas ou funções que esta tela não editou. */
+  loja().params = Object.assign({}, paramsAnteriores, {
+    modelo, folgasSemana: modelo==='6x1' ? 1 : 2,
     cicloDomingo:+$('#r-ciclo').value, maxSeq:+$('#r-maxseq').value,
-    inicioSemana:($('#r-semana').value==='P'?'P':+$('#r-semana').value), minCaixa:+$('#r-mincaixa').value, minBalcao:+$('#r-minbalcao').value, minFarma:+$('#r-minfarma').value, minSubger:+$('#r-minsubger').value,
-    subgerFds:$('#r-subger').checked, minDia:lerMinDias(), prioridade:$('#r-prioridade').value};
-  /* Piso em branco é removido do objeto: ausência de chave significa "sem piso",
-     e nunca zero. Perfis já configurados na loja são preservados como estão. */
+    inicioSemana:($('#r-semana').value==='P'?'P':+$('#r-semana').value),
+    minCaixa:+$('#r-mincaixa').value, minBalcao:+$('#r-minbalcao').value,
+    minFarma:+$('#r-minfarma').value, minSubger:+$('#r-minsubger').value,
+    subgerFds:$('#r-subger').checked, minDia:lerMinDias(), prioridade:$('#r-prioridade').value
+  });
+  /* Piso em branco remove apenas aquele piso, de forma explícita; os demais
+     pisos e toda configuração não editada continuam no objeto. */
   const lerPiso = sel => { const v = $(sel).value.trim(); return v==='' ? null : Math.max(0, +v); };
   [['minCaixaObrigatorio','#r-mincaixa-obr'], ['minBalcaoObrigatorio','#r-minbalcao-obr'],
    ['minFarmaObrigatorio','#r-minfarma-obr'], ['minSubgerObrigatorio','#r-minsubger-obr']]
-    .forEach(([chave, sel])=>{ const v = lerPiso(sel); if(v!==null) loja().params[chave] = v; });
-  if(paramsAnteriores.minDiaObrigatorio) loja().params.minDiaObrigatorio = paramsAnteriores.minDiaObrigatorio;
-  if(paramsAnteriores.perfis) loja().params.perfis = paramsAnteriores.perfis;
-  if(paramsAnteriores.funcoes) loja().params.funcoes = paramsAnteriores.funcoes;
+    .forEach(([chave, sel])=>{
+      const v = lerPiso(sel);
+      if(v===null) delete loja().params[chave]; else loja().params[chave] = v;
+    });
   const expediente = lerExpediente();
   if(expediente) loja().params.expediente = expediente;
-  if(paramsAnteriores.faixas && Object.keys(paramsAnteriores.faixas).length)
-    loja().params.faixas = paramsAnteriores.faixas;
+  else delete loja().params.expediente;
+  // faixas, perfis e funções já foram preservados por Object.assign.
   await store.set('escala:lojas', S.lojas);
   $('#status-params').textContent='Parâmetros salvos'; $('#status-params').className='chip ok';
   setTimeout(()=>$('#status-params').textContent='',2500);
@@ -1472,15 +1547,81 @@ $('#btn-add-user').onclick = async ()=>{
 /* ============================================================
    GERAR / PINTAR GRADE
    ============================================================ */
+/* Geração sem travar a tela.
+   O motor é um generator que cede o fio entre pessoas; aqui drenamos esse
+   generator em fatias de ~40ms, devolvendo o controle ao navegador entre elas.
+   O algoritmo é o mesmo e o resultado é idêntico — só o ritmo muda.
+   Nada de Worker: a CSP em produção é default-src 'self', então worker de blob
+   seria bloqueado, e um arquivo .js separado quebraria a variante offline, que
+   é um HTML único. */
+let geracaoEmCurso = 0;
+
+function estadoGeracao(ativo, texto, pct){
+  const barra = $('#gerando');
+  if(!barra) return;
+  barra.hidden = !ativo;
+  $('#btn-gerar').disabled = ativo;
+  $('#btn-gerar').textContent = ativo ? 'Gerando…' : 'Gerar proposta';
+  if(ativo){
+    $('#gerando-texto').textContent = texto || 'Preparando…';
+    const b = $('#gerando-barra');
+    b.style.width = (pct != null ? Math.round(pct*100) : 0) + '%';
+    b.parentElement.setAttribute('aria-valuenow', String(Math.round((pct||0)*100)));
+  }
+}
+
 $('#btn-gerar').onclick = async ()=>{
   const p = Object.assign({}, loja().params, {inicio:$('#p-inicio').value, fim:$('#p-fim').value});
-  if(!p.inicio || !p.fim || p.inicio>=p.fim){ alert('Confira o período: a data final precisa ser depois da inicial.'); return; }
-  S.equipeEscala = await equipeComHistoricoAnterior(p.inicio);
-  S.versao = null; S.historicoCarregado = false; S.historicoIncompleto = null;
-  S.res = gerarEscala(S.equipeEscala, p);
-  S.res.horas = {};
-  validarEscalaAtual();
-  S.salvo = false; pintarGrade();
+  if(!p.inicio || !p.fim || p.inicio>=p.fim){
+    avisarEscala('Confira o período: a data final precisa ser depois da inicial.', 'erro');
+    return;
+  }
+  /* Carimbo do contexto desta geração. Se a pessoa trocar de loja ou de período
+     no meio do caminho, o resultado que chegar depois é descartado em vez de
+     ser aplicado no lugar errado. */
+  const meuToken = ++geracaoEmCurso;
+  const minhaLoja = S.loja;
+  const meuInicio = p.inicio, meuFim = p.fim;
+  const contextoValido = ()=> meuToken === geracaoEmCurso
+    && S.loja === minhaLoja
+    && $('#p-inicio').value === meuInicio
+    && $('#p-fim').value === meuFim;
+
+  estadoGeracao(true, 'Carregando equipe…', 0);
+  try{
+    const equipe = await equipeComHistoricoAnterior(p.inicio);
+    if(!contextoValido()){ estadoGeracao(false); return; }
+
+    const it = gerarEscalaPassos(equipe, p);
+    let r = it.next();
+    while(!r.done){
+      const fatiaAte = performance.now() + 40;
+      while(!r.done && performance.now() < fatiaAte) r = it.next();
+      if(!r.done){
+        const v = r.value || {};
+        const pct = v.total ? v.passo / v.total : null;
+        const rot = v.fase === 'replanejamento'
+          ? `Revisando encaixes (rodada ${v.rodada})…`
+          : 'Montando as folgas…';
+        estadoGeracao(true, rot, pct);
+        await new Promise(requestAnimationFrame);
+        if(!contextoValido()){ estadoGeracao(false); return; }
+      }
+    }
+    if(!contextoValido()){ estadoGeracao(false); return; }
+
+    S.equipeEscala = equipe;
+    S.versao = null; S.historicoCarregado = false; S.historicoIncompleto = null;
+    S.res = r.value;
+    S.res.horas = {};
+    validarEscalaAtual();
+    S.salvo = false; pintarGrade();
+    avisarEscala('Proposta gerada. Revise as pendências antes de salvar.', 'ok');
+  }catch(e){
+    avisarEscala('Não foi possível gerar: ' + (e && e.message ? e.message : e), 'erro');
+  }finally{
+    if(meuToken === geracaoEmCurso) estadoGeracao(false);
+  }
 };
 function dadosDaGrade(){
   const inicio = $('#p-inicio').value, fim = $('#p-fim').value;
@@ -1503,35 +1644,37 @@ $('#btn-salvar').onclick = async ()=>{
     if(retorno && retorno.versao != null) S.versao = retorno.versao;
   }catch(e){
     S.salvo = false; marcarSalvo();
-    alert('Não foi possível salvar no servidor: ' + (e && e.message ? e.message : e));
+    avisarEscala('Não foi possível salvar no servidor: ' + (e && e.message ? e.message : e), 'erro');
     return;
   }
   S.salvo = true; marcarSalvo(); registrarSalva(); await pintarSalvas();
+  avisarEscala('Rascunho salvo. Revise novamente antes de publicar.', 'ok');
 };
 
 if(typeof store.publicar === 'function'){
   $('#btn-publicar').style.display = '';
   $('#btn-publicar').onclick = async ()=>{
     if(!S.res) return;
-    if(!S.salvo){ alert('Salve a escala antes de publicar.'); return; }
+    if(!S.salvo){ avisarEscala('Salve o rascunho antes de publicar.', 'erro'); return; }
     validarEscalaAtual();
     const obrigatorias = (S.val && S.val.alertas || []).filter(a=>a.obrigatoria);
     if(obrigatorias.length){
-      alert('Não é possível publicar esta escala com ' + obrigatorias.length + ' restrição(ões) obrigatória(s) pendente(s):\n\n'
-        + obrigatorias.slice(0, 6).map(a=>`• ${a.colab && a.colab !== '—' ? a.colab + ': ' : ''}${a.txt}`).join('\n')
-        + '\n\nO rascunho permanece salvo para ajustes.');
+      avisarEscala('Publicação bloqueada: ' + obrigatorias.length + ' restrição(ões) obrigatória(s) pendente(s). O rascunho permanece salvo para ajustes.', 'erro');
       return;
     }
-    if(!confirm('Publicar esta escala? A partir de agora ela fica visível para a equipe.')) return;
+    /* A decisão fica na própria tela, sem confirm() bloqueado no frame e sem
+       afirmar publicação quando a pessoa ainda não escolheu. */
+    if(!window.confirm('Publicar esta escala? A partir de agora ela fica visível para a equipe.')) return;
     try{
       const snapshot = snapshotDaEscala();
       snapshot.idempotency_key = crypto.randomUUID();
       const retorno = await store.publicar(chaveGrade(), Object.assign(dadosDaGrade(), {snapshot, versao:S.versao}));
       if(retorno && retorno.versao != null) S.versao = retorno.versao;
     }catch(e){
-      alert('Não foi possível publicar: ' + (e && e.message ? e.message : e));
+      avisarEscala('Não foi possível publicar: ' + (e && e.message ? e.message : e), 'erro');
       return;
     }
+    avisarEscala('Escala publicada. Ela já está visível para a equipe.', 'ok');
     const status = $('#status-salvo');
     status.textContent = 'Escala publicada';
     status.className = 'chip ok';
@@ -1837,9 +1980,43 @@ function atualizarFaixaRota(){
   }
   titulo.textContent = 'Escala pronta para distribuir';
   desc.textContent = notas
-    ? `As regras fecharam; há ${notas} observação(ões) explicando escolhas do gerador.`
-    : 'As regras e a cobertura mínima foram conferidas. Salve, imprima ou exporte a escala.';
+    ? `As validações configuradas fecharam; há ${notas} observação(ões) explicando escolhas do gerador.`
+    : 'As validações configuradas e a cobertura mínima foram conferidas. Salve, revise e só então publique.';
   status.textContent = 'Pronta para distribuir';
+}
+
+/* Mensagem curta sobre a última ação. Substitui os alert() que interrompiam o
+   trabalho e não eram lidos por leitor de tela ao fechar. */
+function avisarEscala(texto, tipo){
+  const el = $('#esc-aviso');
+  if(!el) return;
+  if(!texto){ el.hidden = true; el.textContent = ''; return; }
+  el.hidden = false;
+  el.textContent = texto;
+  el.className = 'esc-aviso' + (tipo ? ' ' + tipo : '');
+}
+
+/* Onde a pessoa está no fluxo: gerar, revisar, salvar, publicar. Cada passo é
+   marcado como feito, atual ou pendente, e o texto diz qual é — a posição não
+   depende só da cor. */
+function marcarPassos(){
+  const lista = $('#esc-passos');
+  if(!lista) return;
+  const temRes = !!S.res;
+  const bloqueios = temRes && S.val ? (S.val.alertas||[]).filter(a=>a.obrigatoria).length : 0;
+  const revisado = temRes && bloqueios === 0;
+  const estado = {
+    gerar: temRes ? 'feito' : 'atual',
+    revisar: !temRes ? 'pendente' : (bloqueios ? 'atual' : 'feito'),
+    salvar: !revisado ? 'pendente' : (S.salvo ? 'feito' : 'atual'),
+    publicar: (revisado && S.salvo) ? 'atual' : 'pendente',
+  };
+  lista.querySelectorAll('li').forEach(li=>{
+    const e = estado[li.dataset.passo] || 'pendente';
+    li.dataset.estado = e;
+    const rot = e === 'feito' ? 'concluído' : (e === 'atual' ? 'etapa atual' : 'pendente');
+    li.setAttribute('aria-label', li.querySelector('.ep-t').textContent + ': ' + rot);
+  });
 }
 
 function marcarSalvo(){
@@ -1848,6 +2025,7 @@ function marcarSalvo(){
   const salvar = $('#btn-salvar');
   const publicar = $('#btn-publicar');
   atualizarFaixaRota();
+  marcarPassos();
   if(!S.res){
     el.textContent='';
     if(faixa) faixa.hidden = true;
@@ -1961,7 +2139,16 @@ function definirHora(id, i, valor){
   m[id][i] = valor;
 }
 
+/* Descrição dos códigos da grade, para quem lê a tela por áudio: a cor de fundo
+   da célula não diz nada a um leitor de tela. */
+const DESCR_COD = {'X':'folga', 'FC':'folga compensatória', 'F':'férias',
+  'AT':'atestado', 'LC':'licença'};
+
 /* ---------- pop-up de edição da célula ---------- */
+/* Quem abriu o diálogo recebe o foco de volta ao fechar; sem isso o foco volta
+   para o começo da página e a pessoa perde o lugar na grade. */
+let _focoAntesDoPop = null;
+
 function fecharPopupCelula(){
   const fundo = document.getElementById('pop-cel-fundo');
   const p = document.getElementById('pop-cel');
@@ -1969,6 +2156,23 @@ function fecharPopupCelula(){
   else if(p) p.remove();
   document.removeEventListener('keydown', _escFecha, true);
   document.removeEventListener('click', _foraFecha, true);
+  document.removeEventListener('keydown', _prenderFoco, true);
+  if(_focoAntesDoPop && document.body.contains(_focoAntesDoPop)){
+    _focoAntesDoPop.focus();
+  }
+  _focoAntesDoPop = null;
+}
+
+/* Tab circula dentro do diálogo enquanto ele está aberto. */
+function _prenderFoco(e){
+  if(e.key !== 'Tab') return;
+  const p = document.getElementById('pop-cel');
+  if(!p) return;
+  const focaveis = p.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if(!focaveis.length) return;
+  const primeiro = focaveis[0], ultimo = focaveis[focaveis.length-1];
+  if(e.shiftKey && document.activeElement === primeiro){ e.preventDefault(); ultimo.focus(); }
+  else if(!e.shiftKey && document.activeElement === ultimo){ e.preventDefault(); primeiro.focus(); }
 }
 function _escFecha(e){ if(e.key === 'Escape'){ e.stopPropagation(); fecharPopupCelula(); } }
 function _foraFecha(e){
@@ -1978,7 +2182,9 @@ function _foraFecha(e){
 }
 
 function abrirPopupCelula(td){
+  const origem = document.activeElement;
   fecharPopupCelula();
+  _focoAntesDoPop = (origem && origem !== document.body) ? origem : td;
   const id = td.dataset.id, i = +td.dataset.i;
   const c = S.res.ativos.find(x=>x.id===id);
   if(!c) return;
@@ -2273,11 +2479,17 @@ function abrirPopupCelula(td){
   setTimeout(()=>{
     document.addEventListener('keydown', _escFecha, true);
     document.addEventListener('click', _foraFecha, true);
+    document.addEventListener('keydown', _prenderFoco, true);
+    const p = document.getElementById('pop-cel');
+    const primeiro = p && p.querySelector('button, input, select, textarea');
+    if(primeiro) primeiro.focus();
   }, 0);
 }
 
 function abrirPopupIntervalo(td){
+  const origemIv = document.activeElement;
   fecharPopupCelula();
+  _focoAntesDoPop = (origemIv && origemIv !== document.body) ? origemIv : td;
   const id = td.dataset.id;
   const c = S.res && S.res.ativos ? S.res.ativos.find(x=>x.id===id) : null;
   if(!c) return;
@@ -2443,6 +2655,10 @@ function abrirPopupIntervalo(td){
   setTimeout(()=>{
     document.addEventListener('keydown', _escFecha, true);
     document.addEventListener('click', _foraFecha, true);
+    document.addEventListener('keydown', _prenderFoco, true);
+    const p = document.getElementById('pop-cel');
+    const primeiro = p && p.querySelector('button, input, select, textarea');
+    if(primeiro) primeiro.focus();
   }, 0);
 }
 
@@ -2588,7 +2804,12 @@ function pintarGrade(){
       const aviso = alertaInterjornada
         ? ` title="${esc(alertaInterjornada.txt)}" aria-label="${esc(alertaInterjornada.txt)}"`
         : (cod==='' ? ` title="${esc(temSaiDia ? `Entrada ${entDia} · Saída ${saiDia}` : `Entrada ${entDia} · Saída não informada`)}"` : '');
-      h += `<td class="${cls}" data-cod="${cod}" data-i="${i}" data-id="${c.id}"${aviso}>${conteudo}</td>`;
+      /* Célula operável por teclado: role de botão, foco próprio e um nome
+         que diz quem, quando e o que está marcado — a cor do código sozinha
+         não informa. */
+      const nomeCel = `${c.nome}, ${ddmm(d)}: ${cod==='' ? 'dia trabalhado' : (DESCR_COD[cod] || cod)}`;
+      h += `<td class="${cls}" data-cod="${cod}" data-i="${i}" data-id="${c.id}"${aviso}`
+         + ` tabindex="-1" role="button" aria-label="${esc(nomeCel)}">${conteudo}</td>`;
     });
     h += `<td class="cel" style="cursor:default;font-weight:600">${grid[c.id].filter(v=>v==='X'||v==='FC').length}</td></tr>`;
   });
@@ -2634,8 +2855,43 @@ function pintarGrade(){
   box.innerHTML = h;
   ajustarColunasFixas(box);
 
-  box.querySelectorAll('td.cel[data-i]').forEach(td=>{
+  /* Operação da grade pelo teclado. Uma única célula fica no fluxo de Tab
+     (roving tabindex); dentro dela as setas andam pela grade, Home e End vão às
+     pontas da linha, e Enter ou Espaço abrem a edição — o mesmo que o clique. */
+  const celulas = Array.from(box.querySelectorAll('td.cel[data-i]'));
+  const porLinha = {};
+  celulas.forEach(td=>{ (porLinha[td.dataset.id] = porLinha[td.dataset.id] || []).push(td); });
+  const linhasIds = Object.keys(porLinha);
+  if(celulas.length) celulas[0].tabIndex = 0;
+
+  function focarCelula(alvo){
+    if(!alvo) return;
+    celulas.forEach(td=>{ td.tabIndex = -1; });
+    alvo.tabIndex = 0;
+    alvo.focus();
+    alvo.scrollIntoView({block:'nearest', inline:'nearest'});
+  }
+
+  celulas.forEach(td=>{
     td.onclick = (ev)=>{ ev.stopPropagation(); abrirPopupCelula(td); };
+    td.onkeydown = (ev)=>{
+      const i = +td.dataset.i;
+      const linha = porLinha[td.dataset.id] || [];
+      const l = linhasIds.indexOf(td.dataset.id);
+      let alvo = null;
+      switch(ev.key){
+        case 'ArrowRight': alvo = linha[i+1]; break;
+        case 'ArrowLeft':  alvo = linha[i-1]; break;
+        case 'ArrowDown':  alvo = (porLinha[linhasIds[l+1]]||[])[i]; break;
+        case 'ArrowUp':    alvo = (porLinha[linhasIds[l-1]]||[])[i]; break;
+        case 'Home':       alvo = linha[0]; break;
+        case 'End':        alvo = linha[linha.length-1]; break;
+        case 'Enter': case ' ':
+          ev.preventDefault(); abrirPopupCelula(td); return;
+        default: return;
+      }
+      if(alvo){ ev.preventDefault(); focarCelula(alvo); }
+    };
   });
   box.querySelectorAll('td.intervalo[data-id]').forEach(td=>{
     td.onclick = (ev)=>{ ev.stopPropagation(); abrirPopupIntervalo(td); };

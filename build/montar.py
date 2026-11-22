@@ -70,9 +70,9 @@ web = template.replace('/*CSS_MINHA*/', '', 1)
 web = web.replace('<button data-view="minha" style="display:none">Minha escala</button>', '', 1)
 
 # 1. biblioteca do Supabase no <head>
-exigir(web, '<title>Quadro de Escala — Exemplo</title>', 'title')
-web = web.replace('<title>Quadro de Escala — Exemplo</title>',
-"""<title>Quadro de Escala</title>
+exigir(web, '<title>Shiftflow — Exemplo</title>', 'title')
+web = web.replace('<title>Shiftflow — Exemplo</title>',
+"""<title>Shiftflow</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>""", 1)
 
 # 2. telas de acesso no lugar do login local
@@ -139,8 +139,8 @@ css_minha = ler('src/app/minha-escala.css')
 hg = template.replace('/*CSS_MINHA*/', css_minha, 1)
 hg = hg.replace('<button data-view="minha" style="display:none">Minha escala</button>',
                 '<button data-view="minha" style="display:none">Minha escala</button>', 1)
-hg = hg.replace('<title>Quadro de Escala — Exemplo</title>',
-                '<title>Quadro de Escala</title>', 1)
+hg = hg.replace('<title>Shiftflow — Exemplo</title>',
+                '<title>Shiftflow</title>', 1)
 
 ini = hg.index('<section id="login">')
 fim = hg.index('</section>', ini) + len('</section>')

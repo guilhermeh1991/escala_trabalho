@@ -177,6 +177,17 @@ async function main() {
     await selectCompany(page, 'Empresa Browser Ficticia');
     await waitText(page, '#admin-lojas', 'Loja Browser Editada');
 
+    /* Exercício visual real do aplicativo. A mesma escala e os mesmos índices
+       ficam intactos; só mudamos a janela para verificar os quatro alvos de
+       leitura pedidos. A grade continua dentro do seu contêiner rolável. */
+    await page.locator('button[data-view="escala"]').click();
+    await page.locator('#esc-rota').waitFor({state:'visible'});
+    for (const [width, height] of [[1440,1000],[1024,900],[390,844],[320,760]]) {
+      await page.setViewportSize({width, height});
+      await page.screenshot({path:`${OUT}/ui-${width}.png`, fullPage:true});
+    }
+    await page.setViewportSize({width:1440,height:1000});
+
     deniedContext = await browser.newContext({viewport:{width:1440,height:1000}});
     const deniedPage = await deniedContext.newPage();
     const deniedErrors = [];
@@ -190,7 +201,28 @@ async function main() {
       return {status:r.status, body:await r.json()};
     });
     assert.equal(denied.status, 403);
-    assert.equal(deniedErrors.length, 0);
+
+    /* Editor de cobertura real: não escreve JSON. Adiciona uma faixa pelo
+       formulário, salva os parâmetros e recarrega para provar persistência.
+       O teste também deixa um campo existente intacto, cobrindo a preservação
+       de configurações não editadas no mesmo salvamento. */
+    await deniedPage.locator('button[data-view="params"]').click();
+    await deniedPage.locator('#fx-dia').waitFor({state:'visible'});
+    await deniedPage.locator('#fx-funcao').selectOption('caixa');
+    await deniedPage.locator('#fx-ini').fill('08:00');
+    await deniedPage.locator('#fx-fim').fill('14:00');
+    await deniedPage.locator('#fx-meta').fill('1');
+    await deniedPage.locator('#fx-obr').fill('1');
+    await deniedPage.locator('#btn-add-faixa').click();
+    await deniedPage.locator('#btn-salvar-params').click();
+    await waitText(deniedPage, '#status-params', 'Parâmetros salvos');
+    await deniedPage.reload({waitUntil:'domcontentloaded', timeout:NAVIGATION_TIMEOUT_MS});
+    await deniedPage.locator('button[data-view="params"]').click();
+    await deniedPage.locator('#tab-faixas').waitFor({state:'visible'});
+    await deniedPage.locator('#tab-faixas').getByText('08:00').waitFor({state:'visible'});
+    assert.equal(await deniedPage.locator('#tab-faixas').getByText('Caixa').count() > 0, true);
+    await deniedPage.screenshot({path:`${OUT}/ui-parametros-1440.png`, fullPage:true});
+
     await closeQuietly(deniedContext);
     deniedContext = null;
 

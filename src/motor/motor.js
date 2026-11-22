@@ -151,7 +151,19 @@ function ausenciaEm(c, d){
    params = {inicio, fim, inicioSemana(0=dom,1=seg), folgasSemana,
              cicloDomingo, maxSeq, minCaixa, minBalcao, farmaPorTurno}
    ============================================================ */
+/* O trabalho pesado da geração é por pessoa. Expor isso como generator permite
+   que a tela ceda o fio entre pessoas e continue respondendo, sem mexer em uma
+   linha do algoritmo: os mesmos passos, na mesma ordem, com o mesmo resultado.
+   `gerarEscala` drena o generator de uma vez e continua síncrona para o Node,
+   os testes e qualquer chamador existente. */
 function gerarEscala(colabs, params){
+  const it = gerarEscalaPassos(colabs, params);
+  let r = it.next();
+  while(!r.done) r = it.next();
+  return r.value;
+}
+
+function* gerarEscalaPassos(colabs, params){
   const days = listDays(params.inicio, params.fim);
   const N = days.length;
   const P = Object.assign({inicioSemana:0, folgasSemana:2, cicloDomingo:3, maxSeq:6,
@@ -758,7 +770,12 @@ function gerarEscala(colabs, params){
                          + (isSubger(c) ? 800/Math.max(1,ativos.filter(isSubger).length) : 0)
                          + ((c.ausencias||[]).length * 50);
   const ordemInicial = naoGerentes.slice().sort((a,b)=>dificuldade(b)-dificuldade(a));
-  ordemInicial.forEach(c=>{ aplicar(c, planejar(c)); });
+  const totalPassos = ordemInicial.length + (P.rodadas != null ? P.rodadas : 4) * naoGerentes.length;
+  let passo = 0;
+  for(const c of ordemInicial){
+    aplicar(c, planejar(c));
+    yield {fase:'planejamento', passo:++passo, total:totalPassos};
+  }
 
   /* Rodadas de replanejamento: cada pessoa é retirada e reencaixada vendo a escala
      dos outros já montada. Corrige a vantagem de quem foi planejado primeiro.
@@ -769,13 +786,14 @@ function gerarEscala(colabs, params){
     // ordem alternada a cada rodada, para não privilegiar sempre os mesmos
     const ordem = naoGerentes.slice();
     for(let k=0;k<(r % Math.max(1,ordem.length));k++) ordem.push(ordem.shift());
-    ordem.forEach(c=>{
+    for(const c of ordem){
       const antes = grid[c.id].slice();
       limpar(c);
       const plano = planejar(c);
       aplicar(c, plano);
       if(grid[c.id].some((v,i)=>v!==antes[i])) mudou = true;
-    });
+      yield {fase:'replanejamento', rodada:r+1, passo:++passo, total:totalPassos};
+    }
     diag.rodadas = r+1;
     if(!mudou) break;
   }
@@ -1267,4 +1285,4 @@ function validar(res, colabs){
   };
 }
 
-if(typeof module !== 'undefined') module.exports = {gerarEscala, validar, estadoFinalDaGrade, semanasDoPeriodo, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, jornadaParaCobertura, entradaDoDia, fimDoDiaMinutos, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};
+if(typeof module !== 'undefined') module.exports = {gerarEscala, gerarEscalaPassos, validar, estadoFinalDaGrade, semanasDoPeriodo, listDays, ymd, ddmm, grupoDe, isFarma, isSubger, turnoDe, horaEntrada, jornadaPadrao, jornadaParaCobertura, entradaDoDia, fimDoDiaMinutos, saidaDoDia, intervaloEntreJornadas, DIA_NOME, DIA_ABREV};

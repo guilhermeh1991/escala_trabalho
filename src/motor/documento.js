@@ -214,7 +214,7 @@ function montarPdf(paginas, meta){
   });
 
   const nInfo = add(`<< /Title (${textoPdf(meta && meta.titulo || 'Escala')}) `
-    + `/Producer (Quadro de Escala) /Creator (Quadro de Escala) >>`);
+    + `/Producer (Shiftflow) /Creator (Shiftflow) >>`);
 
   objetos[nCatalogo-1] = `<< /Type /Catalog /Pages ${nPaginas} 0 R >>`;
   objetos[nPaginas-1]  = `<< /Type /Pages /Kids [${idsPaginas.map(i=>i+' 0 R').join(' ')}] `
