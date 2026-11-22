@@ -214,6 +214,10 @@ async function main() {
     await page.locator('#btn-gerar').click();
     await page.locator('#gerando').waitFor({state:'visible', timeout:NAVIGATION_TIMEOUT_MS});
     await page.locator('#gerando').waitFor({state:'hidden', timeout:120000});
+    await page.waitForFunction(() => Boolean(document.querySelector('table.esc') || document.querySelector('#esc-aviso.erro')), null, {timeout:DEFAULT_TIMEOUT_MS});
+    if(await page.locator('table.esc').count() === 0){
+      throw new Error('geração não apresentou grade: ' + await page.locator('#esc-aviso').textContent());
+    }
     await page.locator('table.esc').waitFor({state:'visible', timeout:DEFAULT_TIMEOUT_MS});
     assert.equal(await page.locator('table.esc thead tr.datas th').count() >= 30, true);
     assert.equal(await page.locator('table.esc td.fixa .nome').count(), 100);
