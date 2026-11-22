@@ -187,7 +187,7 @@ async function main() {
     /* Escala real: 100 pessoas, 30 dias, jornadas cadastradas e cobertura
        intradiária configurada no fixture. Primeiro prova que uma troca de
        período durante a geração descarta o resultado antigo. */
-    await page.locator('#sel-loja option').waitFor({state:'attached'});
+    await page.locator('#sel-loja option').nth(0).waitFor({state:'attached'});
     await page.locator('#sel-loja').selectOption(STORE_A);
     await page.locator('button[data-view="params"]').click();
     await page.locator('#r-mincaixa-obr').waitFor({state:'visible'});
