@@ -315,7 +315,7 @@ async function main() {
     await deniedPage.reload({waitUntil:'domcontentloaded', timeout:NAVIGATION_TIMEOUT_MS});
     await deniedPage.locator('button[data-view="params"]').click();
     await deniedPage.locator('#tab-faixas').waitFor({state:'visible'});
-    await deniedPage.locator('#tab-faixas').getByText('08:00').waitFor({state:'visible'});
+    await deniedPage.locator('#tab-faixas td.mono').filter({hasText:'08:00–14:00'}).first().waitFor({state:'visible'});
     assert.equal(await deniedPage.locator('#tab-faixas').getByText('Caixa').count() > 0, true);
     await deniedPage.screenshot({path:`${OUT}/ui-parametros-1440.png`, fullPage:true});
 
