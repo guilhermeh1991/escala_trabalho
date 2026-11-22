@@ -179,8 +179,9 @@ table.esc tr.grupo td.hr{background:#EAF0ED}
 .pg-cel .hint{margin-top:5px;font-size:11px;color:var(--fraco);font-weight:400;text-transform:none;letter-spacing:0;line-height:1.4}
 .pg-cel .ck-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13.5px;color:var(--texto)}
 .pg-cel .ck-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--teal);cursor:pointer;flex-shrink:0}
-.dias-semana{display:grid;grid-template-columns:repeat(7,1fr);gap:0;border:1px solid var(--linha);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
-.ds-cel{text-align:center;border-right:1px solid var(--linha)}
+.dias-semana{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0;border:1px solid var(--linha);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.ds-cel{text-align:center;border-right:1px solid var(--linha);min-width:0}
+.ds-cel input,.ds-cel select{max-width:100%;min-width:0}
 .ds-cel:last-child{border-right:0}
 .ds-cel .ds-nome{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fraco);background:var(--superficie);padding:6px 4px;border-bottom:1px solid var(--linha)}
 .ds-cel input{width:100%;text-align:center;border:0;padding:10px 4px;font-size:15px;font-weight:600;color:var(--texto);background:#fff}
@@ -432,6 +433,18 @@ main{padding:24px;max-width:1900px;margin:0 auto}
   .painel>div[style*="overflow"]{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .salva-acoes{flex-wrap:wrap}
   .salva-acoes .btn{flex:1 1 auto}
+  /* Sete colunas com campos de hora não cabem numa tela estreita. Em vez de
+     espremer o campo até estourar, a semana passa a duas colunas legíveis. */
+  .dias-semana{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ds-cel{border-right:1px solid var(--linha);border-bottom:1px solid var(--linha)}
+  .ds-cel:nth-child(2n){border-right:0}
+  .ds-cel input[type="time"]{font-size:13px;padding-inline:2px}
+  /* O formulário de faixa usa min-width inline para alinhar no desktop; numa
+     tela estreita esses mínimos somados estouram a linha. */
+  .fx-form{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fx-form>div{min-width:0}
+  .fx-form .inp{width:100%;min-width:0 !important}
+  .fx-form>.btn{grid-column:1/-1;width:100%}
   .esc-metricas{gap:6px}
   .esc-metrica{white-space:normal}
 }
@@ -457,6 +470,8 @@ main{padding:24px;max-width:1900px;margin:0 auto}
   .grade-form{grid-template-columns:1fr}
   .barra{gap:6px}
   .barra .btn{flex:1 1 auto}
+  .dias-semana{grid-template-columns:1fr}
+  .ds-cel{border-right:0}
 }
 
 /* ---------- tabela escala ----------
@@ -981,7 +996,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fraco);margin:24px 0 8px">Demanda por faixa de horário</h3>
         <p class="desc" style="margin-bottom:12px">Quantas pessoas de cada função a loja precisa ter <b>presentes</b> em cada intervalo. É o que enxerga o buraco do almoço: duas pessoas no dia inteiro cumprem o mínimo diário e ainda assim deixam o caixa sozinho das 12h às 13h. A meta gera aviso; o obrigatório impede publicar.</p>
         <table class="simples" id="tab-faixas"></table>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+        <div class="fx-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
           <div><label style="font-size:11px;color:var(--fraco)">Dia</label><br>
             <select id="fx-dia" class="inp" style="min-width:120px"></select></div>
           <div><label style="font-size:11px;color:var(--fraco)">Função</label><br>
