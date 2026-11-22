@@ -431,8 +431,11 @@ main{padding:24px;max-width:1900px;margin:0 auto}
   /* Tabelas de leitura densa rolam dentro do próprio contêiner. A largura
      mínima só pode ser aplicada onde existe esse contêiner, senão a tabela
      empurra a página em vez de rolar. */
-  .painel>div[style*="overflow"],.tabela-rolavel{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .painel>div[style*="overflow"],.tabela-rolavel{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;min-width:0}
   .painel>div[style*="overflow"]>table.simples,.tabela-rolavel>table.simples{min-width:460px}
+  /* O painel é grid/flex em alguns pontos; sem min-width:0 os filhos recusam
+     encolher e o contêiner rolável deixa de conter. */
+  .painel,.view,main{min-width:0}
   .salva-acoes{flex-wrap:wrap}
   .salva-acoes .btn{flex:1 1 auto}
   /* Sete colunas com campos de hora não cabem numa tela estreita. Em vez de
@@ -482,8 +485,11 @@ main{padding:24px;max-width:1900px;margin:0 auto}
    no deslocamento da coluna seguinte — antes o deslocamento era um número
    solto, e quando um nome comprido esticava a coluna, a coluna ENTRA subia
    por cima e escondia o primeiro dia. */
-.esc-quadro{position:relative}
-.scroll{overflow:auto;border:1px solid var(--linha);border-radius:var(--radius);background:#fff;max-height:72vh;
+.esc-quadro{position:relative;min-width:0}
+/* min-width:0 é o que permite o contêiner encolher abaixo da largura natural
+   da tabela: sem isso a grade rola, mas o bloco continua largo e empurra a
+   página inteira numa tela estreita. */
+.scroll{overflow:auto;min-width:0;max-width:100%;border:1px solid var(--linha);border-radius:var(--radius);background:#fff;max-height:72vh;
   scrollbar-color:#ADBCB5 #EEF2F0;scrollbar-width:thin}
 .scroll::-webkit-scrollbar{height:12px;width:12px}
 .scroll::-webkit-scrollbar-track{background:#EEF2F0}
