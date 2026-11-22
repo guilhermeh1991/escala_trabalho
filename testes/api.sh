@@ -353,14 +353,22 @@ chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\
 # Os parâmetros de regra são gravados na loja: desde a separação de autoridade, o
 # servidor lê regra de lojas.parametros e ignora o que vier no payload.
 SNAP_SEQ='{"schema":1,"incompleto":false,"participantes":[{"id":"cseq","nome":"Pessoa Sequencia","cargo":"CAIXA","horario":"08:00 AS 16:20","domTrabConsec":1,"ausencias":[],"ordem":0}]}'
+# Fixture: fixa os parâmetros da loja direto no banco. É preparação de estado, não
+# o comportamento sob teste — a via autorizada de alteração (ação salvar, com
+# exigirGestao e escopo de loja) já é coberta nas seções de isolamento acima.
+# Usar a API aqui recriaria os colaboradores a cada chamada, com novos ids.
 gravar_params_loja() { # $1 = json dos parâmetros
-  chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar\",\"lojas\":[{\"id\":\"$LOJA_A\",\"nome\":\"Loja Teste A\",\"params\":$1,\"colabs\":[],\"_ordem\":0}]}" "$CSRF_A" >/dev/null
+  mysql -u root -h 127.0.0.1 teste_escala -e \
+    "UPDATE lojas SET parametros='$1', versao=versao+1 WHERE id='$LOJA_A';" || falha "fixture de parâmetros da loja"
 }
 gravar_params_loja '{"modelo":"5x2","maxSeq":5}'
 chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-01\",\"fim\":\"2026-10-06\",\"grade\":{\"cseq\":[\"\",\"\",\"\",\"\",\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\",\"maxSeq\":5},\"snapshot\":$SNAP_SEQ,\"publicar\":true}" "$CSRF_A"
 [ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "dias seguidos" && ok "publicação bloqueada quando sequência máxima configurada é excedida" || falha "sequência não bloqueou: HTTP $HTTP_STATUS $HTTP_BODY"
+# O colega cobre o dia de folga: sem ele, "loja sem ninguém escalado" bloquearia
+# antes e o teste não provaria nada sobre o ciclo de domingos.
+SNAP_DOM='{"schema":1,"incompleto":false,"participantes":[{"id":"cseq","nome":"Pessoa Sequencia","cargo":"CAIXA","horario":"08:00 AS 16:20","domTrabConsec":1,"ausencias":[],"ordem":0},{"id":"cdom2","nome":"Colega Cobertura","cargo":"BALCONISTA","horario":"08:00 AS 16:20","ausencias":[],"ordem":1}]}'
 gravar_params_loja '{"modelo":"5x2","cicloDomingo":2}'
-chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-04\",\"fim\":\"2026-10-05\",\"grade\":{\"cseq\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\",\"cicloDomingo\":2},\"snapshot\":$SNAP_SEQ,\"publicar\":true}" "$CSRF_A"
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-04\",\"fim\":\"2026-10-05\",\"grade\":{\"cseq\":[\"\",\"X\"],\"cdom2\":[\"X\",\"\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP_DOM,\"publicar\":true}" "$CSRF_A"
 [ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "domingos seguidos" && ok "publicação bloqueada quando ciclo configurado de domingos é excedido" || falha "domingo não bloqueou: HTTP $HTTP_STATUS $HTTP_BODY"
 
 # TENTATIVA DE MANIPULAÇÃO: afrouxar a regra pelo payload não pode liberar a publicação.
@@ -370,7 +378,7 @@ chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\
 [ "$HTTP_STATUS" = 422 ] && echo "$HTTP_BODY" | grep -q "dias seguidos" && ok "maxSeq afrouxado no payload não enfraquece o bloqueio" || falha "payload afrouxou maxSeq: HTTP $HTTP_STATUS $HTTP_BODY"
 
 # A divergência entre payload e banco é registrada como observação e na auditoria.
-R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-02\",\"fim\":\"2026-11-03\",\"grade\":{\"cseq\":[\"\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\",\"maxSeq\":365},\"snapshot\":$SNAP_SEQ}" "$CSRF_A")
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-11-02\",\"fim\":\"2026-11-03\",\"grade\":{\"cseq\":[\"\",\"X\"],\"cdom2\":[\"X\",\"\"]},\"parametros\":{\"modelo\":\"5x2\",\"maxSeq\":365},\"snapshot\":$SNAP_DOM}" "$CSRF_A")
 echo "$R" | grep -q '"divergencias":\[' && echo "$R" | grep -q 'maxSeq' && ok "parâmetro divergente do banco é registrado no resultado" || falha "divergência não registrada: $R"
 AUD=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM registro_acoes WHERE acao='parametros_divergentes';")
 [ "$AUD" -ge 1 ] && ok "tentativa de reclassificação fica na trilha de auditoria" || falha "auditoria sem registro de divergência: $AUD"
@@ -384,7 +392,8 @@ chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\
 
 # Demanda positiva com disponibilidade zero e jornada incompleta registradas no resumo do rascunho
 SNAP_INC='{"schema":1,"incompleto":false,"participantes":[{"id":"cinc","nome":"Pessoa Incompleta","cargo":"CAIXA","horario":"08:00","ausencias":[],"ordem":0}]}'
-R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-20\",\"fim\":\"2026-10-21\",\"grade\":{\"cinc\":[\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\",\"minFarma\":2,\"minSubger\":1},\"snapshot\":$SNAP_INC}" "$CSRF_A")
+gravar_params_loja '{"modelo":"5x2","minFarma":2,"minSubger":1}'
+R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-10-20\",\"fim\":\"2026-10-21\",\"grade\":{\"cinc\":[\"\",\"\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP_INC}" "$CSRF_A")
 echo "$R" | grep -q '"impedimentos":2' && echo "$R" | grep -q '"lacunas":1' && ok "servidor registra impedimentos de disponibilidade zero e lacuna de jornada incompleta" || falha "impedimentos/lacunas: $R"
 
 # MÍNIMO OBRIGATÓRIO POR LOJA E FUNÇÃO: a meta avisa, o piso bloqueia.
