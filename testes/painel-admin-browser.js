@@ -327,6 +327,19 @@ async function main() {
     /* Estado bloqueado nas quatro larguras, medindo transbordamento. */
     await medirLarguras(page, 'ui-grade');
 
+    /* Abrir uma versão anterior precisa enviar seu número e carregar seu
+       conteúdo real; consultar apenas o período sempre devolvia a mais nova. */
+    const primeiraVersao = page.locator('#lista-salvas .salva')
+      .filter({hasText:'01/12 a 30/12'})
+      .filter({has:page.getByText('v1', {exact:true})});
+    const respostaVersao = page.waitForResponse(r => r.url().endsWith('/api/dados.php')
+      && r.request().postDataJSON()?.acao === 'carregar_escala'
+      && r.request().postDataJSON()?.versao === 1);
+    await primeiraVersao.locator('button[data-abrir]').click();
+    assert.equal((await (await respostaVersao).json()).escala.versao, 1);
+    await primeiraVersao.locator('.salva-atual').waitFor({state:'visible'});
+    assert.equal(await page.locator('#lista-salvas .salva-atual').count(), 1);
+
     /* Escalas legadas continuam consultáveis, sem inventar nomes ou jornadas. */
     const legado = page.locator('#lista-salvas .salva').filter({hasText:'01/01 a 02/01'});
     await legado.locator('button[data-abrir]').click();

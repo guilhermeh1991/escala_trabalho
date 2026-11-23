@@ -1873,7 +1873,7 @@ async function pintarSalvas(){
                         registroLegado:S.registroLegado, historicoIncompleto:S.historicoIncompleto,
                         versao:S.versao, historicoCarregado:S.historicoCarregado};
       $('#p-inicio').value = x.inicio; $('#p-fim').value = x.fim;
-      const carregou = await carregarPeriodoSalvo();
+      const carregou = await carregarPeriodoSalvo(x.versao);
       if(!carregou){
         $('#p-inicio').value = anterior.inicio; $('#p-fim').value = anterior.fim;
         S.res = anterior.res; S.val = anterior.val; S.salvo = anterior.salvo;
@@ -2006,11 +2006,11 @@ function resultadoDaVersao(d){
   return {res, incompleto:false};
 }
 
-async function carregarPeriodoSalvo(){
+async function carregarPeriodoSalvo(versao){
   S.res=null; S.val=null; S.equipeEscala=null; S.historicoCarregado=false; S.historicoIncompleto=null; S.registroLegado=null;
   avisarEscala('');
   let d;
-  try{ d = await store.get(chaveGrade()); }
+  try{ d = await store.get(chaveGrade(), versao); }
   catch(e){
     alert('Não foi possível carregar a escala salva do servidor: ' + (e && e.message ? e.message : e));
     pintarGrade(); return false;

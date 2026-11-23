@@ -113,8 +113,8 @@ const DB = {
     Object.entries(r.versoes || {}).forEach(([id,versao])=>{ if(lojas[id]) lojas[id].versao = versao; });
     return r;
   },
-  async carregarEscala(lojaId, inicio, fim){
-    const r = await dadosApi({acao:'carregar_escala', loja_id:lojaId, inicio, fim});
+  async carregarEscala(lojaId, inicio, fim, versao){
+    const r = await dadosApi({acao:'carregar_escala', loja_id:lojaId, inicio, fim, versao});
     if(!r.escala) return null;
     const params = Object.assign({}, r.escala.params || {});
     const horas = params._horas || {};
@@ -160,13 +160,13 @@ const store = {
     if(!lojaId || !inicio || !fim) return;
     await DB.excluirEscala(lojaId, inicio, fim);
   },
-  async get(chave){
+  async get(chave, versao){
     if(chave === 'escala:lojas') return await DB.carregarLojas();
     if(chave.startsWith('escala:grade:')){
       const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       if(!lojaId || !inicio || !fim) return null;
-      return await DB.carregarEscala(lojaId, inicio, fim);
+      return await DB.carregarEscala(lojaId, inicio, fim, versao);
     }
     return null;
   },
