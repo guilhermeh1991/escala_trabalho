@@ -420,6 +420,12 @@ main{padding:24px;max-width:1900px;margin:0 auto}
   .esc-passos li{font-size:12px}
   .gerando,.esc-aviso{margin-inline:16px}
 }
+.registro-legado{padding:16px;min-width:0;max-width:100%}
+.registro-legado p{overflow-wrap:anywhere}
+.registro-legado .tabela-rolavel{overflow-x:auto;max-width:100%;min-width:0}
+.registro-legado table{width:max-content;min-width:100%;border-collapse:collapse}
+.registro-legado th,.registro-legado td{padding:8px;border:1px solid var(--linha);text-align:center}
+.registro-legado th[scope="row"]{text-align:left;max-width:240px;overflow-wrap:anywhere}
 /* Telas estreitas: nenhum painel pode empurrar a página. Os contêineres que
    precisam de rolagem recebem rolagem própria; os demais quebram linha.
    `overflow-x:hidden` no documento está fora de questão — esconderia o defeito
@@ -844,7 +850,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
           <span><b style="background:var(--r-bg);border:2px solid var(--r-fg)"></b>! abaixo do mínimo</span>
           <span><b class="legenda-ajuste"></b>horário alterado</span>
           <span><b class="legenda-interjornada"></b>* descanso menor que 11h</span>
-          <span style="margin-left:auto">Clique na célula para editar.</span>
+          <span id="grade-ajuda" style="margin-left:auto">Clique na célula para editar.</span>
         </div>
       </div>
 
@@ -855,7 +861,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <div id="lista-salvas"></div>
       </div>
 
-      <div class="cols2 naoimprime">
+      <div class="cols2 naoimprime" id="painel-validacao">
         <div class="painel">
           <h2>Pendências</h2>
           <p class="desc" id="cont-alertas"></p>
@@ -4860,7 +4866,7 @@ $('#btn-gerar').onclick = async ()=>{
     if(!contextoValido()){ estadoGeracao(false); return; }
 
     S.equipeEscala = equipe;
-    S.versao = null; S.historicoCarregado = false; S.historicoIncompleto = null;
+    S.versao = null; S.historicoCarregado = false; S.historicoIncompleto = null; S.registroLegado = null;
     S.res = r.value;
     S.res.horas = {};
     validarEscalaAtual();
@@ -5015,8 +5021,8 @@ async function pintarSalvas(){
     const partes = [`<b>${x.pessoas}</b> pessoas`, `<b>${x.dias}</b> dias`,
                     `modelo <b>${esc(x.modelo)}</b>`, `<b>${x.folgas}</b> folgas no total`];
     if(x.ajustes) partes.push(`<b>${x.ajustes}</b> horário(s) ajustado(s)`);
-    partes.push(x.feridas ? `<b style="color:var(--alerta)">${x.feridas} regra(s) ferida(s)</b>`
-                          : 'sem regra ferida');
+    partes.push(x.incompleto ? 'histórico parcial · regras não conferidas'
+      : (x.feridas ? `<b style="color:var(--alerta)">${x.feridas} regra(s) ferida(s)</b>` : 'sem regra ferida'));
     const q = new Date(x.em);
     return `<div class="salva">
       <div class="salva-info">
@@ -5035,13 +5041,17 @@ async function pintarSalvas(){
       const x = ultimaListaSalvas[+b.dataset.abrir];
       if(!x) return;
       const anterior = {inicio:$('#p-inicio').value, fim:$('#p-fim').value,
-                        res:S.res, val:S.val, salvo:S.salvo, equipeEscala:S.equipeEscala};
+                        res:S.res, val:S.val, salvo:S.salvo, equipeEscala:S.equipeEscala,
+                        registroLegado:S.registroLegado, historicoIncompleto:S.historicoIncompleto,
+                        versao:S.versao, historicoCarregado:S.historicoCarregado};
       $('#p-inicio').value = x.inicio; $('#p-fim').value = x.fim;
       const carregou = await carregarPeriodoSalvo();
       if(!carregou){
         $('#p-inicio').value = anterior.inicio; $('#p-fim').value = anterior.fim;
         S.res = anterior.res; S.val = anterior.val; S.salvo = anterior.salvo;
         S.equipeEscala = anterior.equipeEscala;
+        S.registroLegado = anterior.registroLegado; S.historicoIncompleto = anterior.historicoIncompleto;
+        S.versao = anterior.versao; S.historicoCarregado = anterior.historicoCarregado;
         pintarGrade();
       }
       await pintarSalvas();
@@ -5083,6 +5093,7 @@ async function excluirSalva(k){
   // se era o período aberto, limpa a tela
   if(x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value){
     S.res = null; S.val = null; S.equipeEscala = null; S.salvo = true;
+    S.registroLegado = null; S.historicoIncompleto = null;
     $('#grade').innerHTML = '<p class="vazio">Escala excluída. Clique em Gerar escala para montar outra.</p>';
     $('#lista-alertas').innerHTML = '';
     $('#cont-alertas').textContent = '';
@@ -5168,7 +5179,8 @@ function resultadoDaVersao(d){
 }
 
 async function carregarPeriodoSalvo(){
-  S.res=null; S.val=null; S.equipeEscala=null; S.historicoCarregado=false; S.historicoIncompleto=null;
+  S.res=null; S.val=null; S.equipeEscala=null; S.historicoCarregado=false; S.historicoIncompleto=null; S.registroLegado=null;
+  avisarEscala('');
   let d;
   try{ d = await store.get(chaveGrade()); }
   catch(e){
@@ -5179,7 +5191,9 @@ async function carregarPeriodoSalvo(){
     const historico = resultadoDaVersao(d);
     if(historico.incompleto){
       S.historicoIncompleto = historico.motivo;
+      S.registroLegado = d;
       S.salvo = true;
+      avisarEscala('Registro antigo carregado para consulta.');
       pintarGrade();
       return true;
     }
@@ -5199,6 +5213,13 @@ function atualizarFaixaRota(){
   const visao = $('#esc-visao'), visaoTitulo = $('#esc-visao-titulo'),
         visaoDesc = $('#esc-visao-desc'), metricas = $('#esc-metricas');
   if(!titulo || !desc || !status) return;
+  if(S.registroLegado){
+    titulo.textContent = 'Consulta da escala antiga';
+    desc.textContent = 'Grade e ajustes preservados. O histórico incompleto não permite validar ou editar este registro.';
+    status.textContent = 'Somente leitura';
+    if(visao) visao.hidden = true;
+    return;
+  }
   if(!S.res){
     titulo.textContent = 'Prepare a escala do período';
     desc.textContent = 'Escolha as datas e gere uma proposta para revisar a cobertura da loja.';
@@ -5286,6 +5307,7 @@ function avisarEscala(texto, tipo){
 function marcarPassos(){
   const lista = $('#esc-passos');
   if(!lista) return;
+  lista.hidden = !!S.registroLegado;
   const temRes = !!S.res;
   const bloqueios = temRes && S.val ? (S.val.alertas||[]).filter(a=>a.obrigatoria).length : 0;
   const revisado = temRes && bloqueios === 0;
@@ -6045,9 +6067,59 @@ function ordenarPorCargo(lista){
               .map(x=>x.c);
 }
 
+/* A migração preserva a grade antiga, mas não cria pessoas ou jornadas que não
+   foram capturadas. Essa consulta fica fora de S.res para impedir edição,
+   validação, PDF ou publicação com dados históricos inventados. */
+function pintarRegistroLegado(box, registro){
+  const days = listDays(registro.inicio, registro.fim);
+  const grid = registro.grid || {};
+  let h = '<section class="registro-legado" id="registro-legado">'
+    + '<h3>Escala antiga · somente leitura</h3>'
+    + '<p>A grade original foi preservada. Os nomes e as jornadas da época não foram registrados no histórico. '
+    + 'Os identificadores abaixo são os gravados na escala; T indica trabalho com horário histórico não registrado. Ajustes de horário gravados são exibidos como registrados. '
+    + 'Este registro não é validado nem editado nesta tela.</p>'
+    + '<button class="btn ghost small" id="baixar-registro-legado">Baixar registro original (JSON)</button>'
+    + '<div class="tabela-rolavel" tabindex="0" role="region" aria-label="Grade antiga, somente leitura"><table>'
+    + '<thead><tr><th scope="col">Identificador gravado</th>';
+  days.forEach(d=>{ h += `<th scope="col">${esc(ddmm(d))}</th>`; });
+  h += '</tr></thead><tbody>';
+  Object.entries(grid).forEach(([id, linha])=>{
+    if(!Array.isArray(linha)) return;
+    h += `<tr><th scope="row">${esc(id)}</th>`;
+    days.forEach((d,i)=>{
+      const codigo = linha[i];
+      const ajuste = registro.horas && registro.horas[id] && registro.horas[id][i];
+      const horaGravada = ajuste == null ? null : (typeof ajuste === 'string' ? ajuste : JSON.stringify(ajuste));
+      const rotulo = codigo === '' ? (horaGravada || 'T') : (codigo == null ? 'Sem registro' : String(codigo));
+      const descricao = codigo === '' ? (horaGravada || 'Trabalho; horário histórico não registrado') : (DESCR_COD[codigo] || rotulo);
+      h += `<td title="${esc(descricao)}">${esc(rotulo)}</td>`;
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table></div></section>';
+  box.innerHTML = h;
+  $('#baixar-registro-legado').onclick = ()=>{
+    const blob = new Blob([JSON.stringify(registro, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `escala-antiga-${String(registro.inicio).replace(/[^0-9-]/g,'')}.json`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  };
+}
+
 function pintarGrade(){
   marcarSalvo();
   const box = $('#grade');
+  $('#painel-validacao').hidden = !!S.registroLegado;
+  $('#painel-intradiaria').hidden = !!S.registroLegado;
+  $('#grade-ajuda').textContent = S.registroLegado ? 'Registro antigo somente para consulta.' : 'Clique na célula para editar.';
+  if(S.registroLegado){
+    pintarRegistroLegado(box, S.registroLegado);
+    $('#lista-alertas').innerHTML=''; $('#cont-alertas').textContent=''; $('#tab-resumo').innerHTML='';
+    $('#resumo-cobertura').innerHTML=''; return;
+  }
   if(!S.res){ box.innerHTML = `<div class="vazio" style="padding:48px">Escolha o período e clique em <b>Gerar escala</b>.</div>`;
     $('#lista-alertas').innerHTML=''; $('#cont-alertas').textContent=''; $('#tab-resumo').innerHTML='';
     $('#resumo-cobertura').innerHTML=''; return; }

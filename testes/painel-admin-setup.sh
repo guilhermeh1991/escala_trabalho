@@ -130,6 +130,19 @@ if [[ "$VINCULOS_INICIAIS" != "0" ]]; then
   exit 1
 fi
 
+# Registro fictício no formato da migração 007: grade/ajustes preservados sem
+# inventar participantes históricos. Nenhum cadastro atual pode substituir IDs.
+mysql -u root -h 127.0.0.1 "$DB" <<SQL
+INSERT INTO escalas (id,loja_id,inicio,fim,grade,parametros,publicada,publicada_em,versao,versao_publicada)
+VALUES ('00000000-0000-4000-8000-000000000007','$LOJA_A','2025-01-01','2025-01-02',
+  '{"legado-pessoa-1":["","X"],"legado-pessoa-2":["F","AT"]}',
+  '{"_horas":{"legado-pessoa-1":{"0":"09:00 AS 17:00"}}}',1,'2025-01-01 10:00:00',1,1);
+INSERT INTO escala_versoes (id,escala_id,versao,loja_id,inicio,fim,grade,parametros,snapshot,publicada,publicada_em)
+SELECT UUID(),id,1,loja_id,inicio,fim,grade,parametros,
+  JSON_OBJECT('incompleto',true,'participantes',JSON_ARRAY(),'grade',grade),1,publicada_em
+FROM escalas WHERE id='00000000-0000-4000-8000-000000000007';
+SQL
+
 {
   echo "PLATFORM_EMAIL=$PLATFORM_EMAIL"
   echo "PLATFORM_PASSWORD=$PLATFORM_PASSWORD"

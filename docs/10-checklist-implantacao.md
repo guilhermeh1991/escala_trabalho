@@ -1,5 +1,8 @@
 # Checklist de implantação segura
 
+Para uma instalação existente, use o [roteiro de atualização](11-atualizacao-hostgator.md)
+antes de executar migrações ou acionar o deploy.
+
 ## 1. Ambiente
 - [ ] Definir domínio final da aplicação.
 - [ ] Configurar HTTPS obrigatório.

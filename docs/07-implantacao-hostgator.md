@@ -1,5 +1,8 @@
 # Colocar no ar na HostGator
 
+Este documento trata da instalação inicial. Para atualizar o site existente
+preservando contas e escalas, siga [Atualização na HostGator](11-atualizacao-hostgator.md).
+
 Tempo estimado: 30 minutos. Sem custo adicional — usa a hospedagem que você já paga.
 
 ## Antes de começar: por que existe uma pasta `api/`

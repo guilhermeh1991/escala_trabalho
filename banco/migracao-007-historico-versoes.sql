@@ -65,5 +65,6 @@ SELECT UUID(), e.id, 1, e.loja_id, e.inicio, e.fim, e.grade, e.parametros, e.res
 
 UPDATE escalas e
 JOIN escala_versoes v ON v.escala_id=e.id AND v.versao=1
-   SET e.versao_publicada=CASE WHEN e.publicada=1 THEN 1 ELSE NULL END
+   SET e.versao_publicada=CASE WHEN e.publicada=1 THEN 1 ELSE NULL END,
+       e.atualizado_em=e.atualizado_em
  WHERE e.versao_publicada IS NULL;

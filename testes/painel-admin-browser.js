@@ -327,6 +327,33 @@ async function main() {
     /* Estado bloqueado nas quatro larguras, medindo transbordamento. */
     await medirLarguras(page, 'ui-grade');
 
+    /* Escalas legadas continuam consultáveis, sem inventar nomes ou jornadas. */
+    const legado = page.locator('#lista-salvas .salva').filter({hasText:'01/01 a 02/01'});
+    await legado.locator('button[data-abrir]').click();
+    await page.locator('#registro-legado').waitFor({state:'visible'});
+    assert.equal(await page.locator('#registro-legado tbody tr').count(), 2);
+    assert.equal(await page.locator('#registro-legado td[role="button"]').count(), 0);
+    assert.equal(await page.locator('#btn-salvar').isDisabled(), true);
+    assert.equal(await page.locator('#btn-publicar').isDisabled(), true);
+    await waitText(page, '#registro-legado', '09:00 AS 17:00');
+    await waitText(page, '#esc-rota-status', 'Somente leitura');
+    assert.equal(await page.locator('#painel-validacao').isVisible(), false);
+    assert.equal(await page.locator('#painel-intradiaria').isVisible(), false);
+    assert.equal(await legado.getByText('histórico parcial · regras não conferidas', {exact:false}).count(), 1);
+    const downloadLegado = page.waitForEvent('download');
+    await page.locator('#baixar-registro-legado').click();
+    const arquivoLegado = await downloadLegado;
+    const registroOriginal = JSON.parse(fs.readFileSync(await arquivoLegado.path(), 'utf8'));
+    assert.deepEqual(registroOriginal.grid, {'legado-pessoa-1':['','X'], 'legado-pessoa-2':['F','AT']});
+    /* PHP pode serializar o mapa de índices 0..n como array. O índice, o valor
+       e a pessoa precisam permanecer os mesmos em ambas as representações. */
+    assert.deepEqual(Object.keys(registroOriginal.horas), ['legado-pessoa-1']);
+    assert.deepEqual(Object.keys(registroOriginal.horas['legado-pessoa-1']), ['0']);
+    assert.equal(registroOriginal.horas['legado-pessoa-1'][0], '09:00 AS 17:00');
+    assert.equal(Boolean(registroOriginal.snapshot.incompleto), true);
+    assert.deepEqual(registroOriginal.snapshot.participantes, []);
+    await medirLarguras(page, 'ui-legado');
+
     deniedContext = await browser.newContext({viewport:{width:1440,height:1000}});
     const deniedPage = await deniedContext.newPage();
     const deniedErrors = [];
@@ -360,8 +387,9 @@ async function main() {
     await deniedPage.locator('#tab-faixas').waitFor({state:'visible'});
     await deniedPage.locator('#tab-faixas td.mono').filter({hasText:'08:00–14:00'}).first().waitFor({state:'visible'});
     assert.equal(await deniedPage.locator('#tab-faixas').getByText('Caixa').count() > 0, true);
-    /* Piso e perfis gravados no fixture continuam intactos após salvar a faixa. */
-    assert.equal(await deniedPage.locator('#r-mincaixa-obr').inputValue(), '1');
+    /* O piso foi alterado para 99 no cenário bloqueado. Salvar uma faixa não
+       pode restaurar o valor inicial 1 e desfazer essa configuração. */
+    assert.equal(await deniedPage.locator('#r-mincaixa-obr').inputValue(), '99');
     await deniedPage.screenshot({path:`${OUT}/ui-parametros-editor-1440.png`, fullPage:true});
 
     await closeQuietly(deniedContext);

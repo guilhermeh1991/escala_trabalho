@@ -3,11 +3,10 @@
 --
 --  ORDEM DE EXECUÇÃO
 --    1º  este arquivo (mysql-schema.sql)
---    2º  migracao-002-colaborador.sql
---    3º  migracao-005-jornada-estruturada.sql
---    4º  migracao-006-supervisor-multiloja.sql
+--    2º  verificar-e-migrar.sql atualizado (inclui migrações 002 a 008)
 --
---  Quem já rodou este arquivo antes só precisa rodar a migração.
+--  Para banco existente, não substitua a base: siga primeiro o roteiro de
+--  backup e atualização em docs/11-atualizacao-hostgator.md.
 --
 --  Cole no phpMyAdmin, aba SQL, com o banco já selecionado.
 --
