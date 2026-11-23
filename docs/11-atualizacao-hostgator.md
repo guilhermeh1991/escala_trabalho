@@ -10,7 +10,10 @@ exemplo. O deploy atual envia arquivos, mas não executa migrações ou backups.
    que seja `public_html`: registre o caminho e confira seu `index.html` e `api/`.
 2. Em **MultiPHP Manager**, registre a versão do PHP e confirme as extensões
    `pdo_mysql` e `mbstring`. O CI usa PHP 8.3; uma versão diferente precisa ser
-   testada antes de publicar. No phpMyAdmin, registre `SELECT VERSION();` e o
+   testada antes de publicar. As suítes de API, migração e navegador do workflow
+   cobrem MySQL 5.7.44 e 8.0; o deploy depende das duas versões. Isso não substitui
+   a restauração de teste do banco real da hospedagem. No phpMyAdmin, registre
+   `SELECT VERSION();` e o
    banco selecionado, conforme o `api/config.php` existente. Não compartilhe
    senhas, chaves, tokens ou o conteúdo desse arquivo em PRs ou conversas.
 3. Em **Backup**, exporte o banco existente. Faça também uma cópia completa do

@@ -24,11 +24,16 @@ jobs:
         run: node testes/bench-cobertura.js
 
   api:
-    name: Backend PHP
+    name: Backend PHP (MySQL ${{ matrix.mysql }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql: ['5.7.44', '8.0']
     services:
       mysql:
-        image: mysql:8
+        image: mysql:${{ matrix.mysql }}
         env:
           MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
           MYSQL_DATABASE: teste_escala
@@ -72,11 +77,16 @@ jobs:
           print(f'{len(tabelas)} tabelas, todas com RLS')
           PY
   migracoes:
-    name: Migrações MySQL legadas
+    name: Migrações MySQL legadas (${{ matrix.mysql }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql: ['5.7.44', '8.0']
     services:
       mysql:
-        image: mysql:8
+        image: mysql:${{ matrix.mysql }}
         env:
           MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
           MYSQL_DATABASE: teste_migracoes_legadas
@@ -120,13 +130,17 @@ jobs:
           path: dist/
 
   browser:
-    name: Painel HostGator no navegador
+    name: Painel HostGator no navegador (MySQL ${{ matrix.mysql }})
     needs: [api, build, migracoes]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql: ['5.7.44', '8.0']
     services:
       mysql:
-        image: mysql:8
+        image: mysql:${{ matrix.mysql }}
         env:
           MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
           MYSQL_DATABASE: teste_escala
@@ -143,7 +157,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.3', extensions: pdo_mysql, mbstring }
+        with: { php-version: '8.3', extensions: 'pdo_mysql, mbstring' }
       - name: Instalar Playwright fixado
         run: |
           npm install --no-save playwright@1.49.1
@@ -162,7 +176,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: painel-admin-browser
+          name: painel-admin-browser-mysql-${{ matrix.mysql }}
           path: |
             artifacts/painel-admin/
             /tmp/painel-admin-php.log
