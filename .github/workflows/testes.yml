@@ -114,6 +114,10 @@ jobs:
         with: { node-version: '20' }
       - name: Montar todas as variantes
         run: python3 build/montar.py
+      - name: Conferir e gerar pacotes de publicação
+        run: |
+          python3 testes/empacotamento.py
+          python3 build/empacotar-hostgator.py
       - name: Conferir sintaxe JavaScript gerado
         run: |
           for f in dist/*.html; do

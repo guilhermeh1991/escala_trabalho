@@ -4,6 +4,9 @@ Este roteiro atualiza uma instalação PHP/MySQL existente. Não crie uma empres
 ou banco substituto, não importe fixtures e não troque `api/config.php` pelo
 exemplo. O deploy atual envia arquivos, mas não executa migrações ou backups.
 
+Para concluir o trabalho na IDE antes de acessar a hospedagem, veja
+[Preparar na IDE e publicar depois](12-ide-e-preparacao-da-publicacao.md).
+
 ## Preparar pelo cPanel
 
 1. Em **Domínios**, confirme o diretório raiz de `shiftflow.com.br`. Não presuma
