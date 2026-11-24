@@ -822,9 +822,6 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
     }
 
     $participantes = [];
-    $idsBanco = array_keys($mapaBanco);
-    $idsGrade = array_map('strval', array_keys($grade));
-    $idsDesconhecidos = array_diff($idsGrade, $idsBanco);
     foreach ($grade as $cidKey => $_linha) {
         $cid = (string)$cidKey;
         $b = $mapaBanco[$cid] ?? null;
@@ -863,22 +860,6 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
     $semanas = semanasDoPeriodoServidor($days, $inicioSemana);
     $codigosValidos = ['', 'X', 'FC', 'F', 'AT', 'LC'];
     $alertas = [];
-    foreach ($idsDesconhecidos as $idDesconhecido) {
-        $alertas[] = [
-            'colab' => (string)$idDesconhecido, 'tipo' => 'colaborador-desconhecido',
-            'categoria' => 'obrigatoria', 'obrigatoria' => true, 'nivel' => 'regra',
-            'txt' => 'A grade contém uma pessoa que não pertence à equipe cadastrada da loja.',
-        ];
-    }
-    foreach (array_diff(array_keys(array_filter($mapaBanco, function ($c) {
-        return ($c['ativo'] ?? true) !== false;
-    })), $idsGrade) as $idAusente) {
-        $alertas[] = [
-            'colab' => (string)$idAusente, 'tipo' => 'colaborador-ausente-da-grade',
-            'categoria' => 'obrigatoria', 'obrigatoria' => true, 'nivel' => 'regra',
-            'txt' => 'Colaborador ativo sem linha correspondente na grade.',
-        ];
-    }
 
     foreach ($participantes as $cid => $c) {
         if (($c['ativo'] ?? true) === false) continue;
