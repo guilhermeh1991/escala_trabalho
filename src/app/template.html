@@ -2478,6 +2478,10 @@ function abrirPopupCelula(td){
   const intervalo = intervaloDe(colabEquipe, true);
   const ajustada = horaAjustada(id, i);
 
+  const rotuloTurno = (entrada, saida)=>{
+    if(!entrada || !saida) return 'Horário incompleto';
+    return minutosDaHora(saida) <= minutosDaHora(entrada) ? 'Cruza a meia-noite' : 'Mesmo dia';
+  };
   const opcoesHorarios = [];
   if(padrao && saidaPadrao){
     opcoesHorarios.push({chave:'equipe', rotulo:`Da equipe · ${horarioEquipe}`, entrada:padrao, saida:saidaPadrao, intervalo});
@@ -2593,10 +2597,6 @@ function abrirPopupCelula(td){
   };
 
   const diasSelecionados = new Set();
-  const rotuloTurno = (entrada, saida)=>{
-    if(!entrada || !saida) return 'Horário incompleto';
-    return minutosDaHora(saida) <= minutosDaHora(entrada) ? 'Cruza a meia-noite' : 'Mesmo dia';
-  };
   const selHorario = document.getElementById('pc-horario-disp');
   const inpHora = document.getElementById('pc-hora');
   const inpSaida = document.getElementById('pc-saida');
