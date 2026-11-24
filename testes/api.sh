@@ -459,8 +459,8 @@ R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"carregar_escala\",\"loja_id\":\"$
 echo "$R" | grep -q 'Pessoa Historica' && ok "snapshot recupera participante histórico" || falha "snapshot não recuperado: $R"
 R2=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\",\"grade\":{\"c1\":[\"\",\"X\"],\"c2\":[\"X\",\"\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":$VERSAO,\"idempotency_key\":\"$IDEMP\"}" "$CSRF_A")
 echo "$R2" | grep -q '"repetida":true' && ok "retentativa idempotente não cria versão" || falha "idempotência: $R2"
-R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\",\"grade\":{\"c1\":[\"X\",\"X\"],\"c2\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":999}" "$CSRF_A")
-echo "$R" | grep -q 'Conflito' && ok "edição simultânea gera conflito explícito" || falha "conflito: $R"
+chamar_com_status "$COOKIES_A" dados.php "{\"acao\":\"salvar_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\",\"grade\":{\"c1\":[\"X\",\"X\"],\"c2\":[\"X\",\"X\"]},\"parametros\":{\"modelo\":\"5x2\"},\"snapshot\":$SNAP,\"expected_version\":999}" "$CSRF_A"
+[ "$HTTP_STATUS" = 409 ] && echo "$HTTP_BODY" | grep -q 'Conflito' && ok "edição simultânea gera HTTP 409 explícito" || falha "conflito: HTTP $HTTP_STATUS $HTTP_BODY"
 R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"listar_versoes_escala\",\"loja_id\":\"$LOJA_A\",\"inicio\":\"2026-08-11\",\"fim\":\"2026-08-12\"}" "$CSRF_A")
 echo "$R" | grep -q '"versao":' && ok "versões históricas listadas" || falha "listar versões: $R"
 R=$(chamar "$COOKIES_A" dados.php "{\"acao\":\"listar_escalas\",\"loja_id\":\"$LOJA_A\"}" "$CSRF_A")

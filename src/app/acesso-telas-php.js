@@ -72,25 +72,46 @@ async function fazerCadastro(){
   }
 
   btn.textContent = 'Criando conta…';
-  try{ await auth({acao:'cadastrar', nome, email, senha}); }
+  let retorno;
+  try{ retorno = await auth({acao:'cadastrar', nome, email, senha}); }
   catch(e){ btn.disabled=false; btn.textContent='Criar conta'; erroEm('#erro-cadastro', erroAmigavel(e)); return; }
   btn.disabled = false; btn.textContent = 'Criar conta';
   $('#cd-form').style.display = 'none';
   $('#cd-enviado').style.display = 'block';
   $('#cd-email-mostrado').textContent = email;
+  const status = $('#cd-email-status');
+  if(status){
+    status.textContent = retorno && retorno.email_enviado === false
+      ? 'A conta foi criada, mas o e-mail não pôde ser enviado. Tente novamente mais tarde antes de entrar.'
+      : retorno && retorno.email_enviado === true
+        ? 'Enviamos um link de confirmação. Abra o e-mail e clique no link para ativar a conta.'
+        : 'Se este cadastro puder ser confirmado, você receberá instruções por e-mail. Confira também a caixa de spam.';
+    status.className = retorno && retorno.email_enviado === false ? 'erro' : '';
+  }
 }
 
 /* ---------- recuperar senha ---------- */
 async function fazerRecuperar(){
   const email = $('#rc-email').value.trim().toLowerCase();
   const btn = $('#btn-recuperar');
-  if(!email){ erroEm('#erro-recuperar','Informe o e-mail.'); return; }
+  erroEm('#erro-recuperar','');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ erroEm('#erro-recuperar','Informe um e-mail válido.'); return; }
   btn.disabled = true; btn.textContent = 'Enviando…';
-  try{ await auth({acao:'recuperar', email}); }catch(e){}
-  btn.disabled = false; btn.textContent = 'Enviar link';
-  // resposta igual mesmo se o e-mail não existir, para não revelar cadastros
-  $('#rc-form').style.display = 'none';
-  $('#rc-enviado').style.display = 'block';
+  try{
+    const retorno = await auth({acao:'recuperar', email});
+    btn.disabled = false; btn.textContent = 'Enviar link';
+    // A resposta é neutra para não revelar cadastros; falhas reais continuam erro.
+    $('#rc-form').style.display = 'none';
+    $('#rc-enviado').style.display = 'block';
+    const status = $('#rc-email-status');
+    if(status) status.textContent = retorno && retorno.email_enviado === false
+      ? 'Não foi possível enviar o link agora. Tente novamente mais tarde.'
+      : 'Se existir conta com esse e-mail, o link chegará em instantes. Confira também a caixa de spam.';
+    if(status && retorno && retorno.email_enviado === false) status.className = 'erro';
+  }catch(e){
+    btn.disabled = false; btn.textContent = 'Enviar link';
+    erroEm('#erro-recuperar', erroAmigavel(e));
+  }
 }
 
 /* ---------- definir nova senha (voltando do link) ---------- */

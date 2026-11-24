@@ -33,7 +33,7 @@ h1,h2,h3,.disp{font-family:Archivo,Inter,sans-serif;letter-spacing:-.02em}
 button{font:inherit;cursor:pointer}
 input,select{font:inherit}
 button,input,select{transition:border-color .18s ease,background-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
-button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid rgba(8,119,115,.25);outline-offset:2px}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid rgba(22,99,76,.25);outline-offset:2px}
 .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
 
 /* ---------- pop-up de edição da célula ---------- */
@@ -100,6 +100,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .salva-desc{font-size:12.5px;color:var(--fraco);margin-top:2px;line-height:1.5}
 .salva-desc b{color:var(--texto);font-weight:600}
 .salva-acoes{display:flex;gap:7px;flex-shrink:0}
+.painel-titulo-busca{align-items:end}
+.busca-salvas{display:grid;gap:4px;min-width:180px;margin:0;color:var(--fraco);font-size:10.5px}
+.busca-salvas .inp{padding:7px 9px;font-size:13px}
+.esc-recuperar{margin-top:9px}
 .salva-versao{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid var(--linha);border-radius:4px;
   font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--fraco)}
 .salva-atual{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;
@@ -108,6 +112,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 @media(max-width:620px){
   .salva{flex-direction:column;align-items:stretch;gap:9px}
   .salva-acoes{justify-content:flex-start}
+  .painel-titulo-busca{align-items:stretch;flex-direction:column}
+  .busca-salvas{min-width:0;width:100%}
 }
 
 /* ---------- faixa de cargo na grade ---------- */
@@ -166,12 +172,12 @@ table.esc tr.grupo td.hr{background:#EAF0ED}
 .card-login{width:100%;max-width:406px;padding:40px;background:#FCFDFC;border:1px solid rgba(255,255,255,.72);
   border-radius:18px;box-shadow:0 28px 72px rgba(0,0,0,.30),0 4px 14px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.9);
   animation:login-chegada .48s cubic-bezier(.2,.75,.25,1) both}
-.card-login .marca{font-family:Archivo,Inter,sans-serif;font-weight:700;font-size:14px;letter-spacing:-.015em;color:#075F5D}
+.card-login .marca{font-family:Archivo,Inter,sans-serif;font-weight:700;font-size:14px;letter-spacing:-.015em;color:#16634C}
 .card-login h1{font-size:32px;font-weight:700;line-height:1.1;margin:18px 0 7px;color:var(--tinta)}
 .card-login p.sub{margin:0 0 26px;color:#50625F;font-size:14px;line-height:1.5}
 .card-login .inp{background:#FEFFFE;border-color:#CDD8D3;caret-color:var(--teal)}
 .card-login .inp:hover{border-color:#8EA9A1}
-.card-login .inp:focus{border-color:var(--teal);box-shadow:0 0 0 4px rgba(8,119,115,.14)}
+.card-login .inp:focus{border-color:var(--teal);box-shadow:0 0 0 4px rgba(22,99,76,.14)}
 .card-login .btn{min-height:44px;box-shadow:0 7px 16px rgba(0,0,0,.12)}
 .card-login .btn:hover{box-shadow:0 9px 20px rgba(0,0,0,.17)}
 .card-login .aviso{margin-top:16px;padding-top:14px}
@@ -182,7 +188,7 @@ table.esc tr.grupo td.hr{background:#EAF0ED}
 label{display:block;font-size:12px;font-weight:600;letter-spacing:.055em;text-transform:uppercase;color:var(--fraco);margin:14px 0 5px}
 .inp{width:100%;padding:10px 12px;border:1px solid var(--linha);border-radius:var(--radius-sm);background:#fff;color:var(--texto)}
 .inp:hover{border-color:#A9BBB3}
-.inp:focus{outline:3px solid rgba(8,119,115,.16);outline-offset:0;border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+.inp:focus{outline:3px solid rgba(22,99,76,.16);outline-offset:0;border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--tinta);color:#fff;
   border:1px solid var(--tinta);padding:10px 16px;border-radius:var(--radius-sm);font-weight:600;line-height:1.25}
 .btn:hover{background:var(--teal-escuro);border-color:var(--teal-escuro);box-shadow:0 4px 12px rgba(18,38,45,.14)}
@@ -216,6 +222,7 @@ header.top .quem{width:32px;height:32px;border-radius:50%;background:#2A4850;col
   display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;
   border:1px solid #45646C;flex-shrink:0;cursor:default;text-transform:uppercase}
 header.top .quem:focus{outline:2px solid #9DD7CD;outline-offset:2px}
+.sync-estado{min-width:70px;font-size:11px;color:#C6D2CE;white-space:nowrap;text-align:right}
 @media(max-width:560px){
   header.top{padding:8px 16px;gap:10px;min-height:58px}
   header.top .marca{font-size:11px;letter-spacing:.11em}
@@ -223,7 +230,7 @@ header.top .quem:focus{outline:2px solid #9DD7CD;outline-offset:2px}
   header.top select{max-width:126px;font-size:12.5px}
   header.top .unidade{max-width:126px;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
   header.top .divisa{display:none}
-  header.top #sync-estado{display:none}
+  header.top #sync-estado{display:inline-block;min-width:0;max-width:74px;overflow:hidden;text-overflow:ellipsis;text-align:left}
   #btn-sair{padding-inline:9px}
 }
 nav.tabs{background:var(--tinta2);display:flex;gap:4px;padding:0 24px;overflow-x:auto;box-shadow:0 3px 10px rgba(18,38,45,.10)}
@@ -244,6 +251,7 @@ nav.tabs button{position:relative;background:transparent;border:0;color:#BBD0CB;
 .admin-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.admin-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid var(--linha);border-radius:999px;background:var(--superficie);font-size:12px}.admin-chip button{border:0;background:transparent;color:var(--alerta);padding:0 2px;line-height:1}
 .admin-empty{padding:22px;color:var(--fraco);font-size:13px}.admin-loading{color:var(--fraco);font-size:13px}
 @media(max-width:800px){.admin-grid{grid-template-columns:1fr}.admin-list{max-height:300px}}
+@media(max-width:360px){.admin-toolbar label{min-width:0;width:100%}.admin-grid{gap:12px}}
 @media(max-width:560px){.admin-toolbar{display:grid;grid-template-columns:1fr}.admin-toolbar label{min-width:0}.admin-subhead{display:block}.admin-supervisor{grid-template-columns:1fr}.admin-form .barra{align-items:stretch;flex-direction:column}.admin-form .btn{width:100%}}
 nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.04)}
 nav.tabs button[aria-current="true"]{color:#fff;border-bottom-color:#91D4C9;font-weight:600}
@@ -557,6 +565,11 @@ ul.alertas li{padding:8px 0;border-bottom:1px solid var(--linha-suave);font-size
 /* O nome tem largura mínima no desktop, mas não pode empurrar a página numa
    tela estreita: abaixo de 620px o item passa a quebrar em linhas. */
 ul.alertas li b{min-width:120px;font-weight:600}
+ul.alertas li.alerta-grupo{align-items:center;justify-content:space-between;padding:10px 0 6px;border-bottom:0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--fraco)}
+ul.alertas li.alerta-grupo strong{min-width:0;color:var(--texto)}
+ul.alertas li.alerta-grupo-bloqueio strong{color:var(--r-fg)}
+ul.alertas li.alerta-grupo-aviso strong{color:var(--m-fg)}
+ul.alertas li.alerta-grupo-info strong{color:var(--info-fg)}
 ul.alertas li span{min-width:0;overflow-wrap:anywhere}
 table.simples{width:100%;border-collapse:collapse;font-size:13.5px;table-layout:auto}
 table.simples th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.065em;color:var(--fraco);border-bottom:1px solid var(--linha);padding:8px}
@@ -638,6 +651,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
       <span class="unidade" id="nome-unidade" aria-label="Loja atual"></span>
       <span class="divisa" aria-hidden="true"></span>
       <span id="quem" class="quem" tabindex="0"></span>
+      <span id="sync-estado" class="sync-estado" role="status" aria-live="polite"></span>
       <button class="btn ghost small" id="btn-sair" style="border-color:#3C525A;color:#C6D2CE;background:transparent">Sair</button>
     </div>
   </header>
@@ -696,7 +710,10 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <div class="gerando-barra" id="gerando-barra"></div>
           </div>
         </div>
-        <p class="esc-aviso" id="esc-aviso" role="status" hidden></p>
+        <div class="esc-aviso" id="esc-aviso" role="status" hidden>
+          <span id="esc-aviso-text"></span>
+          <button class="btn ghost small esc-recuperar" id="esc-recarregar-conflito" type="button" hidden>Descartar alterações locais e recarregar</button>
+        </div>
         <div class="esc-status" id="esc-status" hidden>
           <div id="resumo-cobertura"></div>
           <span id="status-salvo" class="chip"></span>
@@ -728,9 +745,10 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
       </div>
 
       <div class="painel naoimprime" id="painel-salvas" style="display:none">
-        <h2>Escalas salvas</h2>
-        <p class="desc">Cada gravação fica registrada aqui. Baixe em PDF para
-        imprimir, arquivar ou mandar para a equipe.</p>
+        <div class="barra painel-titulo-busca"><div><h2>Escalas salvas</h2>
+          <p class="desc">Histórico da loja selecionada, com a versão carregada marcada.</p></div>
+          <label class="busca-salvas" for="busca-salvas"><span>Buscar período</span><input id="busca-salvas" class="inp" type="search" placeholder="dd/mm ou versão" autocomplete="off"></label>
+        </div>
         <div id="lista-salvas"></div>
       </div>
 
@@ -759,13 +777,13 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
       <div class="painel">
         <h2>Equipe da loja</h2>
         <p class="desc"><b>E-mail de acesso</b>: preenchendo o e-mail da pessoa, ela cria a própria conta e passa a ver <b>apenas a escala dela</b> — sem acesso à equipe nem à escala dos colegas. Quem tem um perfil com folga fixa semanal folga nos dias que o perfil define; sem perfis configurados, o gerente folga sábado e domingo por política da casa. <b>Folga fixa</b>: em “variável” o sistema escolhe o melhor dia para cada semana; escolhendo um dia, a folga daquela pessoa cai sempre nele — no 6x1 é a folga da semana, no 5x2 é o par que passa a incluir esse dia. “Dom. trabalhados” diz quantos domingos a pessoa já trabalhou seguidos no fim do mês anterior.</p>
-        <div class="barra"><button class="btn small" id="btn-add-colab">Adicionar colaborador</button></div>
+        <div class="barra"><button class="btn small" id="btn-add-colab">Adicionar colaborador</button><span class="chip" id="status-equipe" role="status" aria-live="polite"></span></div>
         <div style="overflow:auto"><table class="simples" id="tab-equipe"></table></div>
       </div>
       <div class="painel">
         <h2>Ausências programadas</h2>
         <p class="desc">Férias, atestado e licença entram como bloco fixo e o gerador não mexe nesses dias.</p>
-        <div class="barra"><button class="btn small" id="btn-add-aus">Adicionar ausência</button></div>
+        <div class="barra"><button class="btn small" id="btn-add-aus">Adicionar ausência</button><span class="chip" id="status-ausencia" role="status" aria-live="polite"></span></div>
         <div style="overflow:auto"><table class="simples" id="tab-aus"></table></div>
       </div>
     </section>
@@ -1106,7 +1124,13 @@ function montar(){
   sel.value = S.loja;
   atualizarContextoLoja();
   sel.onchange = async ()=>{
-    S.loja = sel.value;
+    const proximaLoja = sel.value;
+    if(S.res && !S.salvo && !confirm('Há alterações locais não salvas nesta escala. Trocar de loja e descartá-las?')){
+      sel.value = S.loja;
+      return;
+    }
+    ++geracaoEmCurso;
+    S.loja = proximaLoja;
     atualizarContextoLoja();
     // A lista anterior ainda tem botões ligados à outra loja. Escondê-la antes
     // das consultas impede abrir ou excluir o mesmo período na loja nova.
@@ -1340,9 +1364,17 @@ $('#btn-salvar-params').onclick = async ()=>{
   if(expediente) loja().params.expediente = expediente;
   else delete loja().params.expediente;
   // faixas, perfis e funções já foram preservados por Object.assign.
-  await store.set('escala:lojas', S.lojas);
-  $('#status-params').textContent='Parâmetros salvos'; $('#status-params').className='chip ok';
-  setTimeout(()=>$('#status-params').textContent='',2500);
+  const statusParams = $('#status-params');
+  if(statusParams){ statusParams.textContent='Salvando…'; statusParams.className='chip'; }
+  try{
+    await store.set('escala:lojas', S.lojas);
+    if(statusParams){ statusParams.textContent='Parâmetros salvos'; statusParams.className='chip ok'; }
+    setTimeout(()=>{ if(statusParams) statusParams.textContent=''; },2500);
+  }catch(e){
+    loja().params = paramsAnteriores;
+    if(statusParams){ statusParams.textContent='Não foi possível salvar'; statusParams.className='chip mal'; }
+    pintarParams();
+  }
 };
 
 /* ---------- equipe ---------- */
@@ -1498,7 +1530,18 @@ function resumoModelo(c){
   if(j.incompleta) return 'Jornada incompleta — clique para informar entrada e saída';
   return 'Sem modelo oficial — clique para configurar';
 }
-function salvarEquipe(){ return store.set('escala:lojas', S.lojas); }
+async function salvarEquipe(){
+  const status = $('#status-equipe');
+  if(status){ status.textContent='Salvando…'; status.className='chip'; }
+  try{
+    await store.set('escala:lojas', S.lojas);
+    if(status){ status.textContent='Equipe salva'; status.className='chip ok'; }
+    return true;
+  }catch(e){
+    if(status){ status.textContent='Não foi possível salvar'; status.className='chip mal'; }
+    return false;
+  }
+}
 /* Devolve apenas o conteúdo da célula. A linha é criada com insertRow para que
    o navegador mantenha o contexto de tabela: um fragmento solto com <tr> e <td>
    é descartado pelo analisador, e era isso que impedia os controles de
@@ -1543,10 +1586,21 @@ function pintarEquipe(){
   loja().colabs.forEach((c,i)=>{
     const tr = document.createElement('tr'); const j=jornadaDe(c);
     tr.innerHTML = `<td><input value="${esc(c.nome)}" data-f="nome"></td><td><select data-f="cargo">${CARGOS.map(x=>`<option${x===c.cargo?' selected':''}>${x}</option>`).join('')}</select></td><td class="horario-cel"><button type="button" class="horario-abrir" aria-expanded="${jornadaAberta===c.id}" data-jornada-abrir><span><span class="hora">${esc(c.horario||textoJornada(j)||'Horário não informado')}</span><span class="modelo">${esc(resumoModelo(c))}</span></span><i class="seta" aria-hidden="true"></i></button></td><td style="text-align:center"><input type="checkbox" data-f="gerente" ${c.gerente?'checked':''}></td><td><select data-f="folgaFixa"><option value="">variável</option>${DIAS_SEMANA_NOME.map((d,k)=>`<option value="${k}"${String(c.folgaFixa)===String(k)?' selected':''}>${d}</option>`).join('')}</select></td><td>${renderDomPicker(c)}</td><td style="text-align:center"><input type="checkbox" data-f="ativo" ${c.ativo!==false?'checked':''}></td><td><button class="btn danger small" type="button" title="Remover" data-remover>×</button></td>`;
-    tr.querySelectorAll('[data-f]').forEach(el=>el.onchange=async()=>{const f=el.dataset.f;let v=el.type==='checkbox'?el.checked:el.value;if(f==='folgaFixa')v=v===''?null:+v;c[f]=v;await salvarEquipe();pintarAus();});
+    tr.querySelectorAll('[data-f]').forEach(el=>el.onchange=async()=>{
+      const f=el.dataset.f; let v=el.type==='checkbox'?el.checked:el.value;
+      if(f==='folgaFixa') v=v===''?null:+v;
+      const anterior = c[f]; c[f]=v;
+      if(!(await salvarEquipe())) c[f]=anterior;
+      pintarEquipe(); pintarAus();
+    });
     bindDomPicker(tr,c);
     tr.querySelector('[data-jornada-abrir]').onclick=()=>{jornadaAberta=jornadaAberta===c.id?null:c.id;pintarEquipe();};
-    tr.querySelector('[data-remover]').onclick=async()=>{if(!confirm(`Remover ${c.nome} da equipe?`))return;loja().colabs.splice(i,1);await salvarEquipe();pintarEquipe();pintarAus();};
+    tr.querySelector('[data-remover]').onclick=async()=>{
+      if(!confirm(`Remover ${c.nome} da equipe?`)) return;
+      loja().colabs.splice(i,1);
+      if(await salvarEquipe()){ pintarEquipe(); pintarAus(); }
+      else { loja().colabs.splice(i,0,c); pintarEquipe(); pintarAus(); }
+    };
     tb.appendChild(tr);
     if(jornadaAberta===c.id){
       const linha=tb.insertRow();
@@ -1558,7 +1612,11 @@ function pintarEquipe(){
     }
   });
 }
-$('#btn-add-colab').onclick = async ()=>{loja().colabs.push({id:gerarId(),nome:'NOVO COLABORADOR',cargo:'BALCONISTA',horario:'09:00 AS 18:00',jornada:null,gerente:false,ativo:true,domTrabConsec:null,diasDesdeFolga:0,folgaFixa:null,ausencias:[]});await salvarEquipe();pintarEquipe();};
+$('#btn-add-colab').onclick = async ()=>{
+  loja().colabs.push({id:gerarId(),nome:'NOVO COLABORADOR',cargo:'BALCONISTA',horario:'',jornada:null,gerente:false,ativo:true,domTrabConsec:null,diasDesdeFolga:0,folgaFixa:null,ausencias:[]});
+  const salvo = await salvarEquipe();
+  if(salvo) pintarEquipe(); else loja().colabs.pop();
+};
 
 /* ---------- ausências ---------- */
 function pintarAus(){
@@ -1576,8 +1634,34 @@ function pintarAus(){
       <td><input type="date" data-f="ini" value="${a.ini||''}"></td>
       <td><input type="date" data-f="fim" value="${a.fim||''}"></td>
       <td><button class="btn danger small">×</button></td>`;
-    tr.querySelectorAll('[data-f]').forEach(el=>el.onchange=async()=>{ a[el.dataset.f]=el.value; await store.set('escala:lojas',S.lojas); });
-    tr.querySelector('button').onclick = async ()=>{ c.ausencias.splice(idx,1); await store.set('escala:lojas',S.lojas); pintarAus(); };
+    tr.querySelectorAll('[data-f]').forEach(el=>el.onchange=async()=>{
+      const chave = el.dataset.f, anterior = a[chave]; a[chave] = el.value;
+      const status = $('#status-ausencia');
+      if(status){ status.textContent='Salvando…'; status.className='chip'; }
+      try{
+        await store.set('escala:lojas',S.lojas);
+        if(status){ status.textContent='Ausência salva'; status.className='chip ok'; }
+      }catch(e){
+        a[chave] = anterior;
+        if(status){ status.textContent='Não foi possível salvar'; status.className='chip mal'; }
+        pintarAus();
+      }
+    });
+    tr.querySelector('button').onclick = async ()=>{
+      if(!confirm(`Remover a ausência de ${c.nome}?`)) return;
+      const removida = c.ausencias.splice(idx,1)[0];
+      const status = $('#status-ausencia');
+      if(status){ status.textContent='Salvando…'; status.className='chip'; }
+      try{
+        await store.set('escala:lojas',S.lojas);
+        if(status){ status.textContent='Ausência salva'; status.className='chip ok'; }
+        pintarAus();
+      }catch(e){
+        c.ausencias.splice(idx,0,removida);
+        if(status){ status.textContent='Não foi possível salvar'; status.className='chip mal'; }
+        pintarAus();
+      }
+    };
     tb.appendChild(tr);
   });
 }
@@ -1589,8 +1673,18 @@ $('#btn-add-aus').onclick = async ()=>{
   if(!c){ alert('Não encontrei esse nome na equipe.'); return; }
   c.ausencias = c.ausencias||[];
   c.ausencias.push({tipo:'F', ini:$('#p-inicio').value, fim:$('#p-fim').value});
-  await store.set('escala:lojas', S.lojas); pintarAus();
-  $$('nav.tabs button').find(b=>b.dataset.view==='equipe').click();
+  const status = $('#status-ausencia');
+  if(status){ status.textContent='Salvando…'; status.className='chip'; }
+  try{
+    await store.set('escala:lojas', S.lojas);
+    if(status){ status.textContent='Ausência salva'; status.className='chip ok'; }
+    pintarAus();
+    $$('nav.tabs button').find(b=>b.dataset.view==='equipe').click();
+  }catch(e){
+    c.ausencias.pop();
+    if(status){ status.textContent='Não foi possível salvar'; status.className='chip mal'; }
+    pintarAus();
+  }
 };
 
 /* ---------- usuários ---------- */
@@ -1727,7 +1821,8 @@ $('#btn-salvar').onclick = async ()=>{
     if(retorno && retorno.versao != null) S.versao = retorno.versao;
   }catch(e){
     S.salvo = false; marcarSalvo();
-    avisarEscala('Não foi possível salvar no servidor: ' + (e && e.message ? e.message : e), 'erro');
+    if(e && e.status === 409) avisarConflitoEscala(e, 'Suas alterações locais continuam na tela.');
+    else avisarEscala('Não foi possível salvar no servidor: ' + (e && e.message ? e.message : e), 'erro');
     return;
   }
   S.salvo = true; marcarSalvo(); registrarSalva(); await pintarSalvas();
@@ -1754,7 +1849,8 @@ if(typeof store.publicar === 'function'){
       const retorno = await store.publicar(chaveGrade(), Object.assign(dadosDaGrade(), {snapshot, versao:S.versao}));
       if(retorno && retorno.versao != null) S.versao = retorno.versao;
     }catch(e){
-      avisarEscala('Não foi possível publicar: ' + (e && e.message ? e.message : e), 'erro');
+      if(e && e.status === 409) avisarConflitoEscala(e, 'A publicação não foi feita.');
+      else avisarEscala('Não foi possível publicar: ' + (e && e.message ? e.message : e), 'erro');
       return;
     }
     avisarEscala('Escala publicada. Ela já está visível para a equipe.', 'ok');
@@ -1820,20 +1916,30 @@ async function pintarSalvas(){
   ultimaListaSalvas = lista;
   if(!lista.length){ painel.style.display = 'none'; return; }
   painel.style.display = '';
+  const termoSalvas = ($('#busca-salvas')?.value || '').trim().toLowerCase();
+  const itensSalvas = lista.map((x,k)=>({x,k})).filter(({x})=>{
+    if(!termoSalvas) return true;
+    const texto = `${x.inicio||''} ${x.fim||''} ${x.versao==null?'':'v'+x.versao} ${x.publicada?'publicada':'rascunho'}`.toLowerCase();
+    return texto.includes(termoSalvas);
+  });
+  if(!itensSalvas.length){ cx.innerHTML = '<p class="vazio">Nenhuma escala corresponde à busca.</p>'; return; }
   const dt = iso => { const [a,m,d] = String(iso).split('-'); return d + '/' + m; };
   /* A versão aberta é a que está realmente carregada na tela: mesmo período e
      mesma versão. Sem isso, todas as versões do período apareciam como abertas,
      inclusive publicações antigas que ninguém está editando. */
-  const versaoVigente = {};
+  const versaoVigente = {}, versaoMaisRecente = {};
   lista.forEach(x=>{
-    if(!x.publicada) return;
     const chave = x.inicio + '_' + x.fim;
+    if(x.versao != null && (versaoMaisRecente[chave] == null || Number(x.versao) > versaoMaisRecente[chave])){
+      versaoMaisRecente[chave] = Number(x.versao);
+    }
+    if(!x.publicada) return;
     if(versaoVigente[chave] == null || Number(x.versao) > versaoVigente[chave]) versaoVigente[chave] = Number(x.versao);
   });
-  cx.innerHTML = lista.map((x,k)=>{
+  cx.innerHTML = itensSalvas.map(({x,k})=>{
     const mesmoPeriodo = x.inicio === $('#p-inicio').value && x.fim === $('#p-fim').value;
     const atual = mesmoPeriodo && S.res != null
-      && (x.versao == null || S.versao == null || Number(x.versao) === Number(S.versao));
+      && x.versao != null && S.versao != null && Number(x.versao) === Number(S.versao);
     const chave = x.inicio + '_' + x.fim;
     const vigente = x.publicada && versaoVigente[chave] === Number(x.versao);
     const selo = typeof x.publicada === 'boolean'
@@ -1860,7 +1966,7 @@ async function pintarSalvas(){
       <div class="salva-acoes">${atual
         ? '<button class="btn small" data-pdf="1">Baixar PDF</button><button class="btn ghost small" data-editar="1">Editar</button>'
         : '<button class="btn ghost small" data-abrir="' + k + '">Abrir</button>'}
-        <button class="btn ghost small salva-excluir" data-excluir="${k}" title="Excluir esta escala">Excluir</button></div>
+        ${x.versao == null || Number(x.versao) === versaoMaisRecente[x.inicio + '_' + x.fim] ? `<button class="btn ghost small salva-excluir" data-excluir="${k}" title="Excluir o registro deste período">Excluir</button>` : ''}</div>
     </div>`;
   }).join('');
   cx.querySelectorAll('[data-pdf]').forEach(b=>{ b.onclick = baixarPdf; });
@@ -1895,6 +2001,8 @@ async function pintarSalvas(){
     b.onclick = ()=> excluirSalva(+b.dataset.excluir);
   });
 }
+
+$('#busca-salvas')?.addEventListener('input', ()=>{ pintarSalvas(); });
 
 /* Exclui a escala do período: apaga do banco (ou do dispositivo, na versão
    offline) e tira da lista. O que fica na tela continua até você gerar outra —
@@ -1947,6 +2055,8 @@ function baixarPdf(){
   if(!conferirNomesParaDocumento()) return;
   try{
     const D = dadosDaEscala();
+    D.versaoEscala = D.versaoEscala || (S.versao == null ? 'sem versão' : 'versão ' + S.versao);
+    D.statusEscala = D.statusEscala || 'Rascunho';
     if(!D || !D.days || !D.days.length){
       alert('Não há dados da escala para gerar o PDF. Gere a escala novamente.');
       return;
@@ -2120,14 +2230,34 @@ function atualizarFaixaRota(){
 
 /* Mensagem curta sobre a última ação. Substitui os alert() que interrompiam o
    trabalho e não eram lidos por leitor de tela ao fechar. */
-function avisarEscala(texto, tipo){
+function avisarEscala(texto, tipo, recuperar=false){
   const el = $('#esc-aviso');
   if(!el) return;
-  if(!texto){ el.hidden = true; el.textContent = ''; return; }
+  const textoEl = $('#esc-aviso-text');
+  const recuperarEl = $('#esc-recarregar-conflito');
+  if(!texto){ el.hidden = true; if(textoEl) textoEl.textContent = ''; if(recuperarEl) recuperarEl.hidden = true; return; }
   el.hidden = false;
-  el.textContent = texto;
+  if(textoEl) textoEl.textContent = texto; else el.textContent = texto;
+  if(recuperarEl) recuperarEl.hidden = !recuperar;
   el.className = 'esc-aviso' + (tipo ? ' ' + tipo : '');
 }
+
+function avisarConflitoEscala(e, acao){
+  const texto = e && e.message ? e.message : 'A escala mudou no servidor.';
+  avisarEscala(`${texto} ${acao || 'Recarregue a versão atual antes de continuar.'}`, 'erro', true);
+}
+
+$('#esc-recarregar-conflito').onclick = async ()=>{
+  const btn = $('#esc-recarregar-conflito');
+  if(!confirm('As alterações locais serão descartadas e a versão atual do servidor será carregada. Continuar?')) return;
+  btn.disabled = true; btn.textContent = 'Recarregando…';
+  try{
+    const carregou = await carregarPeriodoSalvo();
+    if(carregou) await pintarSalvas();
+  }finally{
+    btn.disabled = false; btn.textContent = 'Descartar alterações locais e recarregar';
+  }
+};
 
 /* Onde a pessoa está no fluxo: gerar, revisar, salvar, publicar. Cada passo é
    marcado como feito, atual ou pendente, e o texto diz qual é — a posição não
@@ -2338,17 +2468,20 @@ function abrirPopupCelula(td){
   const dia = S.res.days[i];
   const cod = S.res.grid[id][i];
   const entradaPadrao = horaEntrada(colabEquipe);
-  const padrao = entradaPadrao !== '--:--' ? entradaPadrao.slice(0,5) : (jEquipe.entrada || '09:00').slice(0,5);
-  const saidaPadrao = (jEquipe.saida || horaDosMinutos((minutosDaHora(padrao)||540) + 564)).slice(0,5);
-  const duracaoPadrao = Math.max(60, ((minutosDaHora(saidaPadrao)||1080) - (minutosDaHora(padrao)||540) + 1440) % 1440 || 564);
-  const atual = (horaDoDia(c, i)||'').slice(0,5) || padrao;
-  const saidaAtual = (horaSaidaDoDia(c, i)||'').slice(0,5) || saidaPadrao;
+  const padrao = entradaPadrao !== '--:--' ? entradaPadrao.slice(0,5) : (jEquipe.entrada || '').slice(0,5);
+  const saidaPadrao = (jEquipe.saida || '').slice(0,5);
+  const duracaoPadrao = (minutosDaHora(padrao)!=null && minutosDaHora(saidaPadrao)!=null)
+    ? Math.max(60, ((minutosDaHora(saidaPadrao) - minutosDaHora(padrao) + 1440) % 1440) || 564)
+    : 564;
+  const atual = (horaDoDia(c, i)||'').slice(0,5) || padrao || '';
+  const saidaAtual = (horaSaidaDoDia(c, i)||'').slice(0,5) || saidaPadrao || '';
   const intervalo = intervaloDe(colabEquipe, true);
   const ajustada = horaAjustada(id, i);
 
-  const opcoesHorarios = [
-    {chave:'equipe', rotulo:`Da equipe · ${horarioEquipe}`, entrada:padrao, saida:saidaPadrao, intervalo}
-  ];
+  const opcoesHorarios = [];
+  if(padrao && saidaPadrao){
+    opcoesHorarios.push({chave:'equipe', rotulo:`Da equipe · ${horarioEquipe}`, entrada:padrao, saida:saidaPadrao, intervalo});
+  }
   const jaListados = new Set([`modelo:${jEquipe.modelo||''}`]);
   MODELOS_JORNADA.forEach(m=>{
     if(jaListados.has(`modelo:${m.id}`)) return;
@@ -2377,7 +2510,7 @@ function abrirPopupCelula(td){
       intervalo:intervaloDe(x, true)
     });
   });
-  const opcaoInicial = (atual === padrao && saidaAtual === saidaPadrao
+  const opcaoInicial = (padrao && saidaPadrao && atual === padrao && saidaAtual === saidaPadrao
     ? opcoesHorarios[0]
     : opcoesHorarios.find(o=>o.entrada===atual && o.saida===saidaAtual)) || null;
 
@@ -2402,7 +2535,7 @@ function abrirPopupCelula(td){
       <div class="pc-equipe">
         <div class="pc-rot">Horário da equipe</div>
         <div class="pc-equipe-hora">${esc(horarioEquipe)}</div>
-        <div class="pc-equipe-meta">Intervalo: <span id="pc-intervalo">${esc(intervalo)}</span></div>
+        <div class="pc-equipe-meta">Intervalo: <span id="pc-intervalo">${esc(intervalo)}</span><br><span id="pc-turno-tipo">${rotuloTurno(padrao, saidaPadrao)}</span></div>
       </div>
       <div class="pc-rot">Horários disponíveis</div>
       <select class="pc-select" id="pc-horario-disp" aria-label="Horários disponíveis">
@@ -2441,7 +2574,7 @@ function abrirPopupCelula(td){
     </div>
     <div class="pc-rodape">
       ${(cod!=='' || ajustada!=null)
-        ? `<button class="pc-link pc-voltar" id="pc-limpar">Voltar ao padrão (${padrao}–${saidaPadrao})</button>`
+        ? `<button class="pc-link pc-voltar" id="pc-limpar">Voltar ao padrão (${padrao || 'horário não informado'}${saidaPadrao ? '–' + saidaPadrao : ''})</button>`
         : '<span></span>'}
       <button class="pc-link" id="pc-fechar">Fechar</button>
     </div>`;
@@ -2460,6 +2593,10 @@ function abrirPopupCelula(td){
   };
 
   const diasSelecionados = new Set();
+  const rotuloTurno = (entrada, saida)=>{
+    if(!entrada || !saida) return 'Horário incompleto';
+    return minutosDaHora(saida) <= minutosDaHora(entrada) ? 'Cruza a meia-noite' : 'Mesmo dia';
+  };
   const selHorario = document.getElementById('pc-horario-disp');
   const inpHora = document.getElementById('pc-hora');
   const inpSaida = document.getElementById('pc-saida');
@@ -2539,6 +2676,8 @@ function abrirPopupCelula(td){
       : opcoesHorarios.find(o=>o.entrada===ent && o.saida===sai)) || null;
     selHorario.value = match ? match.chave : '__outro__';
     if(elIntervalo) elIntervalo.textContent = match && match.intervalo ? match.intervalo : intervalo;
+    const tipo = document.getElementById('pc-turno-tipo');
+    if(tipo) tipo.textContent = rotuloTurno(ent, sai);
   };
 
   if(selHorario){
@@ -2550,7 +2689,9 @@ function abrirPopupCelula(td){
       if(ent){
         inpHora.value = ent;
         if(sai) inpSaida.value = sai;
-        if(elIntervalo && iv) elIntervalo.textContent = iv;
+            if(elIntervalo && iv) elIntervalo.textContent = iv;
+        const tipo = document.getElementById('pc-turno-tipo');
+        if(tipo) tipo.textContent = rotuloTurno(inpHora.value, inpSaida.value);
         avisarDescanso(inpHora.value, inpSaida.value);
       } else {
         inpHora.focus();
@@ -2562,7 +2703,7 @@ function abrirPopupCelula(td){
     const match = opcoesHorarios.find(o=>o.entrada===v);
     if(match && match.saida){
       inpSaida.value = match.saida;
-    } else if(minutosDaHora(v) != null){
+    } else if(minutosDaHora(v) != null && padrao && saidaPadrao){
       inpSaida.value = horaDosMinutos(minutosDaHora(v) + duracaoPadrao);
     }
     sincronizarSelect();
@@ -3120,8 +3261,14 @@ function pintarGrade(){
         : (a.nivel==='nota'
             ? `<span class="chip" style="font-size:10px;padding:1px 6px;margin-right:6px">${a.lacuna?'Lacuna':'Observação'}</span>`
             : '<span class="chip" style="font-size:10px;padding:1px 6px;margin-right:6px">Preferência/Meta</span>'));
+  const linhaAlerta = a => `<li${a.nivel==='nota'?' style="color:var(--fraco)"':''}><b${a.nivel!=='nota'?' style="color:var(--alerta)"':''}>${esc(a.colab)}</b><span>${tagCategoria(a)}${esc(a.txt)}</span></li>`;
+  const grupoAlertas = (titulo, classe, itens) => itens.length
+    ? `<li class="alerta-grupo ${classe}" role="presentation"><strong>${titulo}</strong><span>${itens.length} item(ns)</span></li>${itens.map(linhaAlerta).join('')}`
+    : '';
   $('#lista-alertas').innerHTML = al.length
-    ? obrigatorias.concat(preferencias, notas).map(a=>`<li${a.nivel==='nota'?' style="color:var(--fraco)"':''}><b${a.nivel!=='nota'?' style="color:var(--alerta)"':''}>${esc(a.colab)}</b><span>${tagCategoria(a)}${esc(a.txt)}</span></li>`).join('')
+    ? grupoAlertas('Bloqueios de publicação', 'alerta-grupo-bloqueio', obrigatorias)
+      + grupoAlertas('Avisos e metas', 'alerta-grupo-aviso', preferencias)
+      + grupoAlertas('Informações não verificadas', 'alerta-grupo-info', notas)
     : `<li style="color:var(--v-fg)">Todas as regras de folga que puderam ser conferidas fecharam.</li>`;
 
   // resumo
@@ -3232,11 +3379,15 @@ function pintarGrade(){
 function dadosDaEscala(){
   const {days, grid} = S.res, P = S.res.params, cob = S.val.cobertura;
   const ativos = ordenarPorCargo(S.res.ativos);
+  const statusEscala = S.val && (S.val.alertas||[]).some(a=>a.obrigatoria) ? 'Rascunho com bloqueios'
+    : (typeof store.publicar === 'function' && S.salvo ? 'Publicação ou rascunho salvo' : 'Rascunho');
+  const versaoEscala = S.versao == null ? 'sem versão' : 'versão ' + S.versao;
   const interjornadas = interjornadasDaEscala();
   const alvo = P.minDia || {};
   const alvoFa = P.minFarma != null ? P.minFarma : 2;
   const alvoSg = P.minSubger != null ? P.minSubger : 1;
   return {days, grid, ativos, P, cob, alvo, alvoFa, alvoSg, interjornadas,
+          statusEscala, versaoEscala,
           horaDe: (c, i)=>horaDoDia(c, i), horaSaidaDe: (c, i)=>horaSaidaDoDia(c, i),
           faixaDe: c=>faixaDe(c),
           rotuloFaixa: g=>(FAIXAS_CARGO[g]||FAIXAS_CARGO[FAIXAS_CARGO.length-1]).rotulo,
@@ -3250,7 +3401,7 @@ function planilhaDaEscala(D, nomeLoja, idLoja){
   const estiloCod = {'X':'folga','FC':'compensa','F':'ferias','AT':'atestado','LC':'licenca'};
 
   const linhas = [];
-  linhas.push([{v:'ESCALA — '+nomeLoja, e:'titulo'}, null, null, null, {v:D.periodo, e:'subtitulo'}]);
+  linhas.push([{v:'SHIFTFLOW — '+nomeLoja, e:'titulo'}, null, null, null, {v:D.periodo+' · '+D.versaoEscala+' · '+D.statusEscala, e:'subtitulo'}]);
   linhas.push([{v:'X folga · FC folga compensatória · F férias · AT atestado · LC licença · * descanso menor que 11h', e:'legenda'}]);
   linhas.push([{v:'COLABORADOR',e:'cabecalho'},{v:'JORNADA',e:'cabecalho'},{v:'INTERVALO',e:'cabecalho'},{v:'CARGO',e:'cabecalho'}]
     .concat(days.map(d=>({v:DIA_ABREV[d.getDay()], e:'cabecalho'}))));
@@ -3363,7 +3514,7 @@ function htmlDeImpressao(D, nomeLoja){
     });
     return s + '</tr>';
   };
-  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Escala ${esc(nomeLoja)}</title>
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Shiftflow — ${esc(nomeLoja)}</title>
 <style>
 @page{size:A4 landscape;margin:7mm}
 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -3384,8 +3535,8 @@ td.status-x{font-weight:700;background:repeating-linear-gradient(135deg,#fff 0 3
 tr.gr td{background:#EAF0ED;font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#38524A;text-align:left;height:13px;padding-left:4px}tr.rp td{background:#EFF4F1;font-weight:600;font-size:7.5px}tr.rp td.nm{font-size:7px;text-transform:uppercase}tr.rp td.minimo{background:#F3DBD7;color:#96332A;font-weight:700;box-shadow:inset 0 0 0 2px #96332A}tr.rp td.alvo{background:#F6E7C4;color:#8A5E06;font-weight:700;box-shadow:inset 0 0 0 1px #8A5E06}
 .lg{margin-top:7px;font-size:7.5px;line-height:1.5;color:#354640}.lg b{display:inline-block;width:11px;height:8px;border:1px solid #444;margin:0 3px 0 9px;vertical-align:-1px}
 </style></head><body>
-<h1>Escala — ${esc(nomeLoja)}</h1>
-<p class="sub">${D.periodo} &nbsp;·&nbsp; ${ativos.length} colaboradores &nbsp;·&nbsp; turnos, pausas e cobertura do período &nbsp;·&nbsp; emitida em ${new Date().toLocaleDateString('pt-BR')}</p>
+<h1>SHIFTFLOW — ${esc(nomeLoja)}</h1>
+<p class="sub">${D.periodo} &nbsp;·&nbsp; ${D.versaoEscala} &nbsp;·&nbsp; ${D.statusEscala} &nbsp;·&nbsp; ${ativos.length} colaboradores &nbsp;·&nbsp; emitida em ${new Date().toLocaleDateString('pt-BR')}</p>
 <table>
 <colgroup><col style="width:17%"><col style="width:9%"><col style="width:8%">${days.map(()=>`<col style="width:${(66/days.length).toFixed(3)}%">`).join('')}</colgroup>
 <thead>

@@ -79,7 +79,9 @@ case 'cadastrar':
     if ($existente && (int)$existente['email_confirmado'] === 1) {
         // Não confirmamos que o e-mail existe: isso revelaria cadastros.
         registrarTentativa('cadastro:' . origem(), false);
-        responder(['ok' => true, 'confirmar' => true]);
+        // Não revelar se a conta existe; a tela usa o estado neutro sem afirmar
+        // que um e-mail foi enviado neste caso.
+        responder(['ok' => true, 'confirmar' => true, 'email_enviado' => null]);
     }
 
     $token = bin2hex(random_bytes(32));
@@ -99,14 +101,14 @@ case 'cadastrar':
     }
 
     $link = paginaBase() . '/?confirmar=' . $token;
-    enviarEmail($email, 'Confirme seu acesso ao sistema de escala',
+    $emailEnviado = enviarEmail($email, 'Confirme seu acesso ao sistema de escala',
         "<p>Olá, {$nome}.</p>
          <p>Para ativar seu acesso, clique no endereço abaixo:</p>
          <p><a href=\"{$link}\">{$link}</a></p>
          <p>O link vale por dois dias. Se não foi você quem pediu, ignore este e-mail.</p>");
 
-    registrar($id, null, 'cadastro', ['email' => $email]);
-    responder(['ok' => true, 'confirmar' => true]);
+    registrar($id, null, 'cadastro', ['email' => $email, 'email_enviado' => $emailEnviado]);
+    responder(['ok' => true, 'confirmar' => true, 'email_enviado' => $emailEnviado]);
 
 // -----------------------------------------------------------------------------
 case 'confirmar':
@@ -217,7 +219,7 @@ case 'recuperar':
                 sua senha atual continua valendo.</p>");
         registrar($u['id'], null, 'pediu_recuperacao');
     }
-    // Resposta idêntica exista ou não o e-mail, para não revelar cadastros.
+    // A resposta permanece idêntica exista ou não o e-mail, para não revelar cadastros.
     responder(['ok' => true]);
 
 // -----------------------------------------------------------------------------
@@ -385,6 +387,9 @@ case 'mudar_papel':
     }
     $st = bd()->prepare('UPDATE usuarios SET papel = ? WHERE id = ? AND empresa_id = ?');
     $st->execute([$papel, $alvo, $u['empresa_id']]);
+    if ($alvoUsuario['papel'] === 'gestor' && $papel !== 'gestor') {
+        bd()->prepare('DELETE FROM supervisor_lojas WHERE usuario_id = ?')->execute([$alvo]);
+    }
     registrar($u['id'], $u['empresa_id'], 'mudou_papel', ['alvo' => $alvo, 'papel' => $papel]);
     responder(['ok' => true]);
 

@@ -294,8 +294,10 @@ function gerarPdfEscala(D, nomeLoja){
     const p = new PaginaPdf(L, A);
     const fatia = ativos.slice(pg * porPagina, (pg+1) * porPagina);
 
-    p.texto('Escala — ' + nome, margem, 22, {tamanho:15, negrito:true});
-    p.texto(periodo + '  ·  ' + ativos.length + ' colaboradores  ·  emitida em '
+    p.texto('SHIFTFLOW — ' + nome, margem, 22, {tamanho:15, negrito:true});
+    p.texto(periodo + '  ·  ' + (D.versaoEscala ? D.versaoEscala + '  ·  ' : '')
+            + (D.statusEscala ? D.statusEscala + '  ·  ' : '')
+            + ativos.length + ' colaboradores  ·  emitida em '
             + new Date().toLocaleDateString('pt-BR'),
             margem, 43, {tamanho:8.5, cor:COR_PDF.fraco});
     if(totalPag > 1){
@@ -427,7 +429,8 @@ function gerarPdfEscala(D, nomeLoja){
     paginas.push(p);
   }
 
-  return montarPdf(paginas, {titulo: 'Escala ' + nome + ' — ' + periodo});
+  return montarPdf(paginas, {titulo: 'Shiftflow — ' + nome + ' — ' + periodo,
+    versaoEscala: D.versaoEscala, statusEscala: D.statusEscala});
 }
 
 if(typeof module !== 'undefined' && typeof module.exports !== 'undefined')

@@ -25,14 +25,22 @@ async function chamar(arquivo, dados){
     // texto ou HTML. Mostrar o começo da resposta poupa horas de adivinhação.
     const trecho = texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
     console.error('Resposta não-JSON de ' + arquivo + ' (HTTP ' + r.status + '):', texto.slice(0, 2000));
-    throw new Error(
+    const erro = new Error(
       'O servidor respondeu algo inesperado (HTTP ' + r.status + ').' +
       (trecho ? ' Ele disse: "' + trecho + '"' : ' A resposta veio vazia.') +
       ' Avise o administrador do sistema.'
     );
+    erro.status = r.status;
+    erro.codigo = 'HTTP_' + r.status;
+    throw erro;
   }
   if(corpo && corpo.csrf) SESSAO.csrf = corpo.csrf;
-  if(!r.ok) throw new Error(corpo.erro || 'Falha na comunicação.');
+  if(!r.ok){
+    const erro = new Error(corpo.erro || 'Falha na comunicação.');
+    erro.status = r.status;
+    erro.codigo = r.status === 409 ? 'CONFLITO' : 'HTTP_' + r.status;
+    throw erro;
+  }
   return corpo;
 }
 

@@ -33,7 +33,7 @@ function fichaDoUsuario(array $u): array
                 l.id AS loja_id, l.nome AS loja, l.empresa_id
            FROM colaboradores c
            JOIN lojas l ON l.id = c.loja_id
-          WHERE c.id = ? LIMIT 1');
+          WHERE c.id = ? AND c.ativo = 1 LIMIT 1');
     $st->execute([$u['colaborador_id']]);
     $ficha = $st->fetch();
 
@@ -95,7 +95,7 @@ case 'minha_escala':
 
     // Somente escala publicada. Rascunho não vaza.
     $st = bd()->prepare(
-        'SELECT v.grade, v.parametros, v.inicio, v.fim, v.publicada_em
+        'SELECT v.grade, v.parametros, v.inicio, v.fim, v.versao, v.publicada_em
            FROM escalas e
            JOIN escala_versoes v ON v.escala_id = e.id AND v.versao = e.versao_publicada
           WHERE e.loja_id = ? AND e.inicio = ? AND e.fim = ?
@@ -169,6 +169,7 @@ case 'minha_escala':
         'escala' => [
             'inicio'       => $inicio,
             'fim'          => $fim,
+            'versao'       => (int)$esc['versao'],
             'publicada_em' => $esc['publicada_em'],
             'dias'         => $dias,
         ],
