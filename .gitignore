@@ -10,10 +10,18 @@ node_modules/
 .idea/
 __pycache__/
 
-api/config.php
+**/api/config.php
 *.sql.gz
 
 .vscode/sftp.json
 .codex/
 .claude/
 .impeccable/
+
+# Controle operacional local/servidor; a ativação é manual.
+/.shiftflow-manutencao
+
+# Backups/exportações locais não pertencem ao código público.
+/backups/
+/*.sql
+/*.zip

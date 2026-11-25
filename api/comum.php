@@ -134,63 +134,1338 @@ function uuid(): string
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($b), 4));
 }
 
-/* RESUMO DA ESCALA — guardado na coluna `escalas.resumo`. Parte dele o servidor
-consegue calcular sozinho a partir da grade; a contagem de regras feridas não,
-porque quem roda o validador é o navegador. Por isso o resumo chega pronto de
-lá — mas nada é gravado sem passar por este crivo. */
+/* RESUMO E VALIDAÇÃO DA ESCALA NO SERVIDOR
+   O servidor revalida a grade, as ausências do banco, a continuidade do período
+   anterior e as jornadas antes de gravar ou publicar. Contadores ou alertas
+   enviados pelo navegador nunca são aceitos como prova de conformidade. */
 
-/** Recalcula o resumo a partir da grade. Usado como reserva. */
-function resumoDaGrade(array $grade, array $params = []): array
-        {
-                $dias = 0;
-                $folgas = 0;
-                foreach ($grade as $linha) {
-                        if (!is_array($linha)) continue;
-                        if (count($linha) > $dias) $dias = count($linha);
-                        foreach ($linha as $cod) {
-                                if ($cod === 'X' || $cod === 'FC') $folgas++;
+/* Parâmetros que classificam ou afrouxam uma regra. Só valem vindos de
+   lojas.parametros; se chegarem pelo payload, viram divergência registrada. */
+const CHAVES_DE_REGRA = [
+    'modelo', 'folgasSemana', 'cicloDomingo', 'maxSeq', 'minInterjornada', 'inicioSemana',
+    'minCaixa', 'minBalcao', 'minFarma', 'minSubger', 'minDia',
+    'minCaixaObrigatorio', 'minBalcaoObrigatorio', 'minFarmaObrigatorio',
+    'minSubgerObrigatorio', 'minDiaObrigatorio', 'perfis', 'subgerFds',
+    // Cobertura intradiária: expediente, faixas de demanda e mapa de funções
+    // decidem bloqueio, então também vêm só do banco.
+    'expediente', 'faixas', 'funcoes',
+];
+
+/* Base declarada de uma regra. Nenhuma regra da casa é apresentada como
+   exigência legal: quem decidiu fica explícito no alerta. */
+const BASE_LEI = 'lei';
+const BASE_CASA = 'politica-da-casa';
+
+/** Piso obrigatório de uma função. Ausente devolve null: sem piso, só meta. */
+function pisoObrigatorio(array $P, string $chaveMeta): ?int
+{
+    $chave = $chaveMeta . 'Obrigatorio';
+    if (!isset($P[$chave]) || !is_numeric($P[$chave])) return null;
+    return max(0, (int)$P[$chave]);
+}
+
+/** Perfis operacionais da loja, normalizados. Loja sem perfis devolve lista vazia. */
+function perfisDaLoja(array $paramsLoja): array
+{
+    $brutos = is_array($paramsLoja['perfis'] ?? null) ? $paramsLoja['perfis'] : [];
+    $saida = [];
+    foreach ($brutos as $id => $perfil) {
+        if (!is_array($perfil)) continue;
+        $base = ($perfil['base'] ?? BASE_CASA) === BASE_LEI ? BASE_LEI : BASE_CASA;
+        $saida[(string)$id] = [
+            'id' => (string)$id,
+            'nome' => (string)($perfil['nome'] ?? $id),
+            'base' => $base,
+            'regras' => is_array($perfil['regras'] ?? null) ? $perfil['regras'] : [],
+        ];
+    }
+    return $saida;
+}
+
+/** Perfil aplicável a um colaborador, ou null quando a loja não definiu nenhum. */
+function perfilDoColaborador(array $colab, array $perfis): ?array
+{
+    $id = (string)($colab['perfil'] ?? '');
+    if ($id !== '' && isset($perfis[$id])) return $perfis[$id];
+    return null;
+}
+
+function minutosDaHoraServidor(?string $hora): ?int
+{
+    if (!is_string($hora) || !preg_match('/^(\d{1,2}):(\d{2})$/', trim($hora), $m)) {
+        return null;
+    }
+    $h = (int)$m[1];
+    $min = (int)$m[2];
+    return ($h >= 0 && $h < 24 && $min >= 0 && $min < 60) ? ($h * 60 + $min) : null;
+}
+
+function horaDosMinutosServidor(int $minutos): string
+{
+    $n = (($minutos % 1440) + 1440) % 1440;
+    return sprintf('%02d:%02d', intdiv($n, 60), $n % 60);
+}
+
+function textoDuracaoServidor(int $minutos): string
+{
+    return intdiv($minutos, 60) . 'h' . sprintf('%02d', abs($minutos % 60));
+}
+
+function horasDaStringServidor($txt): array
+{
+    if (!is_string($txt) || $txt === '') return [];
+    if (!preg_match_all('/\b(\d{1,2}:\d{2})\b/', $txt, $m)) return [];
+    $out = [];
+    foreach ($m[1] as $h) {
+        $partes = explode(':', $h);
+        $pad = sprintf('%02d:%02d', (int)$partes[0], (int)$partes[1]);
+        if (minutosDaHoraServidor($pad) !== null) $out[] = $pad;
+    }
+    return $out;
+}
+
+function jornadaPadraoServidor(array $c): ?array
+{
+    $j = $c['jornada'] ?? null;
+    if (is_string($j) && $j !== '') {
+        $j = json_decode($j, true);
+    }
+    if (is_array($j)) {
+        $ent = isset($j['entrada']) ? (string)$j['entrada'] : '';
+        $sai = isset($j['saida']) ? (string)$j['saida'] : '';
+        $hsE = horasDaStringServidor($ent);
+        $hsS = horasDaStringServidor($sai);
+        if ($hsE && $hsS) {
+            return ['entrada' => $hsE[0], 'saida' => $hsS[0]];
+        }
+    }
+    $horas = horasDaStringServidor((string)($c['horario'] ?? ''));
+    if (count($horas) >= 2) {
+        return ['entrada' => $horas[0], 'saida' => $horas[1]];
+    }
+    return null;
+}
+
+function entradaDoDiaServidor(array $c, int $i, array $horasMapa): ?string
+{
+    $cid = (string)($c['id'] ?? '');
+    $porColab = $horasMapa[$cid] ?? [];
+    $ajustada = is_array($porColab) ? ($porColab[(string)$i] ?? ($porColab[$i] ?? null)) : null;
+    $hs = horasDaStringServidor($ajustada);
+    if (count($hs) >= 1) return $hs[0];
+    $j = jornadaPadraoServidor($c);
+    return $j ? $j['entrada'] : null;
+}
+
+function fimDoDiaMinutosServidor(array $c, int $i, array $horasMapa): ?int
+{
+    $cid = (string)($c['id'] ?? '');
+    $porColab = $horasMapa[$cid] ?? [];
+    $ajustada = is_array($porColab) ? ($porColab[(string)$i] ?? ($porColab[$i] ?? null)) : null;
+    $hs = horasDaStringServidor($ajustada);
+    if (count($hs) >= 2) {
+        $ini = minutosDaHoraServidor($hs[0]);
+        $fim = minutosDaHoraServidor($hs[1]);
+        if ($ini !== null && $fim !== null) {
+            return $fim > $ini ? $fim : $fim + 1440;
+        }
+    }
+    $j = jornadaPadraoServidor($c);
+    if (!$j) return null;
+    $ent = entradaDoDiaServidor($c, $i, $horasMapa);
+    $iniPad = minutosDaHoraServidor($j['entrada']);
+    $fimPad = minutosDaHoraServidor($j['saida']);
+    $inicio = minutosDaHoraServidor($ent);
+    if ($iniPad === null || $fimPad === null || $inicio === null) return null;
+    $bruto = $fimPad - $iniPad;
+    if ($bruto <= 0) $bruto += 1440;
+    return $inicio + $bruto;
+}
+
+/* COBERTURA INTRADIÁRIA — espelho em PHP de src/motor/cobertura.js.
+   O servidor é a autoridade: usa expediente, faixas e funções de
+   lojas.parametros, nunca do payload. Critérios iguais aos do cliente:
+   intervalos [entrada, saída), segmentação nos instantes de mudança, turno da
+   véspera transportado para o dia seguinte e cada pessoa contada uma vez. */
+
+const FUNCOES_COBERTURA_PADRAO = [
+    'caixa' => ['nome' => 'Caixa', 'cargos' => ['CAIXA']],
+    'balcao' => ['nome' => 'Balcão', 'cargos' => ['BALCONISTA']],
+    'farmaceutico' => ['nome' => 'Farmacêutico', 'cargos' => ['FARMACEUTICO', 'FARMACÊUTICO', 'SUB/FARMA']],
+    'subgerente' => ['nome' => 'Subgerente', 'cargos' => ['SUBGERENTE', 'SUB/FARMA']],
+];
+
+function funcoesDaLojaServidor(array $P): array
+{
+    $cfg = is_array($P['funcoes'] ?? null) ? $P['funcoes'] : null;
+    if (!$cfg) return FUNCOES_COBERTURA_PADRAO;
+    $saida = [];
+    foreach ($cfg as $id => $f) {
+        if (!is_array($f)) continue;
+        $saida[(string)$id] = [
+            'nome' => (string)($f['nome'] ?? $id),
+            'cargos' => is_array($f['cargos'] ?? null)
+                ? array_map(function ($c) { return mb_strtoupper(trim((string)$c)); }, $f['cargos'])
+                : [],
+        ];
+    }
+    return $saida ?: FUNCOES_COBERTURA_PADRAO;
+}
+
+/** Cargo atende a função? Comparação exata, sem heurística de substring. */
+function atendeFuncaoServidor(array $colab, array $funcao): bool
+{
+    $cargo = mb_strtoupper(trim((string)($colab['cargo'] ?? '')));
+    if ($cargo === '') return false;
+    return in_array($cargo, array_map(function ($c) { return mb_strtoupper(trim((string)$c)); }, $funcao['cargos'] ?? []), true);
+}
+
+/** Expediente do dia. null = não configurado (dia inteiro, sem cobrança). */
+function expedienteDoDiaServidor(array $P, int $diaSemana): ?array
+{
+    $cfg = is_array($P['expediente'] ?? null) ? $P['expediente'] : null;
+    if (!$cfg) return null;
+    $doDia = $cfg[(string)$diaSemana] ?? ($cfg[$diaSemana] ?? null);
+    if ($doDia === null) return null;
+    if ($doDia === false || $doDia === 'fechado') return ['fechado' => true, 'janelas' => []];
+    $lista = isset($doDia[0]) || $doDia === [] ? $doDia : [$doDia];
+    $janelas = [];
+    foreach ($lista as $j) {
+        if (!is_array($j)) continue;
+        $ini = minutosDaHoraServidor($j['ini'] ?? null);
+        $fimBruto = minutosDaHoraServidor($j['fim'] ?? null);
+        if ($ini === null || $fimBruto === null) continue;
+        $janelas[] = ['ini' => $ini, 'fim' => $fimBruto <= $ini ? $fimBruto + 1440 : $fimBruto];
+    }
+    if (!$janelas) return ['fechado' => true, 'janelas' => []];
+    return ['fechado' => false, 'janelas' => $janelas];
+}
+
+function faixasDoDiaServidor(array $P, int $diaSemana): array
+{
+    $cfg = is_array($P['faixas'] ?? null) ? $P['faixas'] : null;
+    if (!$cfg) return [];
+    $lista = $cfg[(string)$diaSemana] ?? ($cfg[$diaSemana] ?? []);
+    if (!is_array($lista)) return [];
+    $saida = [];
+    foreach ($lista as $f) {
+        if (!is_array($f)) continue;
+        $ini = minutosDaHoraServidor($f['ini'] ?? null);
+        $fimBruto = minutosDaHoraServidor($f['fim'] ?? null);
+        if ($ini === null || $fimBruto === null) continue;
+        $meta = (isset($f['meta']) && $f['meta'] !== '' && is_numeric($f['meta'])) ? max(0, (int)$f['meta']) : null;
+        $piso = (isset($f['obrigatorio']) && $f['obrigatorio'] !== '' && is_numeric($f['obrigatorio'])) ? max(0, (int)$f['obrigatorio']) : null;
+        if ($meta === null && $piso === null) continue;
+        $saida[] = [
+            'funcao' => (string)($f['funcao'] ?? ''),
+            'ini' => $ini, 'fim' => $fimBruto <= $ini ? $fimBruto + 1440 : $fimBruto,
+            'meta' => $meta, 'piso' => $piso,
+        ];
+    }
+    return $saida;
+}
+
+/** Trechos de presença de uma pessoa no dia, já descontados os intervalos. */
+function presencaDoDiaServidor(array $c, int $i, array $grade, array $horasMapa): array
+{
+    $cid = (string)($c['id'] ?? '');
+    $linha = $grade[$cid] ?? [];
+    $cod = (string)(is_array($linha) ? ($linha[$i] ?? '') : '');
+    if (in_array($cod, ['X', 'FC', 'F', 'AT', 'LC'], true)) {
+        return ['trechos' => [], 'lacuna' => false, 'motivo' => 'folga-ou-ausencia'];
+    }
+    $entrada = minutosDaHoraServidor(entradaDoDiaServidor($c, $i, $horasMapa));
+    $fim = fimDoDiaMinutosServidor($c, $i, $horasMapa);
+    if ($entrada === null || $fim === null) {
+        return ['trechos' => [], 'lacuna' => true, 'motivo' => 'jornada-incompleta'];
+    }
+    if ($fim <= $entrada) {
+        return ['trechos' => [], 'lacuna' => true, 'motivo' => 'jornada-invalida'];
+    }
+
+    $j = $c['jornada'] ?? null;
+    if (is_string($j) && $j !== '') $j = json_decode($j, true);
+    $intervalos = [];
+    $desconhecido = false;
+    if (is_array($j) && isset($j['intervalos']) && is_array($j['intervalos'])) {
+        $padrao = jornadaPadraoServidor($c);
+        $base = $padrao ? minutosDaHoraServidor($padrao['entrada']) : null;
+        $desloca = ($base !== null) ? $entrada - $base : 0;
+        foreach ($j['intervalos'] as $iv) {
+            if (!is_array($iv)) { $desconhecido = true; continue; }
+            $a = minutosDaHoraServidor($iv['ini'] ?? null);
+            $b = minutosDaHoraServidor($iv['fim'] ?? null);
+            if ($a === null || $b === null) { $desconhecido = true; continue; }
+            if ($b <= $a) $b += 1440;
+            $intervalos[] = ['ini' => $a + $desloca, 'fim' => $b + $desloca];
+        }
+    } elseif (is_array($j) && isset($j['intervalo']) && is_numeric($j['intervalo']) && (int)$j['intervalo'] > 0) {
+        // Existe intervalo e sabemos a duração, mas não o horário.
+        $desconhecido = true;
+    } elseif (is_array($j) && isset($j['intervalo']) && (int)$j['intervalo'] === 0) {
+        $desconhecido = false;              // declarado sem intervalo
+    } else {
+        $desconhecido = true;               // nada informado: desconhecido
+    }
+
+    $trechos = [['ini' => $entrada, 'fim' => $fim]];
+    foreach ($intervalos as $iv) {
+        $resto = [];
+        foreach ($trechos as $t) {
+            if ($iv['fim'] <= $t['ini'] || $iv['ini'] >= $t['fim']) { $resto[] = $t; continue; }
+            if ($iv['ini'] > $t['ini']) $resto[] = ['ini' => $t['ini'], 'fim' => $iv['ini']];
+            if ($iv['fim'] < $t['fim']) $resto[] = ['ini' => $iv['fim'], 'fim' => $t['fim']];
+        }
+        $trechos = $resto;
+    }
+    return ['trechos' => $trechos, 'lacuna' => $desconhecido,
+            'motivo' => $desconhecido ? 'intervalo-desconhecido' : null];
+}
+
+/**
+ * Analisa a cobertura intradiária do período inteiro.
+ * @return array{alertas: array, lacunas: array, dias: array, resumo: array}
+ */
+function analisarCoberturaServidor(array $days, array $participantes, array $grade, array $P, array $horasMapa): array
+{
+    $funcoes = funcoesDaLojaServidor($P);
+    $ativos = array_values(array_filter($participantes, function ($c) { return ($c['ativo'] ?? true) !== false; }));
+    $alertas = [];
+    $lacunas = [];
+    $dias = [];
+    $temFaixa = false;
+
+    foreach ($days as $i => $d) {
+        $diaSemana = (int)$d->format('w');
+        $exp = expedienteDoDiaServidor($P, $diaSemana);
+        $faixas = faixasDoDiaServidor($P, $diaSemana);
+        if ($exp !== null && $exp['fechado']) {
+            // Loja fechada não recebe falta de cobertura.
+            $dias[] = ['dia' => $i, 'fechado' => true, 'segmentos' => []];
+            continue;
+        }
+        if (!$faixas) {
+            $dias[] = ['dia' => $i, 'fechado' => false, 'segmentos' => [], 'semFaixas' => true];
+            continue;
+        }
+        $temFaixa = true;
+
+        $presencas = [];
+        foreach ($ativos as $c) {
+            $hoje = presencaDoDiaServidor($c, $i, $grade, $horasMapa);
+            if ($hoje['lacuna']) {
+                $lacunas[] = ['dia' => $i, 'colab' => (string)($c['nome'] ?? '—'), 'motivo' => $hoje['motivo']];
+            }
+            foreach ($hoje['trechos'] as $t) {
+                $fimDia = min($t['fim'], 1440);
+                if ($fimDia > $t['ini']) {
+                    $presencas[] = ['id' => (string)$c['id'], 'nome' => (string)($c['nome'] ?? ''),
+                                    'cargo' => (string)($c['cargo'] ?? ''), 'ini' => $t['ini'], 'fim' => $fimDia];
+                }
+            }
+            if ($i > 0) {
+                $ontem = presencaDoDiaServidor($c, $i - 1, $grade, $horasMapa);
+                foreach ($ontem['trechos'] as $t) {
+                    if ($t['fim'] <= 1440) continue;
+                    $ini = max($t['ini'], 1440) - 1440;
+                    $fim = $t['fim'] - 1440;
+                    if ($fim > $ini) {
+                        $presencas[] = ['id' => (string)$c['id'], 'nome' => (string)($c['nome'] ?? ''),
+                                        'cargo' => (string)($c['cargo'] ?? ''), 'ini' => $ini, 'fim' => $fim];
+                    }
+                }
+            }
+        }
+
+        $cortes = [];
+        foreach ($faixas as $f) { $cortes[] = $f['ini']; $cortes[] = min($f['fim'], 1440); }
+        foreach ($presencas as $p) { $cortes[] = $p['ini']; $cortes[] = $p['fim']; }
+        if ($exp !== null) foreach ($exp['janelas'] as $j) { $cortes[] = $j['ini']; $cortes[] = min($j['fim'], 1440); }
+        $cortes = array_values(array_unique(array_filter($cortes, function ($v) { return $v >= 0 && $v <= 1440; })));
+        sort($cortes);
+
+        $segmentos = [];
+        for ($k = 0; $k < count($cortes) - 1; $k++) {
+            $ini = $cortes[$k];
+            $fim = $cortes[$k + 1];
+            if ($fim <= $ini) continue;
+            if ($exp !== null) {
+                $dentro = false;
+                foreach ($exp['janelas'] as $j) {
+                    if ($ini >= $j['ini'] && $fim <= min($j['fim'], 1440)) { $dentro = true; break; }
+                }
+                if (!$dentro) continue;
+            }
+            $presentes = array_values(array_filter($presencas, function ($p) use ($ini, $fim) {
+                return $p['ini'] <= $ini && $p['fim'] >= $fim;
+            }));
+            foreach ($faixas as $f) {
+                $fFim = min($f['fim'], 1440);
+                if ($f['ini'] > $ini || $fFim < $fim) continue;
+                if (!isset($funcoes[$f['funcao']])) continue;
+                $funcao = $funcoes[$f['funcao']];
+                $ids = [];
+                $nomes = [];
+                foreach ($presentes as $p) {
+                    if (!atendeFuncaoServidor($p, $funcao)) continue;
+                    $ids[$p['id']] = true;      // cada pessoa conta uma vez
+                    $nomes[] = $p['nome'];
+                }
+                $quantos = count($ids);
+                $necessario = $f['piso'] !== null ? $f['piso'] : $f['meta'];
+                $situacao = 'ok';
+                if ($f['piso'] !== null && $quantos < $f['piso']) {
+                    $situacao = 'bloqueio';
+                    $alertas[] = [
+                        'colab' => '—', 'tipo' => 'cobertura-intradiaria', 'categoria' => 'obrigatoria',
+                        'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_CASA, 'dia' => $i,
+                        'funcao' => $f['funcao'], 'ini' => $ini, 'fim' => $fim,
+                        'txt' => $d->format('d/m') . ' ' . horaDosMinutosServidor($ini) . '–'
+                               . ($fim >= 1440 ? '24:00' : horaDosMinutosServidor($fim))
+                               . ': ' . $funcao['nome'] . ' ' . $quantos . '/' . $f['piso']
+                               . ' — abaixo do mínimo obrigatório da faixa',
+                    ];
+                } elseif ($f['meta'] !== null && $quantos < $f['meta']) {
+                    $situacao = 'aviso';
+                    $alertas[] = [
+                        'colab' => '—', 'tipo' => 'cobertura-intradiaria-meta', 'categoria' => 'preferencia',
+                        'obrigatoria' => false, 'nivel' => 'regra', 'base' => BASE_CASA, 'dia' => $i,
+                        'funcao' => $f['funcao'], 'ini' => $ini, 'fim' => $fim,
+                        'txt' => $d->format('d/m') . ' ' . horaDosMinutosServidor($ini) . '–'
+                               . ($fim >= 1440 ? '24:00' : horaDosMinutosServidor($fim))
+                               . ': ' . $funcao['nome'] . ' ' . $quantos . '/' . $f['meta']
+                               . ' — abaixo da meta da faixa',
+                    ];
+                }
+                $segmentos[] = [
+                    'dia' => $i, 'funcao' => $f['funcao'], 'funcaoNome' => $funcao['nome'],
+                    'ini' => $ini, 'fim' => $fim,
+                    'iniTexto' => horaDosMinutosServidor($ini),
+                    'fimTexto' => $fim >= 1440 ? '24:00' : horaDosMinutosServidor($fim),
+                    'escalados' => $quantos, 'meta' => $f['meta'], 'piso' => $f['piso'],
+                    'deficit' => max(0, $necessario - $quantos),
+                    'pessoas' => $nomes, 'situacao' => $situacao,
+                ];
+            }
+        }
+        $dias[] = ['dia' => $i, 'fechado' => false, 'segmentos' => $segmentos];
+    }
+
+    $bloqueios = array_values(array_filter($alertas, function ($a) { return !empty($a['obrigatoria']); }));
+    return [
+        'alertas' => $alertas,
+        'lacunas' => $lacunas,
+        'dias' => $dias,
+        'resumo' => [
+            'configurado' => $temFaixa,
+            'segmentos' => array_sum(array_map(function ($d) { return count($d['segmentos']); }, $dias)),
+            'bloqueios' => count($bloqueios),
+            'avisos' => count($alertas) - count($bloqueios),
+            'lacunas' => count($lacunas),
+            'diasFechados' => count(array_filter($dias, function ($d) { return !empty($d['fechado']); })),
+        ],
+    ];
+}
+
+function listarDatasPeriodoServidor(string $inicio, string $fim): array
+{
+    if (!ehDataValida($inicio) || !ehDataValida($fim) || $fim < $inicio) return [];
+    $out = [];
+    $d = new DateTimeImmutable($inicio);
+    $f = new DateTimeImmutable($fim);
+    while ($d <= $f) {
+        $out[] = $d;
+        $d = $d->modify('+1 day');
+        if (count($out) > 370) break;
+    }
+    return $out;
+}
+
+function semanasDoPeriodoServidor(array $days, $inicioSemana): array
+{
+    $N = count($days);
+    $semanas = [];
+    if ($inicioSemana === 'P') {
+        for ($i = 0; $i < $N; $i += 7) {
+            $fim = min($i + 6, $N - 1);
+            $semanas[] = ['ini' => $i, 'fim' => $fim, 'dias' => range($i, $fim)];
+        }
+        return $semanas;
+    }
+    $iniSem = (int)$inicioSemana;
+    $i = 0;
+    while ($i < $N) {
+        $j = $i;
+        while ($j + 1 < $N && (int)$days[$j + 1]->format('w') !== $iniSem) {
+            $j++;
+        }
+        $semanas[] = ['ini' => $i, 'fim' => $j, 'dias' => range($i, $j)];
+        $i = $j + 1;
+    }
+    return $semanas;
+}
+
+function estadoFinalDaGradeServidor(array $grade, string $inicio, string $fim, array $horas = [], array $participantes = []): array
+{
+    $days = listarDatasPeriodoServidor($inicio, $fim);
+    $N = count($days);
+    if (!$N || !$grade) return [];
+    $mapaPart = [];
+    foreach ($participantes as $c) {
+        if (is_array($c) && isset($c['id'])) {
+            $mapaPart[(string)$c['id']] = $c;
+        }
+    }
+    $ultIdx = $N - 1;
+    $estado = [];
+    foreach ($grade as $id => $arr) {
+        if (!is_array($arr) || count($arr) < $N) continue;
+        $diasDesdeFolga = 0;
+        for ($i = $ultIdx; $i >= 0 && ($arr[$i] ?? null) === ''; $i--) {
+            $diasDesdeFolga++;
+        }
+        $domTrabConsec = 0;
+        for ($i = $ultIdx; $i >= 0; $i--) {
+            if ((int)$days[$i]->format('w') !== 0) continue;
+            if (($arr[$i] ?? null) === '') $domTrabConsec++;
+            else break;
+        }
+        $trabalhouUlt = (($arr[$ultIdx] ?? null) === '');
+        $info = [
+            'diasDesdeFolga' => $diasDesdeFolga,
+            'domTrabConsec' => $domTrabConsec,
+            'trabalhouUltimoDia' => $trabalhouUlt,
+            'dataUltimoDia' => $fim,
+            'fimUltimoDiaMinutos' => null,
+            'saidaUltimoDia' => null,
+            'lacunaUltimoDia' => false,
+        ];
+        if ($trabalhouUlt) {
+            $ficha = $mapaPart[(string)$id] ?? ['id' => (string)$id];
+            $fimMin = fimDoDiaMinutosServidor($ficha, $ultIdx, $horas);
+            if ($fimMin !== null) {
+                $info['fimUltimoDiaMinutos'] = $fimMin;
+                $info['saidaUltimoDia'] = horaDosMinutosServidor($fimMin);
+            } else {
+                $info['lacunaUltimoDia'] = true;
+            }
+        }
+        $estado[(string)$id] = $info;
+    }
+    return $estado;
+}
+
+function grupoDeServidor(array $c): string
+{
+    if (!empty($c['gerente'])) return 'gerencia';
+    $cargo = mb_strtoupper((string)($c['cargo'] ?? ''), 'UTF-8');
+    if (strpos($cargo, 'CAIXA') !== false) return 'caixa';
+    return 'balcao';
+}
+
+function ehFarmaServidor(array $c): bool
+{
+    $cargo = mb_strtoupper((string)($c['cargo'] ?? ''), 'UTF-8');
+    return strpos($cargo, 'FARMA') !== false;
+}
+
+function ehSubgerServidor(array $c): bool
+{
+    $cargo = mb_strtoupper((string)($c['cargo'] ?? ''), 'UTF-8');
+    return strpos($cargo, 'SUBGER') !== false || strpos($cargo, 'SUB/') === 0;
+}
+
+function validarEscalaServidor(string $lojaId, string $inicio, string $fim, array $grade, array $paramsRecebidos = [], ?array $snapshot = null): array
+{
+    $days = listarDatasPeriodoServidor($inicio, $fim);
+    $N = count($days);
+    $nomesDia = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+
+    $paramsLoja = [];
+    $mapaBanco = [];
+    if (ehUuid($lojaId)) {
+        try {
+            $stL = bd()->prepare('SELECT parametros FROM lojas WHERE id = ? LIMIT 1');
+            $stL->execute([$lojaId]);
+            $rawP = $stL->fetchColumn();
+            if (is_string($rawP) && $rawP !== '') {
+                $dec = json_decode($rawP, true);
+                if (is_array($dec)) $paramsLoja = $dec;
+            }
+            $temJornada = false;
+            try {
+                $stCol = bd()->query("SHOW COLUMNS FROM colaboradores LIKE 'jornada'");
+                $temJornada = (bool)$stCol->fetch();
+            } catch (Throwable $_e) {
+                $temJornada = false;
+            }
+            $campoJornada = $temJornada ? 'jornada' : 'NULL AS jornada';
+            $stC = bd()->prepare(
+                "SELECT id, nome, cargo, horario, $campoJornada, gerente, ativo,
+                        folga_fixa, primeiro_domingo, dias_desde_folga, ordem
+                   FROM colaboradores WHERE loja_id = ? ORDER BY ordem"
+            );
+            $stC->execute([$lojaId]);
+            $rowsC = $stC->fetchAll();
+            $ausPorColab = [];
+            if ($rowsC) {
+                $cids = array_column($rowsC, 'id');
+                $mrk = implode(',', array_fill(0, count($cids), '?'));
+                $stA = bd()->prepare("SELECT colaborador_id, tipo, ini, fim FROM ausencias WHERE colaborador_id IN ($mrk)");
+                $stA->execute($cids);
+                foreach ($stA->fetchAll() as $a) {
+                    $ausPorColab[$a['colaborador_id']][] = [
+                        'tipo' => $a['tipo'], 'ini' => $a['ini'], 'fim' => $a['fim'],
+                    ];
+                }
+            }
+            foreach ($rowsC as $r) {
+                $mapaBanco[(string)$r['id']] = [
+                    'id' => (string)$r['id'],
+                    'nome' => (string)$r['nome'],
+                    'cargo' => (string)$r['cargo'],
+                    'horario' => (string)($r['horario'] ?? ''),
+                    'jornada' => $r['jornada'] ? json_decode((string)$r['jornada'], true) : null,
+                    'gerente' => (bool)$r['gerente'],
+                    'ativo' => (bool)$r['ativo'],
+                    'folgaFixa' => $r['folga_fixa'] === null ? null : (int)$r['folga_fixa'],
+                    'primeiroDomingo' => $r['primeiro_domingo'],
+                    'diasDesdeFolga' => $r['dias_desde_folga'] === null ? null : (int)$r['dias_desde_folga'],
+                    'ausencias' => $ausPorColab[$r['id']] ?? [],
+                ];
+            }
+        } catch (Throwable $_e) {
+            // Prossegue com dados da requisição se a consulta falhar fora de contexto transacional
+        }
+    }
+
+    /* AUTORIDADE DAS REGRAS: o banco manda, o payload não.
+       Tudo que classifica ou afrouxa uma regra (modelo, mínimos, tetos, perfis)
+       sai exclusivamente de lojas.parametros. Do payload aproveitamos apenas o
+       que é dado da escala em edição e não enfraquece bloqueio: os ajustes de
+       hora por dia. Divergências entre o que o cliente mandou e o que o banco
+       guarda viram observação, nunca permissão. */
+    $P = $paramsLoja;
+    $divergencias = [];
+    foreach (CHAVES_DE_REGRA as $chave) {
+        if (!array_key_exists($chave, $paramsRecebidos)) continue;
+        $doBanco = $paramsLoja[$chave] ?? null;
+        if (json_encode($paramsRecebidos[$chave]) !== json_encode($doBanco)) {
+            $divergencias[] = $chave;
+        }
+    }
+    if (is_array($paramsRecebidos['_horas'] ?? null)) {
+        $P['_horas'] = $paramsRecebidos['_horas'];
+    }
+    $perfis = perfisDaLoja($paramsLoja);
+    $modelo = in_array($P['modelo'] ?? '5x2', ['5x2', '6x1'], true) ? (string)$P['modelo'] : '5x2';
+    $folgasSemana = isset($P['folgasSemana']) && is_numeric($P['folgasSemana'])
+        ? max(1, (int)$P['folgasSemana'])
+        : ($modelo === '6x1' ? 1 : 2);
+    $cicloDomingo = isset($P['cicloDomingo']) && is_numeric($P['cicloDomingo']) ? max(1, (int)$P['cicloDomingo']) : 3;
+    $maxSeq = isset($P['maxSeq']) && is_numeric($P['maxSeq']) ? max(1, (int)$P['maxSeq']) : 6;
+    $minInterjornada = isset($P['minInterjornada']) && is_numeric($P['minInterjornada']) ? max(1, (int)$P['minInterjornada']) : 660;
+    $inicioSemana = ($P['inicioSemana'] ?? 0) === 'P' ? 'P' : (int)($P['inicioSemana'] ?? 0);
+    $minCaixa = isset($P['minCaixa']) && is_numeric($P['minCaixa']) ? max(0, (int)$P['minCaixa']) : 0;
+    $minBalcao = isset($P['minBalcao']) && is_numeric($P['minBalcao']) ? max(0, (int)$P['minBalcao']) : 0;
+    $minFarma = isset($P['minFarma']) && is_numeric($P['minFarma']) ? max(0, (int)$P['minFarma']) : 0;
+    $minSubger = isset($P['minSubger']) && is_numeric($P['minSubger']) ? max(0, (int)$P['minSubger']) : 0;
+    $minDia = is_array($P['minDia'] ?? null) ? $P['minDia'] : [];
+
+    /* PISOS OBRIGATÓRIOS POR LOJA E FUNÇÃO
+       Os valores acima continuam sendo metas: faltar contra eles é aviso. Um piso
+       só existe quando a loja o definiu explicitamente; ausente, nada vira
+       bloqueio e a configuração anterior segue valendo como estava. */
+    $pisoCaixa = pisoObrigatorio($P, 'minCaixa');
+    $pisoBalcao = pisoObrigatorio($P, 'minBalcao');
+    $pisoFarma = pisoObrigatorio($P, 'minFarma');
+    $pisoSubger = pisoObrigatorio($P, 'minSubger');
+    $pisoDia = is_array($P['minDiaObrigatorio'] ?? null) ? $P['minDiaObrigatorio'] : [];
+
+    $horasMapa = is_array($P['_horas'] ?? null)
+        ? $P['_horas']
+        : (is_array($snapshot['horas'] ?? null) ? $snapshot['horas'] : []);
+
+    $estadoAnterior = [];
+    if (ehUuid($lojaId) && ehDataValida($inicio)) {
+        try {
+            $stAnt = bd()->prepare(
+                'SELECT v.inicio, v.fim, v.grade, v.parametros, v.snapshot
+                   FROM escalas e
+                   JOIN escala_versoes v ON v.escala_id = e.id AND v.versao = e.versao
+                  WHERE e.loja_id = ? AND e.fim = DATE_SUB(?, INTERVAL 1 DAY)
+                  ORDER BY v.versao DESC LIMIT 1'
+            );
+            $stAnt->execute([$lojaId, $inicio]);
+            if ($ant = $stAnt->fetch()) {
+                $gAnt = json_decode((string)$ant['grade'], true) ?: [];
+                $pAnt = $ant['parametros'] ? (json_decode((string)$ant['parametros'], true) ?: []) : [];
+                $sAnt = $ant['snapshot'] ? (json_decode((string)$ant['snapshot'], true) ?: []) : [];
+                $hAnt = is_array($pAnt['_horas'] ?? null) ? $pAnt['_horas'] : (is_array($sAnt['horas'] ?? null) ? $sAnt['horas'] : []);
+                $partAnt = is_array($sAnt['participantes'] ?? null) && $sAnt['participantes']
+                    ? $sAnt['participantes']
+                    : array_values($mapaBanco);
+                $estadoAnterior = estadoFinalDaGradeServidor($gAnt, (string)$ant['inicio'], (string)$ant['fim'], $hAnt, $partAnt);
+            }
+        } catch (Throwable $_e) {
+            $estadoAnterior = [];
+        }
+    }
+
+    $mapaSnap = [];
+    if (is_array($snapshot['participantes'] ?? null)) {
+        foreach ($snapshot['participantes'] as $sp) {
+            if (is_array($sp) && isset($sp['id'])) {
+                $mapaSnap[(string)$sp['id']] = $sp;
+            }
+        }
+    }
+
+    $participantes = [];
+    foreach ($grade as $cidKey => $_linha) {
+        $cid = (string)$cidKey;
+        $b = $mapaBanco[$cid] ?? null;
+        $s = $mapaSnap[$cid] ?? null;
+        if ($b && $s) {
+            $ausMerged = $b['ausencias'];
+            if (is_array($s['ausencias'] ?? null)) {
+                foreach ($s['ausencias'] as $as) {
+                    if (is_array($as) && !empty($as['ini']) && !empty($as['tipo'])) {
+                        $ausMerged[] = $as;
+                    }
+                }
+            }
+            $participantes[$cid] = array_merge($s, $b, [
+                'horario' => ($b['horario'] !== '' ? $b['horario'] : ($s['horario'] ?? '')),
+                'jornada' => $b['jornada'] ?: ($s['jornada'] ?? null),
+                'ausencias' => $ausMerged,
+            ]);
+        } elseif ($b) {
+            $participantes[$cid] = $b;
+        } elseif ($s) {
+            $participantes[$cid] = array_merge([
+                'id' => $cid, 'nome' => (string)($s['nome'] ?? $cid), 'cargo' => (string)($s['cargo'] ?? 'BALCONISTA'),
+                'horario' => (string)($s['horario'] ?? ''), 'jornada' => $s['jornada'] ?? null,
+                'gerente' => !empty($s['gerente']), 'ativo' => ($s['ativo'] ?? true) !== false,
+                'ausencias' => is_array($s['ausencias'] ?? null) ? $s['ausencias'] : [],
+            ], $s);
+        } else {
+            $participantes[$cid] = [
+                'id' => $cid, 'nome' => $cid, 'cargo' => 'BALCONISTA',
+                'horario' => '', 'jornada' => null, 'gerente' => false, 'ativo' => true, 'ausencias' => [],
+            ];
+        }
+    }
+
+    $semanas = semanasDoPeriodoServidor($days, $inicioSemana);
+    $codigosValidos = ['', 'X', 'FC', 'F', 'AT', 'LC'];
+    $alertas = [];
+
+    foreach ($participantes as $cid => $c) {
+        if (($c['ativo'] ?? true) === false) continue;
+        $nome = (string)($c['nome'] ?? $cid);
+        $arr = $grade[$cid] ?? null;
+        if (!is_array($arr) || count($arr) !== $N) {
+            $alertas[] = [
+                'colab' => $nome, 'tipo' => 'grade-invalida', 'categoria' => 'obrigatoria',
+                'obrigatoria' => true, 'nivel' => 'regra',
+                'txt' => !is_array($arr)
+                    ? 'Colaborador sem linha correspondente na grade'
+                    : 'Linha da grade com ' . count($arr) . ' dia(s), esperado ' . $N,
+            ];
+            continue;
+        }
+
+        $ausencias = is_array($c['ausencias'] ?? null) ? $c['ausencias'] : [];
+        foreach ($days as $i => $d) {
+            $cod = (string)($arr[$i] ?? '');
+            if (!in_array($cod, $codigosValidos, true)) {
+                $alertas[] = [
+                    'colab' => $nome, 'tipo' => 'grade-invalida', 'categoria' => 'obrigatoria',
+                    'obrigatoria' => true, 'nivel' => 'regra', 'dia' => $i,
+                    'txt' => 'Código inválido "' . $cod . '" em ' . $d->format('d/m'),
+                ];
+            }
+            $dt = $d->format('Y-m-d');
+            $tiposDia = [];
+            foreach ($ausencias as $a) {
+                if (!is_array($a) || empty($a['ini']) || empty($a['tipo'])) continue;
+                $fimAus = !empty($a['fim']) ? (string)$a['fim'] : (string)$a['ini'];
+                if ((string)$a['ini'] <= $dt && $dt <= $fimAus) {
+                    $tiposDia[] = (string)$a['tipo'];
+                }
+            }
+            if ($tiposDia && !in_array($cod, $tiposDia, true)) {
+                $alertas[] = [
+                    'colab' => $nome, 'tipo' => 'ausencia', 'categoria' => 'obrigatoria',
+                    'obrigatoria' => true, 'nivel' => 'regra', 'dia' => $i,
+                    'txt' => 'Ausência (' . implode('/', array_unique($tiposDia)) . ') em ' . $d->format('d/m')
+                           . ' foi sobrescrita por "' . ($cod !== '' ? $cod : 'trabalho') . '"',
+                ];
+            }
+        }
+
+        $ehFolga = function (int $idx) use ($arr, $N): bool {
+            if ($idx < 0 || $idx >= $N) return false;
+            return in_array((string)($arr[$idx] ?? ''), ['X', 'F', 'FC', 'AT', 'LC'], true);
+        };
+
+        /* Perfil operacional da pessoa. A folga de fim de semana do gerente é
+           política da casa, não exigência legal: quando a loja define perfis, os
+           dias vêm do perfil; sem perfis definidos, mantém-se sábado e domingo,
+           como nas lojas já configuradas. */
+        $perfil = perfilDoColaborador($c, $perfis);
+        $regrasPerfil = $perfil['regras'] ?? [];
+        $baseFolgaFds = $perfil['base'] ?? BASE_CASA;
+        $nomePerfil = $perfil['nome'] ?? 'gerente (padrão da casa)';
+        $diasFolgaPerfil = is_array($regrasPerfil['folgaFixaSemanal'] ?? null)
+            ? array_map('intval', $regrasPerfil['folgaFixaSemanal'])
+            : (!empty($c['gerente']) ? [0, 6] : []);
+
+        if ($diasFolgaPerfil) {
+            foreach ($days as $i => $d) {
+                $wd = (int)$d->format('w');
+                if (in_array($wd, $diasFolgaPerfil, true) && !$ehFolga($i)) {
+                    $alertas[] = [
+                        'colab' => $nome, 'tipo' => 'perfil-folga-fixa', 'categoria' => 'obrigatoria',
+                        'obrigatoria' => true, 'nivel' => 'regra', 'dia' => $i,
+                        'perfil' => $perfil['id'] ?? 'gerente',
+                        'base' => $baseFolgaFds,
+                        'txt' => 'Perfil "' . $nomePerfil . '" prevê folga em ' . $nomesDia[$wd]
+                               . ', mas a pessoa está escalada em ' . $d->format('d/m'),
+                    ];
+                }
+            }
+        } else {
+            // 1) Folgas por semana
+            foreach ($semanas as $s) {
+                if (count($s['dias']) < 7) continue;
+                $nFolgas = 0;
+                $ferias = 0;
+                $domFolga = false;
+                foreach ($s['dias'] as $idxDia) {
+                    $cod = (string)($arr[$idxDia] ?? '');
+                    if ($cod === 'X' || $cod === 'FC') {
+                        $nFolgas++;
+                        if ((int)$days[$idxDia]->format('w') === 0) $domFolga = true;
+                    } elseif (in_array($cod, ['F', 'AT', 'LC'], true)) {
+                        $ferias++;
+                    }
+                }
+                if ($ferias >= 5) continue;
+                if (($nFolgas + min($ferias, $folgasSemana)) < $folgasSemana) {
+                    $alertas[] = [
+                        'colab' => $nome, 'tipo' => 'folgas-semana', 'categoria' => 'obrigatoria',
+                        'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI,
+                        'txt' => 'Semana de ' . $days[$s['ini']]->format('d/m') . ': ' . $nFolgas . ' folga(s), mínimo ' . $folgasSemana,
+                    ];
+                }
+                if ($modelo === '6x1' && $ferias < 4 && $domFolga && $nFolgas < 2) {
+                    $alertas[] = [
+                        'colab' => $nome, 'tipo' => '6x1-domingo', 'categoria' => 'obrigatoria',
+                        'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_CASA,
+                        'txt' => 'Semana de ' . $days[$s['ini']]->format('d/m') . ': folgou no domingo do ciclo mas ficou sem a folga semanal do 6x1 (política da casa)',
+                    ];
+                }
+            }
+
+            // 2) Sequência máxima de dias seguidos trabalhados
+            $estAnt = $estadoAnterior[$cid] ?? [];
+            $seq = isset($estAnt['diasDesdeFolga'])
+                ? (int)$estAnt['diasDesdeFolga']
+                : (isset($c['diasDesdeFolga']) && $c['diasDesdeFolga'] !== null && $c['diasDesdeFolga'] !== '' ? (int)$c['diasDesdeFolga'] : 0);
+            $pior = 0;
+            $quando = null;
+            foreach ($days as $i => $d) {
+                if ($ehFolga($i)) {
+                    $seq = 0;
+                    continue;
+                }
+                $seq++;
+                if ($seq > $pior) {
+                    $pior = $seq;
+                    $quando = $d;
+                }
+            }
+            if ($pior > $maxSeq && $quando !== null) {
+                $alertas[] = [
+                    'colab' => $nome, 'tipo' => 'sequencia', 'categoria' => 'obrigatoria',
+                    'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI,
+                    'txt' => $pior . ' dias seguidos sem folga (até ' . $quando->format('d/m') . '), máximo ' . $maxSeq,
+                ];
+            }
+
+            // 3) Domingos seguidos trabalhados
+            $corrida = isset($estAnt['domTrabConsec'])
+                ? (int)$estAnt['domTrabConsec']
+                : (isset($c['domTrabConsec']) && is_numeric($c['domTrabConsec']) ? (int)$c['domTrabConsec'] : 0);
+            $avisouDom = false;
+            foreach ($days as $i => $d) {
+                if ((int)$d->format('w') !== 0) continue;
+                if ((string)($arr[$i] ?? '') === '') {
+                    $corrida++;
+                    if ($corrida > $cicloDomingo - 1 && !$avisouDom) {
+                        $alertas[] = [
+                            'colab' => $nome, 'tipo' => 'domingo', 'categoria' => 'obrigatoria',
+                            'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI,
+                            'txt' => $corrida . ' domingos seguidos trabalhados até ' . $d->format('d/m') . ' — máximo configurado ' . ($cicloDomingo - 1),
+                        ];
+                        $avisouDom = true;
+                    }
+                } else {
+                    $corrida = 0;
+                    $avisouDom = false;
+                }
+            }
+
+            // 3b) Dia de folga fixa (preferência)
+            if (isset($c['folgaFixa']) && $c['folgaFixa'] !== null && $c['folgaFixa'] !== '') {
+                $diaFixo = (int)$c['folgaFixa'];
+                foreach ($semanas as $s2) {
+                    if (count($s2['dias']) < 7) continue;
+                    $cabe = [];
+                    foreach ($s2['dias'] as $idxDia) {
+                        if ((int)$days[$idxDia]->format('w') === $diaFixo && !in_array((string)$arr[$idxDia], ['F', 'AT', 'LC'], true)) {
+                            $cabe[] = $idxDia;
                         }
-                }
-                $ajustes = 0;
-                foreach (($params['_horas'] ?? []) as $porPessoa) {
-                        if (is_array($porPessoa)) $ajustes += count($porPessoa);
-                }
-                return [
-                        'pessoas' => count($grade),
-                        'dias' => $dias,
-                        'folgas' => $folgas,
-                        'ajustes' => $ajustes,
-                        'modelo' => isset($params['modelo']) ? (string)$params['modelo'] : '5x2',
-                        'feridas' => $params['_resumo']['feridas'] ?? null,
-                        'notas' => $params['_resumo']['notas'] ?? null,
+                    }
+                    if (!$cabe) continue;
+                    $folgou = false;
+                    foreach ($cabe as $idxDia) {
+                        if (in_array((string)$arr[$idxDia], ['X', 'FC'], true)) $folgou = true;
+                    }
+                    if (!$folgou) {
+                        $alertas[] = [
+                            'colab' => $nome, 'tipo' => 'dia-fixo', 'categoria' => 'preferencia',
+                            'obrigatoria' => false, 'nivel' => 'regra',
+                            'txt' => 'Preferência de folga fixa em ' . $nomesDia[$diaFixo] . ': a semana de ' . $days[$s2['ini']]->format('d/m') . ' não teve folga nesse dia',
                         ];
+                    }
+                }
+            }
+
+            // 4) Folgas isoladas no 5x2 (preferência / observação)
+            if ($modelo !== '6x1') {
+                $semanaParcial = [];
+                foreach ($semanas as $s2) {
+                    if (count($s2['dias']) < 7) {
+                        foreach ($s2['dias'] as $idxDia) $semanaParcial[$idxDia] = true;
+                    }
+                }
+                for ($i = 0; $i < $N; $i++) {
+                    if ((string)$arr[$i] !== 'X' || isset($semanaParcial[$i])) continue;
+                    $antes = $i > 0 && $ehFolga($i - 1);
+                    $depois = $i < $N - 1 && $ehFolga($i + 1);
+                    if ($antes || $depois || (int)$days[$i]->format('w') === 0) continue;
+                    $temPar = false;
+                    foreach ($semanas as $s2) {
+                        if ($i >= $s2['ini'] && $i <= $s2['fim']) {
+                            foreach ($s2['dias'] as $k) {
+                                if ((string)$arr[$k] === 'X' && ($ehFolga($k + 1) || $ehFolga($k - 1))) {
+                                    $temPar = true;
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    if ($temPar) {
+                        $alertas[] = [
+                            'colab' => $nome, 'tipo' => 'avulsa', 'categoria' => 'observacao',
+                            'obrigatoria' => false, 'nivel' => 'nota',
+                            'txt' => $days[$i]->format('d/m') . ' (' . $nomesDia[(int)$days[$i]->format('w')] . ') é folga avulsa — a semana já tem o par',
+                        ];
+                    } else {
+                        $alertas[] = [
+                            'colab' => $nome, 'tipo' => 'isolada', 'categoria' => 'preferencia',
+                            'obrigatoria' => false, 'nivel' => 'regra',
+                            'txt' => 'Preferência 5x2: folga isolada em ' . $days[$i]->format('d/m') . ' e a semana não tem par de folgas',
+                        ];
+                    }
+                }
+            }
         }
 
-/** Aceita apenas os campos previstos, com o tipo certo. Números que dependem só
-da grade são conferidos contra ela: se o que chegou não bater, vale a grade. */
-function normalizarResumo($recebido, array $grade, array $params = []): array
-        {
-                $calculado = resumoDaGrade($grade, $params);
-                if (!is_array($recebido)) {
-                        return $calculado;
+        // 5) Descanso entre jornadas (obrigatória) e jornadas incompletas (lacuna)
+        $estAnt = $estadoAnterior[$cid] ?? [];
+        $trabalhouUltAnt = !empty($estAnt['trabalhouUltimoDia']) || !empty($c['trabalhouUltimoDia'])
+            || isset($estAnt['fimUltimoDiaMinutos']) || isset($c['fimUltimoDiaMinutos']);
+        $fimUltAnt = $estAnt['fimUltimoDiaMinutos'] ?? ($c['fimUltimoDiaMinutos'] ?? null);
+        $saidaUltAnt = $estAnt['saidaUltimoDia'] ?? ($c['saidaUltimoDia'] ?? ($fimUltAnt !== null ? horaDosMinutosServidor((int)$fimUltAnt) : null));
+        $dataUltAnt = $estAnt['dataUltimoDia'] ?? ($c['dataUltimoDia'] ?? 'período anterior');
+
+        if ($N > 0 && (string)$arr[0] === '' && $trabalhouUltAnt) {
+            $ent0 = entradaDoDiaServidor($c, 0, $horasMapa);
+            $ent0Min = minutosDaHoraServidor($ent0);
+            if ($fimUltAnt !== null && $ent0Min !== null) {
+                $descanso0 = $ent0Min + 1440 - (int)$fimUltAnt;
+                if ($descanso0 < $minInterjornada) {
+                    $liberado0 = horaDosMinutosServidor((int)$fimUltAnt + $minInterjornada);
+                    $alertas[] = [
+                        'colab' => $nome, 'tipo' => 'interjornada', 'categoria' => 'obrigatoria',
+                        'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI,
+                        'dia' => 0, 'transicaoPeriodo' => true,
+                        'txt' => 'Sai ' . $saidaUltAnt . ' no fim do período anterior (' . $dataUltAnt . ') e entra ' . $ent0 . ' em ' . $days[0]->format('d/m') . ': ' . textoDuracaoServidor($descanso0) . ' de descanso, mínimo 11h (só pode entrar a partir das ' . $liberado0 . ')',
+                    ];
                 }
-                $inteiroOuNulo = function ($v) {
-                        if ($v === null || $v === '') return null;
-                        return is_numeric($v) ? max(0, (int)$v) : null;
-                };
-                $modelo = isset($recebido['modelo']) ? (string)$recebido['modelo'] : $calculado['modelo'];
-                if (!in_array($modelo, ['5x2', '6x1'], true)) $modelo = '5x2';
-                
-                return [
-                        'pessoas' => $calculado['pessoas'],
-                        'dias' => $calculado['dias'],
-                        'folgas' => $calculado['folgas'],
-                        'ajustes' => $inteiroOuNulo($recebido['ajustes'] ?? null) ?? $calculado['ajustes'],
-                        'modelo' => $modelo,
-                        'feridas' => $inteiroOuNulo($recebido['feridas'] ?? null) ?? $calculado['feridas'],
-                        'notas' => $inteiroOuNulo($recebido['notas'] ?? null) ?? $calculado['notas'],
-                        ];
+            } else {
+                $alertas[] = [
+                    'colab' => $nome, 'tipo' => 'jornada-incompleta', 'categoria' => 'observacao',
+                    'obrigatoria' => false, 'nivel' => 'nota', 'dia' => 0, 'lacuna' => true, 'transicaoPeriodo' => true,
+                    'txt' => 'Lacuna na passagem de período em ' . $days[0]->format('d/m') . ': trabalhou no último dia do período anterior, mas falta horário completo de saída/entrada para conferir o descanso de 11h',
+                ];
+            }
         }
+
+        $diasSemJornadaCompleta = 0;
+        $paresSemVerificacao = 0;
+        for ($i = 0; $i < $N; $i++) {
+            if ((string)$arr[$i] !== '') continue;
+            if (entradaDoDiaServidor($c, $i, $horasMapa) === null || fimDoDiaMinutosServidor($c, $i, $horasMapa) === null) {
+                $diasSemJornadaCompleta++;
+            }
+        }
+        for ($i = 0; $i < $N - 1; $i++) {
+            if ((string)$arr[$i] !== '' || (string)$arr[$i + 1] !== '') continue;
+            $fimI = fimDoDiaMinutosServidor($c, $i, $horasMapa);
+            $entSeg = entradaDoDiaServidor($c, $i + 1, $horasMapa);
+            $entSegMin = minutosDaHoraServidor($entSeg);
+            if ($fimI === null || $entSegMin === null) {
+                $paresSemVerificacao++;
+                continue;
+            }
+            $descanso = $entSegMin + 1440 - $fimI;
+            if ($descanso < $minInterjornada) {
+                $liberado = horaDosMinutosServidor($fimI + $minInterjornada);
+                $saidaI = horaDosMinutosServidor($fimI);
+                $alertas[] = [
+                    'colab' => $nome, 'tipo' => 'interjornada', 'categoria' => 'obrigatoria',
+                    'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI, 'dia' => $i + 1,
+                    'txt' => 'Sai ' . $saidaI . ' em ' . $days[$i]->format('d/m') . ' e entra ' . $entSeg . ' em ' . $days[$i + 1]->format('d/m') . ': ' . textoDuracaoServidor($descanso) . ' de descanso, mínimo 11h (só pode entrar a partir das ' . $liberado . ')',
+                ];
+            }
+        }
+        if ($diasSemJornadaCompleta > 0) {
+            $alertas[] = [
+                'colab' => $nome, 'tipo' => 'jornada-incompleta', 'categoria' => 'observacao',
+                'obrigatoria' => false, 'nivel' => 'nota', 'lacuna' => true,
+                'txt' => 'Jornada incompleta (sem entrada e saída completas) em ' . $diasSemJornadaCompleta . ' dia(s) trabalhado(s)'
+                       . ($paresSemVerificacao > 0 ? ' — descanso de 11h não pôde ser conferido em ' . $paresSemVerificacao . ' passagem(ns) de turno' : ''),
+            ];
+        }
+    }
+
+    // 6) Cobertura diária (separa demanda configurada de disponibilidade)
+    $ativosParticipantes = array_values(array_filter($participantes, function ($c) {
+        return ($c['ativo'] ?? true) !== false;
+    }));
+    foreach ($days as $i => $d) {
+        $cx = 0; $bl = 0; $gr = 0; $fa = 0; $sg = 0;
+        $cxDisp = 0; $blDisp = 0; $faDisp = 0; $sgDisp = 0; $totDisp = 0;
+        foreach ($ativosParticipantes as $c) {
+            $cid = (string)$c['id'];
+            $arr = $grade[$cid] ?? null;
+            if (!is_array($arr) || !array_key_exists($i, $arr)) continue;
+            $cod = (string)$arr[$i];
+            $trabalha = ($cod === '');
+            $disponivel = !in_array($cod, ['F', 'AT', 'LC'], true);
+            $grupo = grupoDeServidor($c);
+            if ($trabalha) {
+                if ($grupo === 'caixa') $cx++;
+                elseif ($grupo === 'gerencia') $gr++;
+                else $bl++;
+                if (ehFarmaServidor($c)) $fa++;
+                if (ehSubgerServidor($c)) $sg++;
+            }
+            if ($disponivel) {
+                $totDisp++;
+                if ($grupo === 'caixa') $cxDisp++;
+                elseif ($grupo !== 'gerencia') $blDisp++;
+                if (ehFarmaServidor($c)) $faDisp++;
+                if (ehSubgerServidor($c)) $sgDisp++;
+            }
+        }
+        $total = $cx + $bl + $gr;
+        $falta = [];
+        $leve = [];
+        $impedimentos = [];
+
+        if ($minCaixa > 0 && $cx < $minCaixa) {
+            $imp = $cxDisp < $minCaixa;
+            $msg = $imp ? "caixa {$cx}/{$minCaixa} (impedimento: {$cxDisp} disponível(is))" : "caixa {$cx}/{$minCaixa}";
+            $falta[] = $msg;
+            if ($imp) $impedimentos[] = $msg;
+        }
+        if ($minBalcao > 0 && $bl < $minBalcao) {
+            $imp = $blDisp < $minBalcao;
+            $msg = $imp ? "balcão {$bl}/{$minBalcao} (impedimento: {$blDisp} disponível(is))" : "balcão {$bl}/{$minBalcao}";
+            $falta[] = $msg;
+            if ($imp) $impedimentos[] = $msg;
+        }
+        if ($minFarma > 0 && $fa < 1) {
+            $imp = $faDisp < 1;
+            $msg = $imp ? "SEM farmacêutico (impedimento: 0 disponíveis para demanda de {$minFarma})" : 'SEM farmacêutico';
+            $falta[] = $msg;
+            if ($imp) $impedimentos[] = $msg;
+        } elseif ($minFarma > 0 && $fa < $minFarma) {
+            $imp = $faDisp < $minFarma;
+            $leve[] = $imp ? "farmacêutico {$fa}/{$minFarma} (disponíveis: {$faDisp})" : "farmacêutico {$fa}/{$minFarma}";
+        }
+        if ($minSubger > 0 && $sg < $minSubger) {
+            $imp = $sgDisp < $minSubger;
+            $msg = $imp ? "subgerente {$sg}/{$minSubger} (impedimento: {$sgDisp} disponível(is))" : "subgerente {$sg}/{$minSubger}";
+            $falta[] = $msg;
+            if ($imp) $impedimentos[] = $msg;
+        }
+        $wd = (int)$d->format('w');
+        $alvoDiaSem = isset($minDia[$wd]) ? (int)$minDia[$wd] : (isset($minDia[(string)$wd]) ? (int)$minDia[(string)$wd] : 0);
+        if ($alvoDiaSem > 0 && $total < $alvoDiaSem) {
+            $imp = $totDisp < $alvoDiaSem;
+            $msg = $imp ? "equipe {$total}/{$alvoDiaSem} (impedimento: {$totDisp} disponível(is))" : "equipe {$total}/{$alvoDiaSem}";
+            $falta[] = $msg;
+            if ($imp) $impedimentos[] = $msg;
+        }
+        /* PISOS OBRIGATÓRIOS: só existem onde a loja definiu. Faltar contra o
+           piso bloqueia a publicação; faltar contra a meta continua aviso.
+           Quando não há gente disponível, o dia é impedimento operacional e não
+           falha da escala — não bloqueia, mas fica registrado. */
+        $pisos = [
+            ['piso' => $pisoCaixa, 'tem' => $cx, 'disp' => $cxDisp, 'rotulo' => 'caixa'],
+            ['piso' => $pisoBalcao, 'tem' => $bl, 'disp' => $blDisp, 'rotulo' => 'balcão'],
+            ['piso' => $pisoFarma, 'tem' => $fa, 'disp' => $faDisp, 'rotulo' => 'farmacêutico'],
+            ['piso' => $pisoSubger, 'tem' => $sg, 'disp' => $sgDisp, 'rotulo' => 'subgerente'],
+        ];
+        $wdPiso = (int)$d->format('w');
+        $pisoDiaSem = isset($pisoDia[$wdPiso]) ? (int)$pisoDia[$wdPiso]
+            : (isset($pisoDia[(string)$wdPiso]) ? (int)$pisoDia[(string)$wdPiso] : null);
+        if ($pisoDiaSem !== null) {
+            $pisos[] = ['piso' => $pisoDiaSem, 'tem' => $total, 'disp' => $totDisp, 'rotulo' => 'equipe'];
+        }
+        foreach ($pisos as $p) {
+            if ($p['piso'] === null || $p['piso'] <= 0 || $p['tem'] >= $p['piso']) continue;
+            /* Piso obrigatório bloqueia mesmo sem gente disponível. Indisponibilidade
+               da equipe é informação operacional, não rebaixamento da regra: quem
+               decide abrir mão do piso é quem administra a loja, alterando a
+               configuração, e não a escassez do dia. */
+            $impossivel = $p['disp'] < $p['piso'];
+            $alertas[] = [
+                'colab' => '—', 'tipo' => 'cobertura-minima',
+                'categoria' => 'obrigatoria',
+                'obrigatoria' => true,
+                'impedimento' => $impossivel,
+                'nivel' => 'regra',
+                'base' => BASE_CASA, 'dia' => $i,
+                'txt' => $d->format('d/m') . ': ' . $p['rotulo'] . ' ' . $p['tem'] . '/' . $p['piso']
+                       . ' — abaixo do mínimo obrigatório da loja'
+                       . ($impossivel ? ' (sem gente disponível: ' . $p['disp'] . ')' : ''),
+            ];
+        }
+
+        if (count($ativosParticipantes) > 0 && $total === 0) {
+            $msg = 'loja sem ninguém escalado';
+            if (!in_array($msg, $falta, true)) $falta[] = $msg;
+            $alertas[] = [
+                'colab' => '—', 'tipo' => 'loja-vazia', 'categoria' => 'obrigatoria',
+                'obrigatoria' => true, 'impedimento' => ($totDisp === 0), 'nivel' => 'regra', 'dia' => $i,
+                'base' => BASE_CASA,
+                'txt' => $d->format('d/m') . ': ' . $msg . ($totDisp === 0 ? ' (impedimento: 0 disponíveis)' : ''),
+            ];
+        }
+        if ($falta) {
+            $alertas[] = [
+                'colab' => '—', 'tipo' => 'cobertura', 'categoria' => 'preferencia',
+                'obrigatoria' => false, 'impedimento' => count($impedimentos) > 0, 'nivel' => 'regra', 'dia' => $i,
+                'txt' => $d->format('d/m') . ': ' . implode(', ', $falta),
+            ];
+        }
+        if ($leve) {
+            $alertas[] = [
+                'colab' => '—', 'tipo' => 'cobertura-leve', 'categoria' => 'observacao',
+                'obrigatoria' => false, 'nivel' => 'nota', 'dia' => $i,
+                'txt' => $d->format('d/m') . ': ' . implode(', ', $leve) . ' (tolerado)',
+            ];
+        }
+    }
+
+    /* COBERTURA INTRADIÁRIA. Usa expediente, faixas e funções do banco; as
+       jornadas vêm dos participantes já reconciliados com os cadastros. Cada
+       segmento sem o piso da faixa entra como restrição obrigatória, e as
+       lacunas de jornada ou intervalo entram à parte: faltar dado não libera
+       bloqueio nem conta como cobertura comprovada. */
+    $coberturaIntra = analisarCoberturaServidor($days, $participantes, $grade, $P, $horasMapa);
+    foreach ($coberturaIntra['alertas'] as $a) {
+        $alertas[] = $a;
+    }
+    foreach ($coberturaIntra['lacunas'] as $l) {
+        $alertas[] = [
+            'colab' => $l['colab'], 'tipo' => 'cobertura-intradiaria-lacuna', 'categoria' => 'observacao',
+            'obrigatoria' => false, 'nivel' => 'nota', 'lacuna' => true, 'dia' => $l['dia'],
+            'txt' => $l['motivo'] === 'intervalo-desconhecido'
+                ? 'Intervalo não informado: a presença durante o intervalo não pôde ser conferida.'
+                : 'Jornada sem entrada e saída completas: a presença no dia não pôde ser conferida.',
+        ];
+    }
+
+    /* DIVERGÊNCIA DE PARÂMETROS: o cliente mandou regra diferente da que o banco
+       guarda. A regra do banco prevaleceu; o fato fica registrado para auditoria
+       e aparece como observação, nunca como permissão. */
+    foreach ($divergencias as $chave) {
+        $alertas[] = [
+            'colab' => '—', 'tipo' => 'parametro-divergente', 'categoria' => 'observacao',
+            'obrigatoria' => false, 'nivel' => 'nota', 'base' => BASE_CASA,
+            'txt' => 'Parâmetro "' . $chave . '" enviado pelo navegador difere do configurado na loja; '
+                   . 'a validação usou o valor configurado.',
+        ];
+    }
+
+    $obrigatorias = array_values(array_filter($alertas, function ($a) { return !empty($a['obrigatoria']); }));
+    $preferencias = array_values(array_filter($alertas, function ($a) { return empty($a['obrigatoria']) && ($a['nivel'] ?? '') !== 'nota'; }));
+    $observacoes = array_values(array_filter($alertas, function ($a) { return ($a['nivel'] ?? '') === 'nota'; }));
+    $impedimentos = array_values(array_filter($alertas, function ($a) { return !empty($a['impedimento']); }));
+    $lacunas = array_values(array_filter($alertas, function ($a) { return !empty($a['lacuna']); }));
+
+    /* COBERTURA DA VALIDAÇÃO: sem os dados, uma regra não foi conferida — e não
+       conferir não é o mesmo que estar conforme. Cada lacuna é nomeada para que
+       a tela e os testes distingam "sem problema" de "não deu para verificar". */
+    $naoVerificadas = [];
+    if (!$mapaBanco) {
+        $naoVerificadas[] = [
+            'regra' => 'ausencias-e-cadastro',
+            'txt' => 'Equipe não lida do banco nesta validação: ausências, cargos e perfis não foram conferidos.',
+        ];
+    }
+    if (count($lacunas) > 0) {
+        $naoVerificadas[] = [
+            'regra' => 'interjornada',
+            'txt' => count($lacunas) . ' jornada(s) sem entrada e saída completas: o descanso de 11h não pôde ser conferido nesses dias.',
+        ];
+    }
+    if (!$paramsLoja) {
+        $naoVerificadas[] = [
+            'regra' => 'parametros-da-loja',
+            'txt' => 'Loja sem parâmetros salvos: mínimos e perfis foram tratados pelos padrões do sistema.',
+        ];
+    }
+    if ($coberturaIntra['resumo']['lacunas'] > 0) {
+        $naoVerificadas[] = [
+            'regra' => 'cobertura-intradiaria',
+            'txt' => $coberturaIntra['resumo']['lacunas'] . ' jornada(s) ou intervalo(s) sem dado: a presença nessas faixas não pôde ser comprovada.',
+        ];
+    }
+    $validacaoParcial = count($naoVerificadas) > 0;
+
+    $folgasTotais = 0;
+    foreach ($grade as $linha) {
+        if (!is_array($linha)) continue;
+        foreach ($linha as $cod) {
+            if ($cod === 'X' || $cod === 'FC') $folgasTotais++;
+        }
+    }
+    $ajustesTotais = 0;
+    foreach ($horasMapa as $porPessoa) {
+        if (is_array($porPessoa)) $ajustesTotais += count($porPessoa);
+    }
+
+    return [
+        'alertas' => $alertas,
+        'obrigatorias' => $obrigatorias,
+        'preferencias' => $preferencias,
+        'observacoes' => $observacoes,
+        'nao_verificadas' => $naoVerificadas,
+        'divergencias' => $divergencias,
+        'cobertura_intradiaria' => $coberturaIntra,
+        /* As regras que de fato valeram, lidas do banco. Vão para o snapshot da
+           versão para que a análise histórica seja reproduzível sem depender da
+           configuração que a loja venha a ter depois. */
+        'regras_aplicadas' => [
+            'schema' => 1,
+            'modelo' => $modelo, 'folgasSemana' => $folgasSemana, 'cicloDomingo' => $cicloDomingo,
+            'maxSeq' => $maxSeq, 'minInterjornada' => $minInterjornada, 'inicioSemana' => $inicioSemana,
+            'minCaixa' => $minCaixa, 'minBalcao' => $minBalcao, 'minFarma' => $minFarma, 'minSubger' => $minSubger,
+            'minDia' => $minDia,
+            'minCaixaObrigatorio' => $pisoCaixa, 'minBalcaoObrigatorio' => $pisoBalcao,
+            'minFarmaObrigatorio' => $pisoFarma, 'minSubgerObrigatorio' => $pisoSubger,
+            'minDiaObrigatorio' => $pisoDia,
+            'perfis' => $perfis,
+            'expediente' => is_array($P['expediente'] ?? null) ? $P['expediente'] : null,
+            'faixas' => is_array($P['faixas'] ?? null) ? $P['faixas'] : null,
+            'funcoes' => funcoesDaLojaServidor($P),
+        ],
+        'resumo' => [
+            'pessoas' => count($grade),
+            'dias' => $N,
+            'folgas' => $folgasTotais,
+            'ajustes' => $ajustesTotais,
+            'modelo' => $modelo,
+            'feridas' => count($obrigatorias) + count($preferencias),
+            'obrigatorias' => count($obrigatorias),
+            'preferencias' => count($preferencias),
+            'notas' => count($observacoes),
+            'impedimentos' => count($impedimentos),
+            'lacunas' => count($lacunas),
+            'nao_verificadas' => count($naoVerificadas),
+            'validacao_parcial' => $validacaoParcial,
+            'conformidade' => count($obrigatorias) > 0
+                ? 'reprovada'
+                : ($validacaoParcial ? 'parcial' : 'completa'),
+            'divergencias' => count($divergencias),
+            'perfis_aplicados' => count($perfis),
+            'cobertura_configurada' => $coberturaIntra['resumo']['configurado'],
+            'cobertura_bloqueios' => $coberturaIntra['resumo']['bloqueios'],
+            'cobertura_avisos' => $coberturaIntra['resumo']['avisos'],
+            'cobertura_lacunas' => $coberturaIntra['resumo']['lacunas'],
+            'dias_fechados' => $coberturaIntra['resumo']['diasFechados'],
+            'pode_publicar' => count($obrigatorias) === 0,
+        ],
+    ];
+}
+
+/** Recalcula o resumo a partir da grade. Usado quando não há período para validação completa. */
+function resumoDaGrade(array $grade, array $params = []): array
+{
+    $dias = 0;
+    $folgas = 0;
+    foreach ($grade as $linha) {
+        if (!is_array($linha)) continue;
+        if (count($linha) > $dias) $dias = count($linha);
+        foreach ($linha as $cod) {
+            if ($cod === 'X' || $cod === 'FC') $folgas++;
+        }
+    }
+    $ajustes = 0;
+    foreach (($params['_horas'] ?? []) as $porPessoa) {
+        if (is_array($porPessoa)) $ajustes += count($porPessoa);
+    }
+    $modelo = isset($params['modelo']) && in_array((string)$params['modelo'], ['5x2', '6x1'], true)
+        ? (string)$params['modelo'] : '5x2';
+    return [
+        'pessoas' => count($grade),
+        'dias' => $dias,
+        'folgas' => $folgas,
+        'ajustes' => $ajustes,
+        'modelo' => $modelo,
+        'feridas' => 0,
+        'obrigatorias' => 0,
+        'preferencias' => 0,
+        'notas' => 0,
+        'impedimentos' => 0,
+        'lacunas' => 0,
+        // Sem período não há como conferir regra nenhuma: contadores zerados aqui
+        // significam "não verificado", e o resumo diz isso em vez de alegar conformidade.
+        'nao_verificadas' => 1,
+        'validacao_parcial' => true,
+        'conformidade' => 'nao-verificada',
+        'divergencias' => 0,
+        'perfis_aplicados' => 0,
+        'pode_publicar' => true,
+    ];
+}
+
+/** Nunca confia em contadores de regras feridas ou notas vindos do cliente. */
+function normalizarResumo($recebido, array $grade, array $params = []): array
+{
+    return resumoDaGrade($grade, $params);
+}
 
 /** Código curto de convite, sem caracteres que se confundem na leitura. */
 function codigoConvite(): string
@@ -264,10 +1539,25 @@ function exigirPapel(array $u, array $papeis): void
     }
 }
 
-/** Quem monta escala: administrador e gestor. */
+/** Administrador de empresa: distinto da autoridade da plataforma. */
+function exigirAdminEmpresa(array $u): void
+{
+    if (ehSuperAdmin($u)) {
+        falhar('Use o fluxo administrativo da plataforma.', 403);
+    }
+    exigirPapel($u, ['admin']);
+}
+
+/** Quem monta escala: administrador e supervisor com loja explícita. */
 function exigirGestao(array $u): void
 {
+    if (ehSuperAdmin($u)) {
+        falhar('Administrador da plataforma não acessa a operação por este fluxo.', 403);
+    }
     exigirPapel($u, ['admin', 'gestor']);
+    if (($u['papel'] ?? '') === 'gestor' && count(lojasDoSupervisor($u)) === 0) {
+        falhar('Supervisor sem loja autorizada.', 403);
+    }
 }
 
 /**
@@ -284,7 +1574,7 @@ function exigirGestao(array $u): void
  */
 function vincularColaborador(array $u): array
 {
-    if (!empty($u['empresa_id']) || !empty($u['colaborador_id'])) {
+    if (ehSuperAdmin($u) || !empty($u['empresa_id']) || !empty($u['colaborador_id'])) {
         return $u;
     }
     try {
@@ -349,17 +1639,61 @@ function vincularColaboradorInterno(array $u): array
  * O administrador ignora a restrição por desenho: é ele quem precisa da visão
  * da rede inteira para comparar as lojas.
  */
-function ehSuperAdmin(array $u): bool { global $config; $lista = $config['super_admins'] ?? []; return in_array(mb_strtolower((string)$u['email']), array_map('mb_strtolower', $lista), true); } function vePorLoja(array $u): bool
+function ehSuperAdmin(array $u): bool
 {
-    return !ehSuperAdmin($u) && !empty($u['loja_id']);
+    global $config;
+    $lista = $config['super_admins'] ?? [];
+    $lista = array_map('mb_strtolower', array_map('strval', is_array($lista) ? $lista : []));
+    return empty($u['empresa_id'])
+        && in_array(mb_strtolower((string)$u['email']), $lista, true);
+}
+
+/** Autoridade da plataforma: vem apenas da configuração do servidor. */
+function exigirPlataforma(): array
+{
+    $u = exigirLogin();
+    if (!ehSuperAdmin($u)) {
+        falhar('Acesso restrito ao administrador da plataforma.', 403);
+    }
+    return $u;
+}
+
+/** Gestor é o supervisor de loja: os vínculos explícitos são obrigatórios. */
+function ehSupervisor(array $u): bool
+{
+    return ($u['papel'] ?? '') === 'gestor';
+}
+
+/** Lojas autorizadas por uma relação explícita, sem fallback em usuarios.loja_id. */
+function lojasDoSupervisor(array $u): array
+{
+    if (!ehSupervisor($u) || empty($u['empresa_id'])) return [];
+    $st = bd()->prepare(
+        'SELECT sl.loja_id
+           FROM supervisor_lojas sl
+           JOIN lojas l ON l.id = sl.loja_id
+          WHERE sl.usuario_id = ? AND l.empresa_id = ?
+          ORDER BY l.ordem, l.criado_em');
+    $st->execute([$u['id'], $u['empresa_id']]);
+    return $st->fetchAll(PDO::FETCH_COLUMN) ?: [];
+}
+
+function vePorLoja(array $u): bool
+{
+    return !ehSuperAdmin($u)
+        && (($u['papel'] ?? '') === 'gestor'
+            || (($u['papel'] ?? '') !== 'admin' && !empty($u['loja_id'])));
 }
 
 /** Ids das lojas que este usuário pode enxergar. */
 function lojasDoUsuario(array $u): array
 {
-    if (ehSuperAdmin($u)) { $st = bd()->prepare('SELECT id FROM lojas ORDER BY empresa_id, ordem, criado_em'); $st->execute(); return $st->fetchAll(PDO::FETCH_COLUMN) ?: []; } if (vePorLoja($u)) {
-        return [$u['loja_id']];
+    if (ehSuperAdmin($u)) {
+        $st = bd()->query('SELECT id FROM lojas ORDER BY empresa_id, ordem, criado_em');
+        return $st->fetchAll(PDO::FETCH_COLUMN) ?: [];
     }
+    if (ehSupervisor($u)) return lojasDoSupervisor($u);
+    if (vePorLoja($u)) return [$u['loja_id']];
     $st = bd()->prepare('SELECT id FROM lojas WHERE empresa_id = ? ORDER BY ordem, criado_em');
     $st->execute([$u['empresa_id']]);
     return $st->fetchAll(PDO::FETCH_COLUMN) ?: [];
@@ -371,7 +1705,15 @@ function exigirLojaDaEmpresa(string $lojaId, array $u): void
     if (!ehUuid($lojaId)) {
         falhar('Loja inválida.');
     }
-    // presa a uma loja: qualquer outra é como se não existisse
+    // Supervisor só alcança lojas presentes na relação explícita.
+    if (ehSupervisor($u)) {
+        $st = bd()->prepare(
+            'SELECT 1 FROM supervisor_lojas sl JOIN lojas l ON l.id = sl.loja_id
+              WHERE sl.usuario_id = ? AND sl.loja_id = ? AND l.empresa_id = ? LIMIT 1');
+        $st->execute([$u['id'], $lojaId, $u['empresa_id']]);
+        if (!$st->fetchColumn()) falhar('Loja não encontrada.', 404);
+        return;
+    }
     if (vePorLoja($u) && $lojaId !== $u['loja_id']) {
         falhar('Loja não encontrada.', 404);
     }
@@ -388,9 +1730,17 @@ function exigirColaboradorDaEmpresa(string $colabId, array $u): void
     if (!ehUuid($colabId)) {
         falhar('Colaborador inválido.');
     }
-    $sqlLoja = vePorLoja($u) ? ' AND c.loja_id = ?' : '';
+    $sqlLoja = '';
     $args = [$colabId, $u['empresa_id']];
-    if (vePorLoja($u)) $args[] = $u['loja_id'];
+    if (ehSupervisor($u)) {
+        $permitidas = lojasDoSupervisor($u);
+        if (!$permitidas) falhar('Supervisor sem loja autorizada.', 403);
+        $sqlLoja = ' AND c.loja_id IN (' . implode(',', array_fill(0, count($permitidas), '?')) . ')';
+        $args = array_merge($args, $permitidas);
+    } elseif (vePorLoja($u)) {
+        $sqlLoja = ' AND c.loja_id = ?';
+        $args[] = $u['loja_id'];
+    }
     $st = bd()->prepare(
         'SELECT 1 FROM colaboradores c
            JOIN lojas l ON l.id = c.loja_id
@@ -399,6 +1749,52 @@ function exigirColaboradorDaEmpresa(string $colabId, array $u): void
     if (!$st->fetchColumn()) {
         falhar('Colaborador não encontrado.', 404);
     }
+}
+
+/** Conta administrativa da mesma empresa, sem aceitar ids de outra rede. */
+function exigirUsuarioDaEmpresa(string $usuarioId, array $u): array
+{
+    if (!ehUuid($usuarioId)) {
+        falhar('Usuário inválido.');
+    }
+    $st = bd()->prepare(
+        'SELECT id, email, papel, empresa_id, loja_id FROM usuarios
+          WHERE id = ? AND empresa_id = ? LIMIT 1');
+    $st->execute([$usuarioId, $u['empresa_id']]);
+    $alvo = $st->fetch();
+    if (!$alvo || ehSuperAdmin($alvo)) {
+        falhar('Usuário não encontrado.', 404);
+    }
+    return $alvo;
+}
+
+function exigirSupervisorDaEmpresa(string $usuarioId, array $u): array
+{
+    $alvo = exigirUsuarioDaEmpresa($usuarioId, $u);
+    if ($alvo['papel'] !== 'gestor') {
+        falhar('Usuário não é supervisor.', 422);
+    }
+    return $alvo;
+}
+
+function exigirSupervisorDaPlataforma(string $usuarioId): array
+{
+    if (!ehUuid($usuarioId)) falhar('Usuário inválido.');
+    $st = bd()->prepare(
+        'SELECT id, email, papel, empresa_id, loja_id FROM usuarios
+          WHERE id = ? AND papel = \'gestor\' AND empresa_id IS NOT NULL LIMIT 1');
+    $st->execute([$usuarioId]);
+    $alvo = $st->fetch();
+    if (!$alvo) falhar('Usuário não encontrado.', 404);
+    return $alvo;
+}
+
+function exigirLojaDaEmpresaId(string $lojaId, string $empresaId): void
+{
+    if (!ehUuid($lojaId) || !ehUuid($empresaId)) falhar('Identificador inválido.');
+    $st = bd()->prepare('SELECT 1 FROM lojas WHERE id = ? AND empresa_id = ? LIMIT 1');
+    $st->execute([$lojaId, $empresaId]);
+    if (!$st->fetchColumn()) falhar('Loja não encontrada.', 404);
 }
 
 // -----------------------------------------------------------------------------

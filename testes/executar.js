@@ -105,24 +105,27 @@ const mk = l => l.map((r, i) => ({
   diasDesdeFolga: null, folgaFixa: null, primeiroDomingo: null
 }));
 
+/* Equipes fictícias que reproduzem a composição de cargos e jornadas das duas
+   curvas de movimento usadas na regressão. Os nomes são identificadores de
+   teste, não pessoas. */
 const L330 = mk([
-  ['GUILHERME','GERENTE','07:00 AS 16:20',true], ['RENATA','SUBGERENTE','10:00 AS 18:20'],
-  ['QUESNEL','SUBGERENTE','14:40 AS 23:00'], ['ROBERTA','FARMACÊUTICO','07:00 AS 15:20'],
-  ['PRISCILA','FARMACÊUTICO','11:00 AS 19:20'], ['MIANGUE','FARMACÊUTICO','14:40 AS 23:00'],
-  ['JESSICA','BALCONISTA','08:00 AS 16:20'], ['LUCAS ARAUJO','BALCONISTA','10:00 AS 18:20'],
-  ['MIRIÃ','CAIXA','07:00 AS 15:20'], ['JULIA','CAIXA','11:00 AS 19:20'],
-  ['GIANE','CAIXA','13:00 AS 21:20'], ['LUCAS HATEWA','CAIXA','14:40 AS 23:00'],
-  ['LORENZO','AX. LOJA','09:00 AS 18:00']
+  ['COLABORADOR 01','GERENTE','07:00 AS 16:20',true], ['COLABORADOR 02','SUBGERENTE','10:00 AS 18:20'],
+  ['COLABORADOR 03','SUBGERENTE','14:40 AS 23:00'], ['COLABORADOR 04','FARMACÊUTICO','07:00 AS 15:20'],
+  ['COLABORADOR 05','FARMACÊUTICO','11:00 AS 19:20'], ['COLABORADOR 06','FARMACÊUTICO','14:40 AS 23:00'],
+  ['COLABORADOR 07','BALCONISTA','08:00 AS 16:20'], ['COLABORADOR 08','BALCONISTA','10:00 AS 18:20'],
+  ['COLABORADOR 09','CAIXA','07:00 AS 15:20'], ['COLABORADOR 10','CAIXA','11:00 AS 19:20'],
+  ['COLABORADOR 11','CAIXA','13:00 AS 21:20'], ['COLABORADOR 12','CAIXA','14:40 AS 23:00'],
+  ['COLABORADOR 13','AX. LOJA','09:00 AS 18:00']
 ]);
 const L332 = mk([
-  ['MAYARA','GERENTE','07:00 AS 16:20',true], ['MIRIAN','SUB/FARMA','07:00 AS 15:20'],
-  ['VANDERLEIA','SUBGERENTE','14:40 AS 23:00'], ['EDUARDA','SUBGERENTE','14:40 AS 23:00'],
-  ['LETICIA','FARMACÊUTICO','11:00 AS 19:20'], ['ANA PAULA','FARMACÊUTICO','14:40 AS 23:00'],
-  ['MARIA','BALCONISTA','09:00 AS 18:00'], ['ANNA','BALCONISTA','12:00 AS 20:20'],
-  ['RAQUEL','CAIXA','07:00 AS 15:20'], ['NICOLE','CAIXA','07:00 AS 15:20'],
-  ['FELIPE','CAIXA','13:00 AS 21:20'], ['ELOISA','CAIXA','14:40 AS 23:00'],
-  ['ESMERALDA','CAIXA','14:40 AS 23:00'], ['ALINE','CAIXA','14:40 AS 23:00'],
-  ['LIVIA','REPOSITOR','08:00 AS 17:00'], ['ROSA','AX. LOJA','08:00 AS 17:00']
+  ['COLABORADOR 14','GERENTE','07:00 AS 16:20',true], ['COLABORADOR 15','SUB/FARMA','07:00 AS 15:20'],
+  ['COLABORADOR 16','SUBGERENTE','14:40 AS 23:00'], ['COLABORADOR 17','SUBGERENTE','14:40 AS 23:00'],
+  ['COLABORADOR 18','FARMACÊUTICO','11:00 AS 19:20'], ['COLABORADOR 19','FARMACÊUTICO','14:40 AS 23:00'],
+  ['COLABORADOR 20','BALCONISTA','09:00 AS 18:00'], ['COLABORADOR 21','BALCONISTA','12:00 AS 20:20'],
+  ['COLABORADOR 22','CAIXA','07:00 AS 15:20'], ['COLABORADOR 23','CAIXA','07:00 AS 15:20'],
+  ['COLABORADOR 24','CAIXA','13:00 AS 21:20'], ['COLABORADOR 25','CAIXA','14:40 AS 23:00'],
+  ['COLABORADOR 26','CAIXA','14:40 AS 23:00'], ['COLABORADOR 27','CAIXA','14:40 AS 23:00'],
+  ['COLABORADOR 28','REPOSITOR','08:00 AS 17:00'], ['COLABORADOR 29','AX. LOJA','08:00 AS 17:00']
 ]);
 
 const base = {cicloDomingo:3, maxSeq:6, minFarma:2, minSubger:1, subgerFds:true,
@@ -248,7 +251,7 @@ conferir('âncora de agosto mantém o ciclo de outubro para C',
    na lista era tratada como histórico de domingos trabalhados e forçava uma
    segunda folga para a terceira farmacêutica no primeiro domingo disponível. */
 const farmasSemHistorico = [
-  'ROBERTA', 'PRISCILA', 'MIANGUE'
+  'COLABORADOR 04', 'COLABORADOR 05', 'COLABORADOR 06'
 ].map((nome, i) => ({
   id:'farm' + i, nome, cargo:'FARMACÊUTICO', horario:['07:00', '11:00', '14:40'][i], ativo:true, ausencias:[]
 }));
@@ -261,7 +264,7 @@ conferir('sem domingo informado não presume histórico para farmacêuticos',
 /* Duas âncoras iguais são uma escolha do usuário: ambas devem permanecer,
    mesmo que a cobertura do cargo fique menor naquele domingo. */
 const farmasComConflito = [
-  ['ROBERTA', '2026-11-15'], ['PRISCILA', '2026-11-15'], ['MIANGUE', '2026-11-29']
+  ['COLABORADOR 04', '2026-11-15'], ['COLABORADOR 05', '2026-11-15'], ['COLABORADOR 06', '2026-11-29']
 ].map(([nome, primeiroDomingo], i) => ({
   id:'conflito' + i, nome, cargo:'FARMACÊUTICO', horario:['07:00', '11:00', '14:40'][i], ativo:true, ausencias:[], primeiroDomingo
 }));
@@ -281,14 +284,14 @@ const paramsDomingoAncorado = Object.assign({}, base, {
   inicio:'2026-12-11', fim:'2027-01-10', minCaixa:2, minBalcao:4,
   minFarma:2, minSubger:1, minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}
 });
-const farmaPriscila = equipe => equipe.find(c => c.nome === 'PRISCILA');
-const l330PriscilaAncorada = JSON.parse(JSON.stringify(L330));
-farmaPriscila(l330PriscilaAncorada).primeiroDomingo = '2026-11-22';
-const resDomingoAncorado = E.gerarEscala(l330PriscilaAncorada, paramsDomingoAncorado);
-conferir('âncora de Priscila reserva a fase antes das colegas automáticas',
-  maiorFolgaDeCargoNoDomingo(resDomingoAncorado, l330PriscilaAncorada, 'FARMACÊUTICO') <= 1 ? 1 : 0, 1);
-conferir('âncora de Priscila mantém o ciclo em dezembro/janeiro',
-  JSON.stringify(domingosDeFolga(resDomingoAncorado, farmaPriscila(l330PriscilaAncorada))) ===
+const farmaAncorada = equipe => equipe.find(c => c.nome === 'COLABORADOR 05');
+const l330FarmaAncorada = JSON.parse(JSON.stringify(L330));
+farmaAncorada(l330FarmaAncorada).primeiroDomingo = '2026-11-22';
+const resDomingoAncorado = E.gerarEscala(l330FarmaAncorada, paramsDomingoAncorado);
+conferir('âncora da farmacêutica reserva a fase antes das colegas automáticas',
+  maiorFolgaDeCargoNoDomingo(resDomingoAncorado, l330FarmaAncorada, 'FARMACÊUTICO') <= 1 ? 1 : 0, 1);
+conferir('âncora da farmacêutica mantém o ciclo em dezembro/janeiro',
+  JSON.stringify(domingosDeFolga(resDomingoAncorado, farmaAncorada(l330FarmaAncorada))) ===
   '["2026-12-13","2027-01-03"]' ? 1 : 0, 1);
 
 /* Estado transportado de uma grade só existe quando a linha cobre o período
@@ -349,6 +352,364 @@ conferir('validação acusa descanso menor que 11h',
 conferir('verificador independente acusa descanso menor que 11h',
   verificar(resInterjornada, eqInterjornada, pInterjornada, {}).some(v=>v.regra==='R11-interjornada') ? 1 : 0, 1);
 
+/* Turno que atravessa a meia-noite (16:00 às 01:00 do dia seguinte) entrando às 10:00
+   do dia seguinte tem apenas 9h de descanso e deve ser acusado como interjornada. */
+const eqMeiaNoite = [{id:'mn1', nome:'TURNO MADRUGADA', cargo:'CAIXA', horario:'16:00 AS 01:00',
+  jornada:{modelo:'', entrada:'16:00', saida:'01:00', intervalo:60}, ativo:true, ausencias:[]}];
+const resMeiaNoite = E.gerarEscala(eqMeiaNoite, pInterjornada);
+resMeiaNoite.grid.mn1 = ['','',''];
+resMeiaNoite.horas = {mn1:{1:'10:00 AS 18:20'}};
+conferir('turno que atravessa a meia-noite acusa descanso menor que 11h',
+  E.validar(resMeiaNoite, eqMeiaNoite).alertas.some(a=>a.tipo==='interjornada' && a.obrigatoria===true) &&
+  verificar(resMeiaNoite, eqMeiaNoite, pInterjornada, {}).some(v=>v.regra==='R11-interjornada') ? 1 : 0, 1);
+
+/* Passagem entre períodos contíguos: saída às 23:00 no último dia do período anterior
+   e entrada às 07:00 no primeiro dia do período seguinte (8h de descanso). */
+const estadoAntTurno = E.estadoFinalDaGrade(
+  {ij1:['X','']},
+  '2026-10-31',
+  '2026-11-01',
+  {horas:{}, participantes:eqInterjornada}
+);
+const eqComSaidaAnterior = eqInterjornada.map(c => Object.assign({}, c, estadoAntTurno[c.id]));
+const resTransicao = E.gerarEscala(eqComSaidaAnterior, pInterjornada);
+resTransicao.grid.ij1 = ['','',''];
+resTransicao.horas = {ij1:{0:'07:00 AS 15:20'}};
+const valTransicao = E.validar(resTransicao, eqComSaidaAnterior);
+conferir('descanso insuficiente na passagem entre períodos é acusado no dia 0',
+  valTransicao.alertas.some(a=>a.tipo==='interjornada' && a.dia===0 && a.transicaoPeriodo===true && a.obrigatoria===true) &&
+  verificar(resTransicao, eqComSaidaAnterior, pInterjornada, {}).some(v=>v.regra==='R11-interjornada') ? 1 : 0, 1);
+
+/* Jornadas incompletas: nunca inventar saída onde só há entrada, e sinalizar lacuna. */
+const colabIncompleto = {id:'inc1', nome:'HORARIO PARCIAL', cargo:'CAIXA', horario:'08:00', jornada:null, ativo:true, ausencias:[]};
+conferir('jornada incompleta não inventa saída padrão',
+  E.jornadaPadrao(colabIncompleto) === null && E.saidaDoDia(colabIncompleto, 0, {horas:{}}) === null ? 1 : 0, 1);
+const resIncompleto = {
+  days: E.listDays('2026-11-02', '2026-11-04'),
+  grid: {inc1:['','','X']},
+  ativos: [colabIncompleto],
+  params: pInterjornada,
+  horas: {}
+};
+const valIncompleto = E.validar(resIncompleto, [colabIncompleto]);
+conferir('jornada incompleta sinaliza lacuna sem fabricar violação de 11h',
+  valIncompleto.alertas.some(a=>a.tipo==='jornada-incompleta' && a.lacuna===true && a.obrigatoria===false) &&
+  !valIncompleto.alertas.some(a=>a.tipo==='interjornada') &&
+  verificar(resIncompleto, [colabIncompleto], pInterjornada, {}).some(v=>v.regra==='R11-interjornada-lacuna-nota') ? 1 : 0, 1);
+
+/* Demanda positiva com disponibilidade zero: quando minFarma > 0 ou minSubger > 0
+   e não há ninguém disponível (ou todos de férias), a insuficiência e o impedimento
+   precisam aparecer explicitamente nos alertas e no verificador. */
+const eqSemFarmaSubger = [{id:'cx1', nome:'CAIXA UNICO', cargo:'CAIXA', horario:'08:00 AS 16:20',
+  jornada:{entrada:'08:00', saida:'16:20', intervalo:60}, ativo:true, ausencias:[]}];
+const pDemandaSemDisp = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0,
+  inicio:'2026-11-02', fim:'2026-11-03', minCaixa:1, minBalcao:0, minFarma:2, minSubger:1};
+const resSemDisp = {
+  days: E.listDays('2026-11-02', '2026-11-03'),
+  grid: {cx1:['','']},
+  ativos: eqSemFarmaSubger,
+  params: pDemandaSemDisp,
+  horas: {}
+};
+const valSemDisp = E.validar(resSemDisp, eqSemFarmaSubger);
+const verSemDisp = verificar(resSemDisp, eqSemFarmaSubger, pDemandaSemDisp, {});
+conferir('demanda positiva com disponibilidade zero acusa falta de farmacêutico e subgerente',
+  valSemDisp.alertas.some(a=>a.tipo==='cobertura' && a.impedimento===true && a.txt.includes('SEM farmacêutico')) &&
+  valSemDisp.alertas.some(a=>a.tipo==='cobertura' && a.impedimento===true && a.txt.includes('subgerente 0/1')) &&
+  verSemDisp.some(v=>v.regra==='R7-farma-zero') &&
+  verSemDisp.some(v=>v.regra==='R7-subgerente') ? 1 : 0, 1);
+
+/* Separação entre restrições obrigatórias, preferências e observações em validar(). */
+const colabAusenciaViolada = {
+  id:'av1', nome:'COLAB FERIAS', cargo:'BALCONISTA', horario:'08:00 AS 16:20',
+  folgaFixa:2, ativo:true, ausencias:[{tipo:'F', ini:'2026-11-02', fim:'2026-11-02'}]
+};
+const resAusenciaViolada = {
+  days: E.listDays('2026-11-01', '2026-11-07'),
+  grid: {av1:['','','X','','X','','']}, // dia 02/11 (seg) deveria ser F; folgas isoladas na semana sem folgar na terça (folgaFixa=2 -> quarta=3, terça=2)
+  ativos: [colabAusenciaViolada],
+  params: {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0, minCaixa:0, minBalcao:0, minFarma:0, minSubger:0},
+  horas: {}
+};
+resAusenciaViolada.grid.av1 = ['','','','X','','X','']; // 03/11 (terça, diaFixo=2) trabalha; folgas isoladas em qua (3) e sex (5)
+const valSeparacao = E.validar(resAusenciaViolada, [colabAusenciaViolada]);
+conferir('ausência violada é classificada como restrição obrigatória que bloqueia publicação',
+  valSeparacao.alertas.some(a=>a.tipo==='ausencia' && a.obrigatoria===true && a.categoria==='obrigatoria') &&
+  valSeparacao.resumo.podePublicar === false ? 1 : 0, 1);
+conferir('folga fixa e folga isolada são classificadas como preferências (não obrigatórias)',
+  valSeparacao.alertas.some(a=>a.tipo==='dia-fixo' && a.obrigatoria===false && a.categoria==='preferencia') &&
+  valSeparacao.alertas.some(a=>a.tipo==='isolada' && a.obrigatoria===false && a.categoria==='preferencia') ? 1 : 0, 1);
+
+/* Perfil operacional explícito: a folga de fim de semana é política da casa, não
+   exigência legal. O perfil da loja diz quais dias, e o alerta cita o perfil que
+   decidiu em vez de apresentar a regra como obrigação universal. */
+const colabPerfil = {id:'pf1', nome:'PESSOA PERFIL', cargo:'BALCONISTA', horario:'08:00 AS 16:20',
+  perfil:'folga-segunda', ativo:true, ausencias:[]};
+const pPerfil = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0,
+  minCaixa:0, minBalcao:0, minFarma:0, minSubger:0,
+  perfis:{'folga-segunda':{id:'folga-segunda', nome:'Apoio — folga na segunda',
+    base:'politica-da-casa', regras:{folgaFixaSemanal:[1]}}}};
+const resPerfil = {
+  days: E.listDays('2026-11-02', '2026-11-03'),   // 02/11 é segunda-feira
+  grid: {pf1:['','']},
+  ativos: [colabPerfil],
+  params: pPerfil,
+  horas: {}
+};
+const valPerfil = E.validar(resPerfil, [colabPerfil]);
+const verPerfil = verificar(resPerfil, [colabPerfil], pPerfil, {});
+conferir('folga fixa do perfil é cobrada citando o perfil e a base de política da casa',
+  valPerfil.alertas.some(a=>a.tipo==='perfil-folga-fixa' && a.obrigatoria===true
+    && a.base==='politica-da-casa' && a.txt.includes('Apoio — folga na segunda')) &&
+  verPerfil.some(v=>v.regra==='R6-perfil-folga-fixa') ? 1 : 0, 1);
+
+/* Sem perfis configurados, o gerente mantém sábado e domingo: a configuração
+   existente continua valendo até uma alteração explícita. */
+const colabGerente = {id:'gr1', nome:'GERENTE', cargo:'GERENTE', horario:'08:00 AS 16:20',
+  gerente:true, ativo:true, ausencias:[]};
+const pSemPerfis = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0,
+  minCaixa:0, minBalcao:0, minFarma:0, minSubger:0};
+const resGerente = {
+  days: E.listDays('2026-11-07', '2026-11-08'),   // sábado e domingo
+  grid: {gr1:['','']},
+  ativos: [colabGerente],
+  params: pSemPerfis,
+  horas: {}
+};
+conferir('loja sem perfis preserva a folga de fim de semana do gerente',
+  E.validar(resGerente, [colabGerente]).alertas.filter(a=>a.tipo==='perfil-folga-fixa').length === 2 &&
+  verificar(resGerente, [colabGerente], pSemPerfis, {}).filter(v=>v.regra==='R6-perfil-folga-fixa').length === 2 ? 1 : 0, 1);
+
+/* Mínimo de cobertura: a meta avisa, o piso obrigatório bloqueia. Os dois convivem
+   para a mesma função, e o piso só existe onde a loja o declarou. */
+const eqPiso = [
+  {id:'cx_a', nome:'CAIXA A', cargo:'CAIXA', horario:'08:00 AS 16:20', ativo:true, ausencias:[]},
+  {id:'cx_b', nome:'CAIXA B', cargo:'CAIXA', horario:'08:00 AS 16:20', ativo:true, ausencias:[]},
+];
+const basePiso = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0,
+  minBalcao:0, minFarma:0, minSubger:0};
+const montarPiso = params => ({
+  days: E.listDays('2026-11-02', '2026-11-03'),
+  grid: {cx_a:['',''], cx_b:['X','X']},          // só uma pessoa trabalha
+  ativos: eqPiso, params, horas: {}
+});
+const pComPiso = Object.assign({}, basePiso, {minCaixa:2, minCaixaObrigatorio:2});
+const resComPiso = montarPiso(pComPiso);
+const valComPiso = E.validar(resComPiso, eqPiso);
+conferir('piso obrigatório de cobertura bloqueia a publicação',
+  valComPiso.alertas.some(a=>a.tipo==='cobertura-minima' && a.obrigatoria===true) &&
+  valComPiso.resumo.podePublicar === false &&
+  verificar(resComPiso, eqPiso, pComPiso, {}).some(v=>v.regra==='R12-piso-obrigatorio') ? 1 : 0, 1);
+
+const pSoMeta = Object.assign({}, basePiso, {minCaixa:2});
+const resSoMeta = montarPiso(pSoMeta);
+const valSoMeta = E.validar(resSoMeta, eqPiso);
+conferir('mesma falta sem piso declarado continua aviso e permite publicar',
+  valSoMeta.alertas.some(a=>a.tipo==='cobertura' && a.obrigatoria===false) &&
+  valSoMeta.resumo.podePublicar === true &&
+  verificar(resSoMeta, eqPiso, pSoMeta, {}).every(v=>v.regra!=='R12-piso-obrigatorio') ? 1 : 0, 1);
+
+/* Piso obrigatório impossível ainda bloqueia. A indisponibilidade da equipe é
+   registrada como informação (impedimento), mas não rebaixa a obrigação a
+   preferência: quem abre mão do piso é quem administra a loja. */
+const eqPisoFerias = [
+  {id:'cx_c', nome:'CAIXA C', cargo:'CAIXA', horario:'08:00 AS 16:20', ativo:true,
+   ausencias:[{tipo:'F', ini:'2026-11-02', fim:'2026-11-03'}]},
+];
+const pPisoImpossivel = Object.assign({}, basePiso, {minCaixa:1, minCaixaObrigatorio:1});
+const resPisoImpossivel = {
+  days: E.listDays('2026-11-02', '2026-11-03'),
+  grid: {cx_c:['F','F']},
+  ativos: eqPisoFerias, params: pPisoImpossivel, horas: {}
+};
+const valPisoImpossivel = E.validar(resPisoImpossivel, eqPisoFerias);
+conferir('piso obrigatório impossível continua bloqueando e registra a indisponibilidade',
+  valPisoImpossivel.alertas
+    .some(a=>a.tipo==='cobertura-minima' && a.obrigatoria===true && a.impedimento===true) &&
+  valPisoImpossivel.resumo.podePublicar === false &&
+  verificar(resPisoImpossivel, eqPisoFerias, pPisoImpossivel, {})
+    .some(v=>v.regra==='R12-piso-obrigatorio') ? 1 : 0, 1);
+
+/* ------------------------------------------------------------------ */
+console.log('\n=== 3b. Cobertura intradiária por função ===\n');
+
+const COB = require('../src/motor/cobertura.js');
+const SEG = '2026-11-02';            // segunda-feira
+const TER = '2026-11-03';            // terça-feira
+
+/* Monta um cenário de um ou dois dias com jornadas estruturadas. */
+function cenarioIntra(equipe, params, grade, fim){
+  const dias = E.listDays(SEG, fim || SEG);
+  const grid = {};
+  equipe.forEach(c=>{ grid[c.id] = grade[c.id] || dias.map(()=>''); });
+  const res = {days:dias, grid, ativos:equipe, params, horas:{}};
+  return {res, analise: COB.analisarCobertura(res, equipe, params, {jornada: E.jornadaParaCobertura})};
+}
+const semIntervalo = (entrada, saida) => ({entrada, saida, intervalos:[]});
+const pessoa = (id, nome, cargo, jornada) => ({id, nome, cargo, jornada, ativo:true, ausencias:[]});
+
+/* (a) Profissionais concentrados no mesmo turno deixam a tarde descoberta.
+   Duas pessoas no dia cumprem qualquer mínimo diário de 2 — e mesmo assim a
+   loja fica sem caixa das 14h às 20h. É exatamente o furo que o mínimo diário
+   não enxerga. */
+const eqConcentrada = [
+  pessoa('k1','CAIXA UM','CAIXA', semIntervalo('08:00','14:00')),
+  pessoa('k2','CAIXA DOIS','CAIXA', semIntervalo('08:00','14:00')),
+];
+const pConcentrada = {
+  expediente:{'1':[{ini:'08:00', fim:'20:00'}]},
+  faixas:{'1':[{funcao:'caixa', ini:'08:00', fim:'20:00', obrigatorio:1}]},
+};
+const concentrada = cenarioIntra(eqConcentrada, pConcentrada, {});
+conferir('concentração no mesmo turno acusa a faixa descoberta que o mínimo diário não vê',
+  concentrada.analise.resumo.bloqueios === 1 &&
+  concentrada.analise.alertas.some(a=>a.txt.includes('14:00–20:00') && a.obrigatoria===true) ? 1 : 0, 1);
+
+/* (b) Intervalo descoberto: o único caixa almoça e ninguém cobre. */
+const eqAlmoco = [
+  Object.assign(pessoa('a1','CAIXA UNICO','CAIXA', null),
+    {jornada:{entrada:'08:00', saida:'18:00', intervalos:[{ini:'12:00', fim:'13:00'}]}}),
+];
+const pAlmoco = {
+  expediente:{'1':[{ini:'08:00', fim:'18:00'}]},
+  faixas:{'1':[{funcao:'caixa', ini:'08:00', fim:'18:00', obrigatorio:1}]},
+};
+const almocoDescoberto = cenarioIntra(eqAlmoco, pAlmoco, {});
+conferir('intervalo descoberto vira bloqueio na faixa exata do almoço',
+  almocoDescoberto.analise.resumo.bloqueios === 1 &&
+  almocoDescoberto.analise.alertas.some(a=>a.txt.includes('12:00–13:00')) ? 1 : 0, 1);
+
+/* (c) Intervalo coberto por substituição: mesma escala, mais um caixa cruzando
+   o horário do almoço. Não pode sobrar alerta. */
+const eqSubstituto = eqAlmoco.concat([pessoa('a2','CAIXA APOIO','CAIXA', semIntervalo('11:30','14:00'))]);
+const almocoCoberto = cenarioIntra(eqSubstituto, pAlmoco, {});
+conferir('intervalo coberto por substituição não gera alerta',
+  almocoCoberto.analise.resumo.bloqueios, 0, '<=');
+
+/* (d) Turno atravessando a meia-noite: quem entra 20:00 e sai 02:00 cobre o
+   começo do dia seguinte, e isso precisa ser contado no dia seguinte. */
+const eqNoturna = [pessoa('n1','NOTURNO','CAIXA', semIntervalo('20:00','02:00'))];
+const pNoturna = {
+  expediente:{'1':[{ini:'20:00', fim:'00:00'}], '2':[{ini:'00:00', fim:'02:00'}]},
+  faixas:{'1':[{funcao:'caixa', ini:'20:00', fim:'00:00', obrigatorio:1}],
+          '2':[{funcao:'caixa', ini:'00:00', fim:'02:00', obrigatorio:1}]},
+};
+const noturna = cenarioIntra(eqNoturna, pNoturna, {}, TER);
+conferir('turno que atravessa a meia-noite cobre o início do dia seguinte',
+  noturna.analise.resumo.bloqueios === 0 &&
+  noturna.analise.dias[1].segmentos.some(s=>s.iniTexto==='00:00' && s.escalados===1) ? 1 : 0, 1);
+
+/* (e) Troca de turno sem lacuna: um sai 14:00, outro entra 14:00. Com limites
+   semiabertos não há buraco às 14:00 nem dupla contagem. */
+const eqTroca = [
+  pessoa('t1','MANHA','CAIXA', semIntervalo('08:00','14:00')),
+  pessoa('t2','TARDE','CAIXA', semIntervalo('14:00','20:00')),
+];
+const pTroca = {
+  expediente:{'1':[{ini:'08:00', fim:'20:00'}]},
+  faixas:{'1':[{funcao:'caixa', ini:'08:00', fim:'20:00', obrigatorio:1, meta:1}]},
+};
+const troca = cenarioIntra(eqTroca, pTroca, {});
+conferir('troca de turno exata não abre lacuna nem conta a mesma vaga duas vezes',
+  troca.analise.resumo.bloqueios === 0 &&
+  troca.analise.dias[0].segmentos.every(s=>s.escalados===1) ? 1 : 0, 1);
+
+/* (f) Dia fechado: nenhuma falta de cobertura, mesmo sem ninguém escalado. */
+const pFechada = {
+  expediente:{'1':false},
+  faixas:{'1':[{funcao:'caixa', ini:'08:00', fim:'20:00', obrigatorio:2}]},
+};
+const fechada = cenarioIntra(eqConcentrada, pFechada, {k1:['X'], k2:['X']});
+conferir('dia fechado não recebe falta de cobertura',
+  fechada.analise.resumo.bloqueios === 0 && fechada.analise.resumo.diasFechados === 1 ? 1 : 0, 1);
+
+/* (g) Dados incompletos. Três situações que não podem ser confundidas:
+   jornada ausente, intervalo declarado vazio e intervalo desconhecido. */
+const eqSemJornada = [pessoa('s1','SEM HORARIO','CAIXA', null)];
+const semJornada = cenarioIntra(eqSemJornada, pTroca, {});
+conferir('jornada ausente vira lacuna e não presença zero silenciosa',
+  semJornada.analise.resumo.lacunas === 1 &&
+  semJornada.analise.lacunas[0].motivo === 'jornada-incompleta' ? 1 : 0, 1);
+
+const eqIntervaloDesconhecido = [
+  Object.assign(pessoa('d1','COM ALMOCO','CAIXA', null),
+    {jornada:{entrada:'08:00', saida:'18:00', intervalo:60}}),   // duração sem horário
+];
+const intervaloDesconhecido = cenarioIntra(eqIntervaloDesconhecido, pAlmoco, {});
+conferir('intervalo de horário desconhecido é lacuna, distinta de "sem intervalo"',
+  intervaloDesconhecido.analise.resumo.lacunas === 1 &&
+  intervaloDesconhecido.analise.lacunas[0].motivo === 'intervalo-desconhecido' ? 1 : 0, 1);
+
+conferir('intervalo declarado vazio significa sem intervalo e não gera lacuna',
+  almocoCoberto.analise.lacunas.filter(l=>l.colab==='CAIXA APOIO').length, 0, '<=');
+
+/* (h) Lacuna não contorna bloqueio: a faixa continua descoberta porque a outra
+   pessoa, essa sim conhecida, não cobre o horário. */
+const eqLacunaEBloqueio = eqSemJornada.concat([pessoa('s2','CAIXA MANHA','CAIXA', semIntervalo('08:00','12:00'))]);
+const lacunaEBloqueio = cenarioIntra(eqLacunaEBloqueio, pTroca, {});
+conferir('faltar dado não libera o bloqueio da faixa descoberta',
+  lacunaEBloqueio.analise.resumo.bloqueios > 0 &&
+  lacunaEBloqueio.analise.resumo.lacunas > 0 ? 1 : 0, 1);
+
+/* (i) Meta opcional não atendida: aviso, nunca bloqueio. */
+const pMeta = {
+  expediente:{'1':[{ini:'08:00', fim:'20:00'}]},
+  faixas:{'1':[{funcao:'caixa', ini:'08:00', fim:'20:00', meta:3}]},
+};
+const soMeta = cenarioIntra(eqTroca, pMeta, {});
+conferir('meta de faixa não atendida gera aviso e não bloqueio',
+  soMeta.analise.resumo.bloqueios === 0 && soMeta.analise.resumo.avisos > 0 ? 1 : 0, 1);
+
+/* (j) Cargos atendem função só quando declarado: repositor não é balcão por
+   conta própria, e quem acumula competências conta uma vez no total. */
+const eqRepositor = [pessoa('r1','REPOSITOR','REPOSITOR', semIntervalo('08:00','18:00'))];
+const pBalcao = {
+  expediente:{'1':[{ini:'08:00', fim:'18:00'}]},
+  faixas:{'1':[{funcao:'balcao', ini:'08:00', fim:'18:00', obrigatorio:1}]},
+};
+const repositor = cenarioIntra(eqRepositor, pBalcao, {});
+conferir('repositor não conta como balcão sem declaração explícita',
+  repositor.analise.resumo.bloqueios > 0 ? 1 : 0, 1);
+
+const pRepositorNoBalcao = Object.assign({}, pBalcao, {
+  funcoes:{balcao:{nome:'Balcão', cargos:['BALCONISTA','REPOSITOR']}},
+});
+const repositorDeclarado = cenarioIntra(eqRepositor, pRepositorNoBalcao, {});
+conferir('repositor conta como balcão quando a loja declara o cargo na função',
+  repositorDeclarado.analise.resumo.bloqueios, 0, '<=');
+
+/* Múltipla competência: SUB/FARMA atende farmacêutico e subgerente ao mesmo
+   tempo, mas é uma pessoa só — o total de presentes no segmento não pode
+   contá-la duas vezes. */
+const eqDuplaCompetencia = [pessoa('m1','SUB FARMA','SUB/FARMA', semIntervalo('08:00','18:00'))];
+const pDupla = {
+  expediente:{'1':[{ini:'08:00', fim:'18:00'}]},
+  faixas:{'1':[{funcao:'farmaceutico', ini:'08:00', fim:'18:00', obrigatorio:1},
+               {funcao:'subgerente',   ini:'08:00', fim:'18:00', obrigatorio:1}]},
+};
+const dupla = cenarioIntra(eqDuplaCompetencia, pDupla, {});
+conferir('múltipla competência atende duas funções sem virar duas pessoas',
+  dupla.analise.resumo.bloqueios === 0 &&
+  dupla.analise.dias[0].segmentos.length === 2 &&
+  dupla.analise.dias[0].segmentos.every(s=>s.totalPresentes===1) ? 1 : 0, 1);
+
+/* (k) Loja sem faixas configuradas não ganha cobrança nova: a etapa anterior
+   continua valendo exatamente como estava. */
+const semFaixas = cenarioIntra(eqTroca, {expediente:{'1':[{ini:'08:00', fim:'20:00'}]}}, {});
+conferir('loja sem faixas configuradas não passa a ser cobrada por horário',
+  semFaixas.analise.resumo.configurado === false &&
+  semFaixas.analise.resumo.bloqueios === 0 ? 1 : 0, 1);
+
+/* (l) Segmentação fina: uma lacuna de 10 minutos não pode sumir numa grade
+   grosseira de 30 ou 60 minutos. */
+const eqLacunaCurta = [
+  pessoa('c1','ANTES','CAIXA', semIntervalo('08:00','13:50')),
+  pessoa('c2','DEPOIS','CAIXA', semIntervalo('14:00','20:00')),
+];
+const lacunaCurta = cenarioIntra(eqLacunaCurta, pTroca, {});
+conferir('lacuna de 10 minutos aparece com o horário exato',
+  lacunaCurta.analise.alertas.some(a=>a.txt.includes('13:50–14:00')) ? 1 : 0, 1);
+
 /* ------------------------------------------------------------------ */
 console.log('\n=== 4. Documento impresso ===\n');
 
@@ -375,7 +736,7 @@ const repetidos = Documento.nomesDuplicadosDocumento([
 conferir('detecta nome com acento/espaços', repetidos.length, 1);
 conferir('não remove nomes duplicados', repetidos[0].quantidade, 2);
 conferir('mantém nomes distintos', Documento.nomesDuplicadosDocumento([
-  {nome:'Lucas Araújo'}, {nome:'Lucas Hatewa'}
+  {nome:'Pessoa Teste 1'}, {nome:'Pessoa Teste 2'}
 ]).length, 0, '<=');
 
 const pdfMinimo = Documento.gerarPdfEscala({

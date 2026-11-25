@@ -8,8 +8,9 @@ execute uma vez.
 ```
 empresas ──┬── perfis          um por usuário, liga ao auth
            └── lojas ──┬── colaboradores ── ausencias
-                       └── escalas
-registro_acoes                 quem gerou ou alterou cada escala
+                       ├── escalas
+                       └── supervisor_lojas ── usuários gestores
+registro_acoes                 quem gerou ou alterou cada escala e vínculo
 ```
 
 ## Isolamento
@@ -42,11 +43,21 @@ select relname, relrowsecurity
 `empresa_atual()` e `papel_atual()` são `security definer` para ler a tabela de
 perfis sem cair em recursão de política.
 
+## HostGator / MySQL
+
+Para uma base existente, siga primeiro o [roteiro de atualização e backup](../docs/11-atualizacao-hostgator.md).
+Depois aplique `banco/verificar-e-migrar.sql` atualizado: ele inclui as migrações
+002 a 008, inclusive `escala_versoes` e as colunas de concorrência/publicação da
+007. Confira os indicadores finais e `banco/conferir-atualizacao.sql` antes de
+publicar a API. A relação de supervisores também está disponível isoladamente em
+`banco/migracao-006-supervisor-multiloja.sql`. A migração copia os vínculos
+legados uma única vez e não restaura revogações em execuções posteriores.
+
 ## Ao criar tabela nova
 
 Três coisas, sempre:
 
-1. política RLS por empresa;
+1. política RLS por empresa quando for PostgreSQL;
 2. índice na coluna de ligação;
 3. registro em `docs/02-arquitetura.md`.
 

@@ -66,7 +66,8 @@ tecla digitada num campo de nome.
 ```
 empresas ──┬── perfis          (um por usuário, liga ao auth do Supabase)
            └── lojas ──┬── colaboradores ── ausencias
-                       └── escalas
+                       ├── escalas
+                       └── supervisor_lojas ── perfis gestores
 ```
 
 Três decisões:
@@ -81,6 +82,11 @@ consulta uma célula isolada.
 
 **`colaboradores` é tabela normal.** É a entidade que se edita, se lista e se
 ordena individualmente. JSONB aqui atrapalharia.
+
+**`supervisor_lojas` é uma relação explícita.** Um supervisor pode ter vários
+vínculos dentro da própria empresa. A autorização HostGator consulta essa
+relação em cada requisição; `usuarios.loja_id` permanece reservado para
+compatibilidade e para o vínculo individual de colaboradores.
 
 ## Isolamento entre empresas
 

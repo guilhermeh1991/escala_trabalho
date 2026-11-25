@@ -21,6 +21,12 @@ return [
     // e-mail com o seu próprio domínio tem muito menos chance de cair em spam.
     'email_remetente' => 'Escala <escala@seudominio.com.br>',
 
+    // Administradores da plataforma. Esta lista fica apenas no config.php,
+    // nunca vem do navegador e não transforma o usuário em admin de empresa.
+    'super_admins' => [
+        // 'plataforma@seudominio.com.br',
+    ],
+
     // (Opcional) Envio de e-mail via SMTP autenticado — mais confiável que o
     // mail() nativo do PHP, que às vezes é bloqueado pela hospedagem ou cai em spam.
     // Deixe 'smtp_host' vazio para continuar usando o mail() nativo.

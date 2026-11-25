@@ -25,14 +25,22 @@ async function chamar(arquivo, dados){
     // texto ou HTML. Mostrar o começo da resposta poupa horas de adivinhação.
     const trecho = texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
     console.error('Resposta não-JSON de ' + arquivo + ' (HTTP ' + r.status + '):', texto.slice(0, 2000));
-    throw new Error(
+    const erro = new Error(
       'O servidor respondeu algo inesperado (HTTP ' + r.status + ').' +
       (trecho ? ' Ele disse: "' + trecho + '"' : ' A resposta veio vazia.') +
       ' Avise o administrador do sistema.'
     );
+    erro.status = r.status;
+    erro.codigo = 'HTTP_' + r.status;
+    throw erro;
   }
   if(corpo && corpo.csrf) SESSAO.csrf = corpo.csrf;
-  if(!r.ok) throw new Error(corpo.erro || 'Falha na comunicação.');
+  if(!r.ok){
+    const erro = new Error(corpo.erro || 'Falha na comunicação.');
+    erro.status = r.status;
+    erro.codigo = r.status === 409 ? 'CONFLITO' : 'HTTP_' + r.status;
+    throw erro;
+  }
   return corpo;
 }
 
@@ -99,6 +107,7 @@ const DB = {
     const r = await auth({acao:'sessao'});
     SESSAO.usuario = r.usuario || null;
     SESSAO.empresa = r.empresa || null;
+    SESSAO.plataforma = r.plataforma === true;
     SESSAO.perfil  = r.usuario || null;     // nome usado pela tela
     return r;
   },
@@ -107,25 +116,29 @@ const DB = {
     return r.lojas || {};
   },
   async salvarLojas(lojas){
-    await dadosApi({acao:'salvar', lojas});
+    const envio = Object.fromEntries(Object.entries(lojas).map(([id,l])=>[id,Object.assign({},l,{_versao:l.versao})]));
+    const r = await dadosApi({acao:'salvar', lojas:envio, expected_versions:Object.fromEntries(Object.entries(lojas).map(([id,l])=>[id,l.versao||1]))});
+    Object.entries(r.versoes || {}).forEach(([id,versao])=>{ if(lojas[id]) lojas[id].versao = versao; });
+    return r;
   },
-  async carregarEscala(lojaId, inicio, fim){
-    const r = await dadosApi({acao:'carregar_escala', loja_id:lojaId, inicio, fim});
+  async carregarEscala(lojaId, inicio, fim, versao){
+    const r = await dadosApi({acao:'carregar_escala', loja_id:lojaId, inicio, fim, versao});
     if(!r.escala) return null;
-    // os horários ajustados viajam dentro de parametros; separá-los na volta
     const params = Object.assign({}, r.escala.params || {});
     const horas = params._horas || {};
     delete params._horas;
-    return Object.assign({}, r.escala, {inicio, fim, params, horas});
+    return Object.assign({}, r.escala, {inicio, fim, params, horas, snapshot:r.escala.snapshot || null});
   },
   async escalaAnterior(lojaId, inicio){
     const r = await dadosApi({acao:'escala_anterior', loja_id:lojaId, inicio});
     return r.escala || null;
   },
-  async salvarEscala(lojaId, inicio, fim, grade, params, horas, resumo, publicar){
+  async salvarEscala(lojaId, inicio, fim, grade, params, horas, resumo, publicar, snapshot, versao){
     const p = Object.assign({}, params || {}, {_horas: horas || {}});
-    await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:p,
-                    resumo:resumo || null, publicar:!!publicar});
+    return await dadosApi({acao:'salvar_escala', loja_id:lojaId, inicio, fim, grade, parametros:p,
+                    resumo:resumo || null, snapshot: snapshot || null,
+                    expected_version: versao == null ? null : versao,
+                    idempotency_key: (snapshot && snapshot.idempotency_key) || crypto.randomUUID(), publicar:!!publicar});
   },
   async listarEscalas(lojaId){
     const r = await dadosApi({acao:'listar_escalas', loja_id:lojaId});
@@ -146,7 +159,7 @@ const DB = {
 };
 
 /* ---------- store: mesma interface de sempre ---------- */
-let _timerSync = null, _pendente = null, _sincronizando = false;
+let _filaLojas = Promise.resolve();
 const store = {
   async del(chave){
     if(!chave.startsWith('escala:grade:')) return;
@@ -155,13 +168,13 @@ const store = {
     if(!lojaId || !inicio || !fim) return;
     await DB.excluirEscala(lojaId, inicio, fim);
   },
-  async get(chave){
+  async get(chave, versao){
     if(chave === 'escala:lojas') return await DB.carregarLojas();
     if(chave.startsWith('escala:grade:')){
       const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       if(!lojaId || !inicio || !fim) return null;
-      return await DB.carregarEscala(lojaId, inicio, fim);
+      return await DB.carregarEscala(lojaId, inicio, fim, versao);
     }
     return null;
   },
@@ -178,32 +191,30 @@ const store = {
     if(!lojaId || !inicio || !fim) throw new Error('Período inválido.');
     marcarSync('salvando');
     try{
-      await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas,
-                            valor.resumo, true);
-      marcarSync('salvo');
+      const retorno = await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas,
+                            valor.resumo, true, valor.snapshot, valor.versao);
+      marcarSync('salvo'); return retorno;
     }catch(e){ marcarSync('erro', erroAmigavel(e)); throw e; }
   },
   async set(chave, valor){
     if(chave === 'escala:lojas'){
-      _pendente = valor;
       marcarSync('salvando');
-      clearTimeout(_timerSync);
-      _timerSync = setTimeout(async ()=>{
-        if(_sincronizando){ _timerSync = setTimeout(()=>store.set(chave, _pendente), 600); return; }
-        _sincronizando = true;
-        try{ await DB.salvarLojas(_pendente); marcarSync('salvo'); }
-        catch(e){ marcarSync('erro', erroAmigavel(e)); }
-        finally{ _sincronizando = false; }
-      }, 700);
-      return;
+      const envio = _filaLojas.then(async ()=>{
+        await DB.salvarLojas(valor);
+        marcarSync('salvo');
+        return {ok:true};
+      });
+      _filaLojas = envio.catch(e=>{ marcarSync('erro', erroAmigavel(e)); });
+      return await envio;
     }
     if(chave.startsWith('escala:grade:')){
       const [, , lojaId, periodo] = chave.split(':');
       const [inicio, fim] = (periodo||'').split('_');
       try{
-        await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas,
-                              valor.resumo, false);
+        const retorno = await DB.salvarEscala(lojaId, inicio, fim, valor.grid, valor.params, valor.horas,
+                              valor.resumo, false, valor.snapshot, valor.versao);
         marcarSync('salvo');
+        return retorno;
       }catch(e){ marcarSync('erro', erroAmigavel(e)); throw e; }
     }
   }

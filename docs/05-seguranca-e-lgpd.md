@@ -77,11 +77,45 @@ que ela não está no arquivo gerado e falha se estiver.
 Quem cria a empresa vira `admin`. Quem entra por código de convite vira
 `gestor`. Use `leitor` para quem só precisa ver a escala pronta.
 
+## Autoridade das regras na publicação
+
+Quem decide se uma escala pode ser publicada é o servidor, com as regras que
+estão **no banco** — nunca as que chegam na requisição.
+
+Antes, a revalidação fazia `array_merge(parâmetros da loja, parâmetros
+recebidos)`: o payload tinha precedência. Um cliente que mandasse `maxSeq: 365`,
+`cicloDomingo: 99`, `folgasSemana: 1` ou `minInterjornada: 1` desligava o
+bloqueio correspondente sem tocar na configuração da loja. A grade continuava
+irregular; só a régua mudava.
+
+Hoje a separação é explícita. Toda chave que classifica ou afrouxa uma regra
+está em `CHAVES_DE_REGRA` (`api/comum.php`) e vem **somente** de
+`lojas.parametros`. Do payload, a revalidação aproveita apenas `_horas`, que é
+dado da escala em edição. Quando o navegador manda uma chave de regra diferente
+da configurada:
+
+1. a regra do banco prevalece na validação;
+2. a divergência volta na resposta, em `divergencias`, como observação;
+3. o fato é gravado em `registro_acoes` com a ação `parametros_divergentes`.
+
+Manipular o payload, portanto, não enfraquece bloqueio — e deixa rastro. Dois
+testes em `testes/api.sh` cobrem isso: um tenta afrouxar `maxSeq` e exige que o
+422 continue vindo; outro confere o registro na auditoria.
+
+Alterar uma regra de verdade exige a ação `salvar`, que passa por
+`exigirGestao`, respeita o escopo de loja do supervisor e incrementa
+`lojas.versao`. Permissão e versionamento não mudaram.
+
 ## Rastreabilidade
 
 A tabela `registro_acoes` guarda quem gerou ou alterou cada escala e quando.
 Atende ao dever de rastreabilidade e resolve a pergunta prática de "quem mudou
-a folga da Renata".
+a folga de um colaborador específico".
+
+O registro de publicação passou a incluir o estado de conformidade
+(`completa`, `parcial`, `reprovada`) e quantas regras não puderam ser
+conferidas. Assim o histórico distingue "validado e conforme" de "validado até
+onde os dados permitiram".
 
 ## Dados pessoais
 

@@ -99,12 +99,37 @@ seguidos. Metade da equipe é direcionada ao sábado e metade à segunda; sem is
 a segunda-feira fica deserta, porque o par sábado+domingo é sempre mais fácil
 de formar.
 
-## 5. Gerente
+## 5. Perfis operacionais
 
-> Folga todo sábado e domingo, ignorando as demais regras.
+> Folga fixa semanal vem do perfil da pessoa, não de uma exigência legal.
 
-Consequência operacional: a loja fica sem gerente todo fim de semana. Foi por
-isso que a regra do subgerente existe.
+Cada loja define seus perfis em `parametros.perfis`. Um perfil declara o nome
+que aparece nos alertas, a **base** da regra (`lei` ou `politica-da-casa`) e as
+regras em si:
+
+```json
+"perfis": {
+  "gerente-fds": {
+    "nome": "Gerente — folga no fim de semana",
+    "base": "politica-da-casa",
+    "regras": { "folgaFixaSemanal": [0, 6] }
+  }
+}
+```
+
+O colaborador aponta para um perfil pelo campo `perfil`. **Loja sem perfis
+configurados mantém o comportamento anterior**: quem está marcado como gerente
+folga sábado e domingo. Nada muda até alguém configurar perfis.
+
+Isso importa porque a folga de fim de semana do gerente nunca foi exigência da
+lei — é política da casa. O alerta agora diz qual perfil decidiu, em vez de
+apresentar a regra como obrigação universal. Pela mesma razão, a regra do 6x1
+(folga da semana além do domingo do ciclo) é marcada como `politica-da-casa`,
+enquanto limite de dias seguidos, ciclo de domingos, folgas semanais mínimas e
+descanso de 11h são marcados como `lei`.
+
+Consequência operacional do perfil de gerente: a loja fica sem gerente todo fim
+de semana. Foi por isso que a regra do subgerente existe.
 
 ## 6. Farmacêuticos
 
@@ -134,7 +159,7 @@ cobre. O sistema concede a folga e marca o dia.
 O alvo não é distribuição plana, e sim a **curva de movimento da loja**. Esta
 foi extraída das planilhas históricas:
 
-| | Loja 330 | Loja 332 |
+| | Unidade Aurora | Unidade Horizonte |
 |---|---|---|
 | Dia mais cheio | terça, 11 pessoas | terça, quinta e sábado, 12,8 |
 | Dia mais vazio | domingo, 7,3 | sexta, 9,2 |
@@ -145,6 +170,87 @@ simulações, 13 de 14 pessoas folgaram no mesmo domingo.
 
 Quando o campo fica zerado, o sistema deduz um alvo plano a partir da própria
 capacidade da equipe.
+
+## 8b. Meta e mínimo obrigatório
+
+Os mínimos de cobertura têm dois níveis, configuráveis por loja e por função:
+
+| Nível | Chave | Efeito |
+|---|---|---|
+| Meta | `minCaixa`, `minBalcao`, `minFarma`, `minSubger`, `minDia` | aviso; não impede publicar |
+| Piso obrigatório | as mesmas com sufixo `Obrigatorio` | **bloqueia a publicação** |
+
+O piso só existe onde a loja o declarou. Chave ausente significa "sem piso", e
+não zero — por isso as lojas já configuradas continuam exatamente como estavam:
+nenhuma meta vira bloqueio sem uma alteração explícita de quem administra.
+
+Quando não há gente disponível para alcançar o piso (férias, atestado, licença),
+o alerta registra a indisponibilidade no texto, **mas o piso continua
+bloqueando**. A distinção entre violação e impossibilidade da
+[decisão 0005](decisoes/0005-verificador-independente.md) vale para o gerador,
+que precisa produzir alguma escala; aqui a pergunta é se a escala pode ser
+publicada, e escassez de equipe não autoriza publicar uma escala que a própria
+loja declarou inaceitável. Ver
+[decisão 0011](decisoes/0011-cobertura-intradiaria.md).
+
+## 8c. Cobertura por faixa de horário
+
+O mínimo diário responde "quantas pessoas trabalharam neste dia". Não responde
+"havia alguém no caixa às 12h30". Uma loja pode ter nove pessoas no dia e ficar
+sem caixa durante o almoço, porque todas saem juntas.
+
+A cobertura intradiária responde a segunda pergunta. **É configuração opcional
+por loja**: sem faixas declaradas, nada muda e o mínimo diário segue valendo
+exatamente como está. Um mínimo diário nunca vira exigência contínua do
+expediente inteiro por conta própria.
+
+### Configuração
+
+| Chave | O que é |
+|---|---|
+| `expediente` | por dia da semana: janelas de funcionamento, ou `false` para fechado |
+| `faixas` | por dia da semana: lista de `{funcao, ini, fim, meta, obrigatorio}` |
+| `funcoes` | quais cargos atendem cada função |
+
+`meta` gera aviso; `obrigatorio` impede publicar. Fora do expediente e em dia
+fechado não há cobrança de cobertura.
+
+### Critérios de cálculo
+
+1. **Presença vem do que está cadastrado**: jornada estruturada, ajuste manual
+   de horário na grade, ou o texto legado quando traz entrada e saída. Nada é
+   inventado.
+2. **Intervalos são descontados.** Quem está no almoço não está no balcão.
+3. **Limites semiabertos `[entrada, saída)`.** Quem sai às 14:00 não conta às
+   14:00; quem entra às 14:00 conta. Assim a troca de turno exata não cria
+   buraco falso nem conta a mesma vaga duas vezes.
+4. **Segmentação nos instantes de mudança**, não em grade fixa de 30 ou 60
+   minutos. Uma lacuna de 10 minutos aparece como lacuna de 10 minutos.
+5. **Meia-noite**: o turno que termina às 02:00 contribui para o dia seguinte.
+6. **Cada pessoa conta uma vez.** Quem acumula competências (`SUB/FARMA` atende
+   farmacêutico e subgerente) satisfaz as duas funções sendo uma pessoa só; o
+   total de presentes no segmento não a duplica.
+
+### Cargos e funções
+
+Quais cargos atendem cada função é declaração explícita da loja. **Repositor e
+auxiliar não contam como balcão** a menos que a loja os inclua em
+`funcoes.balcao.cargos`. O padrão cobre caixa, balcão, farmacêutico e
+subgerente com os cargos de mesmo nome.
+
+### Dados faltantes
+
+Três situações distintas, que o sistema não confunde:
+
+| Situação | Tratamento |
+|---|---|
+| Jornada sem entrada e saída | lacuna: presença não verificável |
+| `intervalos: []` (lista vazia) | sem intervalo — presença cheia |
+| Duração de intervalo sem horário | lacuna: não se inventa o horário do almoço |
+
+Lacuna **não contorna bloqueio**: se a faixa está descoberta por quem tem dado
+conhecido, o bloqueio permanece e a lacuna é reportada à parte. A validação
+fica marcada como parcial.
 
 ## 9. Folga fixa
 

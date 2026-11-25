@@ -110,7 +110,7 @@ async function pintarMinhaEscala(periodo){
         ${seletor}
       </div>
       <p class="desc" style="margin:6px 0 18px">
-        ${dataBR(e.inicio)} a ${dataBR(e.fim)}${e.publicada_em
+        ${dataBR(e.inicio)} a ${dataBR(e.fim)}${e.versao != null ? ' · versão ' + esc(e.versao) : ''}${e.publicada_em
           ? ' · publicada em ' + new Date(e.publicada_em.replace(' ','T')).toLocaleDateString('pt-BR')
           : ''}
       </p>
@@ -172,7 +172,7 @@ function aplicarPapel(){
     b.style.display = (soMinha && !paraTodos) ? 'none' : '';
   });
 
-  // colaborador não escolhe loja nem período de geração
+  // colaborador não escolhe loja; supervisor pode alternar entre suas lojas autorizadas
   const sel = $('#sel-loja');
   if(sel) sel.parentElement.style.display = soMinha ? 'none' : '';
 

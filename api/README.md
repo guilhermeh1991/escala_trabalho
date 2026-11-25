@@ -6,7 +6,7 @@ a base que todos usam.
 | Arquivo | Papel |
 |---|---|
 | `comum.php` | conexão, sessão, isolamento por empresa, limite de tentativas |
-| `auth.php` | cadastro, entrada, saída, recuperação de senha, convites |
+| `auth.php` | cadastro, entrada, saída, recuperação de senha, convites e vínculos de supervisores |
 | `dados.php` | lojas, colaboradores, ausências, escalas |
 | `config.php` | credenciais do banco — **não vai para o Git** |
 

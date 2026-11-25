@@ -17,3 +17,5 @@ depois, por quem não estava lá.
 | [0007](0007-xlsx-sem-biblioteca.md) | Gerar .xlsx sem biblioteca externa | aceita |
 | [0008](0008-banco-hostgator.md) | MySQL na HostGator em vez de Supabase | aceita |
 | [0009](0009-documentos-impressos.md) | Documento impresso sem identificação ambígua | aceita |
+| [0010](0010-regras-por-perfil-e-autoridade-do-banco.md) | Regra tem dono: perfil declarado e autoridade do banco | aceita |
+| [0011](0011-cobertura-intradiaria.md) | Cobertura medida por faixa de horário | aceita |

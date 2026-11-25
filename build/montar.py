@@ -33,6 +33,12 @@ template = ler('src/app/template.html')
 motor    = ler('src/motor/motor.js').replace(
     "if(typeof module !== 'undefined') module.exports",
     "if(typeof module !== 'undefined' && typeof module.exports !== 'undefined') module.exports")
+cobertura = ler('src/motor/cobertura.js').replace(
+    "if (typeof module !== 'undefined' && typeof module.exports !== 'undefined')\n"
+    "  module.exports = { analisarCobertura, funcoesDaLoja, atendePor, expedienteDoDia,\n"
+    "    faixasDoDia, presencaDoDia, minutosDe, horaDe, rotuloFim, FUNCOES_PADRAO };", "")
+if 'module.exports' in cobertura:
+    sys.exit('não foi possível remover a exportação Node de src/motor/cobertura.js')
 planilha = ler('src/motor/planilha.js').replace(
     "if (typeof module !== 'undefined') module.exports = { gerarXLSX, zipar, crc32 };", "")
 documento = ler('src/motor/documento.js').replace(
@@ -54,7 +60,7 @@ exigir(template, '/*ENGINE*/', 'ponto de injeção do motor')
 # ================================================================
 offline = template.replace('/*CSS_MINHA*/', '', 1)
 offline = offline.replace('<button data-view="minha" style="display:none">Minha escala</button>', '', 1)
-offline = offline.replace('/*ENGINE*/', motor + "\n\n" + planilha + "\n\n" + documento, 1)
+offline = offline.replace('/*ENGINE*/', cobertura + "\n\n" + motor + "\n\n" + planilha + "\n\n" + documento, 1)
 (DIST / 'escala-offline.html').write_text(offline, encoding='utf-8')
 
 # ================================================================
@@ -64,9 +70,9 @@ web = template.replace('/*CSS_MINHA*/', '', 1)
 web = web.replace('<button data-view="minha" style="display:none">Minha escala</button>', '', 1)
 
 # 1. biblioteca do Supabase no <head>
-exigir(web, '<title>Quadro de Escala — Bauru</title>', 'title')
-web = web.replace('<title>Quadro de Escala — Bauru</title>',
-"""<title>Quadro de Escala</title>
+exigir(web, '<title>Shiftflow — Exemplo</title>', 'title')
+web = web.replace('<title>Shiftflow — Exemplo</title>',
+"""<title>Shiftflow</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>""", 1)
 
 # 2. telas de acesso no lugar do login local
@@ -119,7 +125,7 @@ web = web.replace(
   "const mk = (l)=>l.map((r,i)=>({id:r[0].toLowerCase().replace(/[^a-z]/g,'')+i, nome:r[0], cargo:r[1], horario:r[2],",
   "const mk = (l)=>l.map((r,i)=>({nome:r[0], cargo:r[1], horario:r[2],", 1)
 
-web = web.replace('/*ENGINE*/', motor + "\n\n" + planilha + "\n\n" + documento, 1)
+web = web.replace('/*ENGINE*/', cobertura + "\n\n" + motor + "\n\n" + planilha + "\n\n" + documento, 1)
 (DIST / 'escala-web.html').write_text(web, encoding='utf-8')
 
 # ================================================================
@@ -133,8 +139,8 @@ css_minha = ler('src/app/minha-escala.css')
 hg = template.replace('/*CSS_MINHA*/', css_minha, 1)
 hg = hg.replace('<button data-view="minha" style="display:none">Minha escala</button>',
                 '<button data-view="minha" style="display:none">Minha escala</button>', 1)
-hg = hg.replace('<title>Quadro de Escala — Bauru</title>',
-                '<title>Quadro de Escala</title>', 1)
+hg = hg.replace('<title>Shiftflow — Exemplo</title>',
+                '<title>Shiftflow</title>', 1)
 
 ini = hg.index('<section id="login">')
 fim = hg.index('</section>', ini) + len('</section>')
@@ -174,7 +180,7 @@ hg = hg.replace("pintarParams(); pintarEquipe(); pintarAus(); pintarUsers(); car
 hg = hg.replace(
   "const mk = (l)=>l.map((r,i)=>({id:r[0].toLowerCase().replace(/[^a-z]/g,'')+i, nome:r[0], cargo:r[1], horario:r[2],",
   "const mk = (l)=>l.map((r,i)=>({nome:r[0], cargo:r[1], horario:r[2],", 1)
-hg = hg.replace('/*ENGINE*/', motor + "\n\n" + planilha + "\n\n" + documento + "\n\n" + php_minha, 1)
+hg = hg.replace('/*ENGINE*/', cobertura + "\n\n" + motor + "\n\n" + planilha + "\n\n" + documento + "\n\n" + php_minha, 1)
 exigir(hg, 'pintarAcessos();', 'gancho de papel')
 hg = hg.replace('  pintarAcessos();', '  pintarAcessos();\n  aplicarPapel();', 1)
 (DIST / 'escala-hostgator.html').write_text(hg, encoding='utf-8')

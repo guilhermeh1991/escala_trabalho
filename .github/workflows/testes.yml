@@ -1,6 +1,5 @@
 name: testes e deploy
-
-on:
+'on':
   push:
     branches: [main]
   pull_request:
@@ -20,13 +19,21 @@ jobs:
         run: npx eslint src/ testes/ || true
       - name: Suíte do motor
         run: node testes/executar.js
+      - name: Processamento da cobertura intradiária (20, 50 e 100 pessoas)
+        timeout-minutes: 10
+        run: node testes/bench-cobertura.js
 
   api:
-    name: Backend PHP
+    name: Backend PHP (MySQL ${{ matrix.mysql }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql: ['5.7.44', '8.0']
     services:
       mysql:
-        image: mysql:8
+        image: mysql:${{ matrix.mysql }}
         env:
           MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
           MYSQL_DATABASE: teste_escala
@@ -69,49 +76,140 @@ jobs:
               sys.exit('tabelas sem RLS: ' + ', '.join(sorted(faltando)))
           print(f'{len(tabelas)} tabelas, todas com RLS')
           PY
+  migracoes:
+    name: Migrações MySQL legadas (${{ matrix.mysql }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql: ['5.7.44', '8.0']
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql }}
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: teste_migracoes_legadas
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Conferir cliente MySQL do runner
+        run: mysql --version
+      - name: Atualizar banco legado e verificar idempotência
+        run: bash testes/migracoes-legadas.sh
 
-  # -----------------------------------------------------------------
-  # BUILD + DEPLOY
-  # Só roda no push para main (não em pull request).
-  # Exige que os três jobs acima passem — assim código com teste
-  # falhando nunca chega ao servidor.
-  # -----------------------------------------------------------------
+  build:
+    name: Build e sintaxe das variantes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Montar todas as variantes
+        run: python3 build/montar.py
+      - name: Conferir e gerar pacotes de publicação
+        run: |
+          python3 testes/empacotamento.py
+          python3 build/empacotar-hostgator.py
+      - name: Conferir sintaxe JavaScript gerado
+        run: |
+          for f in dist/*.html; do
+            node -e "const fs=require('fs'); const js=fs.readFileSync('$f','utf8').match(/<script>([\s\S]*)<\/script>/)[1]; new Function(js); console.log('$f: ok');"
+          done
+      - name: Conferir artefatos correspondentes
+        run: |
+          test "$(sha256sum index.html | cut -d' ' -f1)" = "$(sha256sum escala-hostgator.html | cut -d' ' -f1)"
+          grep -q 'Administração da plataforma' dist/escala-hostgator.html
+          grep -q 'adminCarregarSupervisores' dist/escala-hostgator.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: variantes-geradas
+          path: dist/
+
+  browser:
+    name: Painel HostGator no navegador (MySQL ${{ matrix.mysql }})
+    needs: [api, build, migracoes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql: ['5.7.44', '8.0']
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql }}
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: teste_escala
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.3', extensions: 'pdo_mysql, mbstring' }
+      - name: Instalar Playwright fixado
+        run: |
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+      - name: Preparar banco, dados fictícios e PHP
+        run: bash testes/painel-admin-setup.sh
+      - name: Gerar HostGator
+        run: python3 build/montar.py
+      - name: Exercitar painel real no Chromium
+        timeout-minutes: 5
+        env:
+          BASE_URL: http://127.0.0.1:8877/escala-hostgator.html
+          SCREENSHOT_DIR: artifacts/painel-admin
+        run: node testes/painel-admin-browser.js
+      - name: Publicar capturas e logs do navegador
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: painel-admin-browser-mysql-${{ matrix.mysql }}
+          path: |
+            artifacts/painel-admin/
+            /tmp/painel-admin-php.log
+            /tmp/shiftflow-browser-php.log
+      - name: Encerrar servidor PHP e remover configuração de teste
+        if: always()
+        run: |
+          if [ -f /tmp/shiftflow-browser-php.pid ]; then kill "$(cat /tmp/shiftflow-browser-php.pid)" || true; fi
+          rm -f api/config.php
+
   deploy:
     name: Build e deploy para HostGator
-    needs: [motor, api, banco]
+    needs: [motor, api, banco, migracoes, build, browser]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-
       - name: Montar aplicativos
         run: python3 build/montar.py
-
-      - name: Conferir sintaxe do JS gerado
-        run: |
-          for f in dist/*.html; do
-            node -e "
-              const fs=require('fs');
-              const js=fs.readFileSync('$f','utf8').match(/<script>([\s\S]*)<\/script>/)[1];
-              new Function(js);
-              console.log('$f: ok');
-            "
-          done
-
       - name: Preparar pasta da API para deploy
         run: |
           mkdir -p deploy/api
           cp api/comum.php api/auth.php api/dados.php api/minha.php api/.htaccess deploy/api/
-          
       - name: Preparar HTML final como index.html
         run: cp dist/escala-hostgator.html dist/index.html
-              
       - name: Enviar HTML para a HostGator via SFTP
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
@@ -123,7 +221,6 @@ jobs:
           local_path: 'dist/index.html'
           remote_path: ${{ secrets.HG_PATH }}
           sftp_only: true
-
       - name: Enviar API para a HostGator via SFTP
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
@@ -135,9 +232,7 @@ jobs:
           local_path: 'deploy/api'
           remote_path: ${{ secrets.HG_PATH }}
           sftp_only: true
-
-      - name: Guardar os HTMLs gerados como artefato
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: aplicativos
           path: dist/

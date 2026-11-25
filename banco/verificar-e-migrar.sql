@@ -1,9 +1,11 @@
 -- =============================================================================
 --  VERIFICAR E MIGRAR — MySQL / HostGator
 --
---  Cole este arquivo INTEIRO na aba SQL do phpMyAdmin, com o banco de produção
---  selecionado, e execute de uma vez. É seguro rodá-lo mais de uma vez: cada
---  coluna, índice e chave estrangeira é conferido antes da alteração.
+--  Atualização de uma base existente: primeiro backup/restauração de teste e
+--  pausa das gravações, conforme docs/11-atualizacao-hostgator.md. Selecione o
+--  banco correto no phpMyAdmin. Inclui as migrações 002 a 008. As alterações
+--  são repetíveis, mas DDL no MySQL faz commit implícito: erro exige interromper
+--  a publicação e conferir o estado, não contar com rollback automático.
 -- =============================================================================
 
 SET NAMES utf8mb4;
@@ -95,7 +97,7 @@ SET @sql := IF(@ja = 0,
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @sql := IF(@criou_publicada OR @criou_publicada_em,
-  'UPDATE escalas SET publicada = 1, publicada_em = atualizado_em WHERE publicada = 0',
+  'UPDATE escalas SET publicada = 1, publicada_em = atualizado_em, atualizado_em = atualizado_em WHERE publicada = 0',
   'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -171,6 +173,38 @@ UPDATE usuarios u
    SET u.loja_id = c.loja_id
  WHERE u.papel = 'colaborador' AND u.loja_id IS NULL;
 
+-- 4. Supervisores em várias lojas (migração 006) ------------------------------
+CREATE TABLE IF NOT EXISTS supervisor_lojas (
+  usuario_id CHAR(36) NOT NULL,
+  loja_id    CHAR(36) NOT NULL,
+  criado_em  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (usuario_id, loja_id),
+  KEY ix_supervisor_loja (loja_id, usuario_id),
+  CONSTRAINT fk_supervisor_loja_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuarios(id) ON DELETE CASCADE,
+  CONSTRAINT fk_supervisor_loja_loja FOREIGN KEY (loja_id)
+    REFERENCES lojas(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS migracoes_aplicadas (
+  nome       VARCHAR(100) NOT NULL PRIMARY KEY,
+  aplicada_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO supervisor_lojas (usuario_id, loja_id)
+SELECT u.id, u.loja_id
+  FROM usuarios u
+  JOIN lojas l ON l.id = u.loja_id AND l.empresa_id = u.empresa_id
+ WHERE u.papel = 'gestor'
+   AND u.loja_id IS NOT NULL
+   AND NOT EXISTS (
+     SELECT 1 FROM migracoes_aplicadas m
+      WHERE m.nome = '006-supervisor-multiloja'
+   );
+
+INSERT IGNORE INTO migracoes_aplicadas (nome)
+VALUES ('006-supervisor-multiloja');
+
 -- 3. Resumo da escala (migração 004) -----------------------------------------
 SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
              WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'escalas'
@@ -179,6 +213,82 @@ SET @sql := IF(@ja = 0,
   'ALTER TABLE escalas ADD COLUMN resumo JSON NULL AFTER parametros',
   'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 5. Descrições dos cadastros administrativos (migração 008) ------------------
+SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA=@banco AND TABLE_NAME='empresas' AND COLUMN_NAME='descricao');
+SET @sql := IF(@ja=0, 'ALTER TABLE empresas ADD COLUMN descricao VARCHAR(500) NULL AFTER nome', 'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA=@banco AND TABLE_NAME='lojas' AND COLUMN_NAME='descricao');
+SET @sql := IF(@ja=0, 'ALTER TABLE lojas ADD COLUMN descricao VARCHAR(500) NULL AFTER nome', 'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 6. Histórico e concorrência (migração 007) ---------------------------------
+-- Manter equivalente a migracao-007-historico-versoes.sql. Apenas as grades
+-- existentes são copiadas; nomes e jornadas históricos não são inventados.
+SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA=@banco AND TABLE_NAME='lojas' AND COLUMN_NAME='versao');
+SET @sql := IF(@ja=0, 'ALTER TABLE lojas ADD COLUMN versao INT UNSIGNED NOT NULL DEFAULT 1', 'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA=@banco AND TABLE_NAME='escalas' AND COLUMN_NAME='versao');
+SET @sql := IF(@ja=0, 'ALTER TABLE escalas ADD COLUMN versao INT UNSIGNED NOT NULL DEFAULT 1', 'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @ja := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA=@banco AND TABLE_NAME='escalas' AND COLUMN_NAME='versao_publicada');
+SET @sql := IF(@ja=0, 'ALTER TABLE escalas ADD COLUMN versao_publicada INT UNSIGNED NULL', 'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS escala_versoes (
+  id             CHAR(36) NOT NULL PRIMARY KEY,
+  escala_id      CHAR(36) NOT NULL,
+  versao         INT UNSIGNED NOT NULL,
+  loja_id        CHAR(36) NOT NULL,
+  inicio         DATE NOT NULL,
+  fim            DATE NOT NULL,
+  grade          JSON NOT NULL,
+  parametros     JSON NULL,
+  resumo         JSON NULL,
+  snapshot       JSON NOT NULL,
+  publicada      TINYINT(1) NOT NULL DEFAULT 0,
+  publicada_em   DATETIME NULL,
+  idempotencia   CHAR(36) NULL,
+  criado_por     CHAR(36) NULL,
+  criado_em      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_escala_versao (escala_id, versao),
+  UNIQUE KEY uq_escala_idempotencia (escala_id, idempotencia),
+  KEY ix_versoes_loja_periodo (loja_id, inicio, fim, versao),
+  CONSTRAINT fk_versao_escala FOREIGN KEY (escala_id) REFERENCES escalas(id) ON DELETE CASCADE,
+  CONSTRAINT fk_versao_loja FOREIGN KEY (loja_id) REFERENCES lojas(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO escala_versoes
+  (id, escala_id, versao, loja_id, inicio, fim, grade, parametros, resumo,
+   snapshot, publicada, publicada_em, criado_por, criado_em)
+SELECT UUID(), e.id, 1, e.loja_id, e.inicio, e.fim, e.grade, e.parametros, e.resumo,
+       JSON_OBJECT(
+         'schema', 1,
+         'incompleto', true,
+         'motivo', 'Registro legado sem participantes e jornadas históricas capturados',
+         'loja_id', e.loja_id,
+         'inicio', e.inicio,
+         'fim', e.fim,
+         'grade', e.grade,
+         'params', e.parametros,
+         'participantes', JSON_ARRAY()
+       ),
+       e.publicada, e.publicada_em, e.atualizado_por, e.atualizado_em
+  FROM escalas e;
+
+UPDATE escalas e
+JOIN escala_versoes v ON v.escala_id=e.id AND v.versao=1
+   SET e.versao_publicada=CASE WHEN e.publicada=1 THEN 1 ELSE NULL END,
+       e.atualizado_em=e.atualizado_em
+ WHERE e.versao_publicada IS NULL;
 
 -- =============================================================================
 --  CONFERÊNCIA FINAL
@@ -203,4 +313,18 @@ SELECT
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'escalas' AND COLUMN_NAME = 'publicada_em') AS escalas_publicada_em,
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'escalas' AND COLUMN_NAME = 'resumo') AS escalas_resumo;
+    WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'escalas' AND COLUMN_NAME = 'resumo') AS escalas_resumo,
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'lojas' AND COLUMN_NAME = 'versao') AS lojas_versao,
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'escalas' AND COLUMN_NAME = 'versao') AS escalas_versao,
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'escalas' AND COLUMN_NAME = 'versao_publicada') AS escalas_versao_publicada,
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'empresas' AND COLUMN_NAME = 'descricao') AS empresas_descricao,
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'lojas' AND COLUMN_NAME = 'descricao') AS lojas_descricao,
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'supervisor_lojas') AS tabela_supervisor_lojas,
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = @banco AND TABLE_NAME = 'escala_versoes') AS tabela_escala_versoes;

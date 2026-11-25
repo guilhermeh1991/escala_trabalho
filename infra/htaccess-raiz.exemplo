@@ -1,0 +1,74 @@
+# BEGIN SHIFTFLOW MANUTENCAO
+# A presenca de .shiftflow-manutencao na raiz suspende a pagina e a API.
+# Remova somente esse arquivo de controle para reabrir o site.
+<IfModule mod_rewrite.c>
+    <If "-f '%{DOCUMENT_ROOT}/.shiftflow-manutencao'">
+        RewriteEngine On
+        # Aplicar antes das regras das subpastas somente durante a manutencao.
+        RewriteOptions InheritDownBefore
+        RewriteRule ^ - [E=SHIFTFLOW_MAINTENANCE:1,R=503,L]
+        ErrorDocument 503 "<h1>Shiftflow em atualiza&#231;&#227;o</h1><p>Voltaremos em alguns minutos.</p>"
+    </If>
+</IfModule>
+<IfModule mod_headers.c>
+    Header always set Retry-After "300" env=SHIFTFLOW_MAINTENANCE
+    Header always set Cache-Control "no-store" env=SHIFTFLOW_MAINTENANCE
+</IfModule>
+# END SHIFTFLOW MANUTENCAO
+
+# =============================================================================
+#  .htaccess da raiz publica da aplicacao — adaptar ao diretorio do dominio
+#
+#  Este arquivo protege a página do sistema (index.html). O outro .htaccess,
+#  dentro de api/, protege o backend.
+#
+#  Renomeie para .htaccess ao subir.
+# =============================================================================
+
+# 1. HTTPS obrigatório.
+#    O cookie de sessão é marcado como Secure e simplesmente não funciona em
+#    HTTP; sem isto o login parece quebrado sem explicação.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</IfModule>
+
+# 2. Sem listagem de diretório
+Options -Indexes
+
+# 3. Arquivos que não deveriam ser servidos, se acabarem aqui por engano
+<FilesMatch "\.(sql|md|log|bak|old|ini|py|sh|zip)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 4. Cabeçalhos de segurança
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "same-origin"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+
+    # Content-Security-Policy — a rede de proteção contra XSS.
+    #
+    # 'unsafe-inline' em script-src é necessário porque o aplicativo é um
+    # arquivo único, com o JavaScript embutido. O que a política garante mesmo
+    # assim: script de outro domínio não carrega, e connect-src 'self' impede
+    # que um script injetado mande dados para fora — que é o objetivo de quem
+    # ataca. Se um dia o JavaScript sair para arquivo próprio, troque
+    # 'unsafe-inline' por um nonce e a proteção fica completa.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api.pwnedpasswords.com; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; object-src 'none'"
+</IfModule>
+
+# 5. Compressão, que também acelera o carregamento
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>

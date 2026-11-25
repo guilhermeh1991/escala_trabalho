@@ -136,4 +136,4 @@ O tratamento se apoia na execução do contrato de trabalho e no cumprimento de 
 | Ao trocar de gerente | Remover o acesso antigo em Authentication → Users |
 | Ao mudar o endereço da página | Atualizar Site URL nas configurações de autenticação |
 
-A versão offline (`escala_bauru.html`) continua funcionando e não depende de internet nem de conta. Serve como plano B se o serviço estiver fora do ar no dia de fechar a escala.
+A versão offline (`escala-offline.html`) continua funcionando e não depende de internet nem de conta. Serve como plano B se o serviço estiver fora do ar no dia de fechar a escala.
