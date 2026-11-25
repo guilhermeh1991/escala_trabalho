@@ -185,7 +185,15 @@ function abrirAdministracao(){
 async function abrirApp(plataforma=false){
   mostrarTela('app');
   S.usuario = {papel: SESSAO.usuario.papel, nome: SESSAO.usuario.nome, plataforma};
-  if(plataforma){ S.lojas = {}; S.loja = null; montarAdministracao(); abrirAdministracao(); return; }
+  if(plataforma){
+    S.lojas = {}; S.loja = null;
+    document.querySelectorAll('nav.tabs button').forEach(b=>{
+      b.hidden = b.dataset.view !== 'administracao';
+      b.setAttribute('aria-current', b.dataset.view === 'administracao' ? 'true' : 'false');
+    });
+    document.querySelectorAll('.view').forEach(v=>{ v.hidden = v.dataset.view !== 'administracao'; v.dataset.ativa = String(v.dataset.view === 'administracao'); });
+    montarAdministracao(); abrirAdministracao(); return;
+  }
   pintarIdentidade({
     nome:    SESSAO.usuario.nome,
     email:   SESSAO.usuario.email,
@@ -272,7 +280,7 @@ async function pintarAcessos(){
 }
 
 /* ---------- administração da plataforma ---------- */
-const ADMIN = {empresa:null, empresas:[], lojas:[], supervisores:[], carregando:false, _reqEmp:0, _reqLoj:0, _reqSup:0};
+const ADMIN = {empresa:null, empresas:[], lojas:[], supervisores:[], usuarios:[], escalas:[], carregando:false, _reqEmp:0, _reqLoj:0, _reqSup:0, _reqUsers:0, _reqEscalas:0};
 function adminStatus(txt, tipo='info'){
   const el = document.getElementById('admin-status');
   if(!el) return;
@@ -329,6 +337,7 @@ async function adminSelecionarEmpresa(empresa){
   const boxSup=document.getElementById('admin-supervisores'); if(boxSup) boxSup.textContent='Carregando supervisores…';
   await adminCarregarLojas();
   await adminCarregarSupervisores();
+  await adminCarregarUsuarios();
 }
 async function adminCarregarLojas(){
   if(!ADMIN.empresa)return;
@@ -343,10 +352,59 @@ async function adminCarregarLojas(){
   }
   catch(e){adminStatus(erroAmigavel(e),'erro');}
 }
+function adminCentralStatus(txt, tipo='info'){
+  const el=document.getElementById('admin-central-status'); if(!el) return;
+  el.textContent=txt||''; el.className='chip '+(tipo==='erro'?'mal':tipo==='ok'?'ok':'info');
+}
+function adminRenderUsuarios(){
+  const box=document.getElementById('admin-usuarios'); if(!box) return;
+  box.replaceChildren();
+  if(!ADMIN.usuarios.length){ const p=document.createElement('div'); p.className='admin-empty'; p.textContent='Nenhum usuário encontrado.'; box.appendChild(p); return; }
+  ADMIN.usuarios.forEach(u=>{
+    const b=adminBotao('',()=>{}); b.className='admin-row'; b.disabled=true;
+    const w=document.createElement('span'), s=document.createElement('strong'), p=document.createElement('small');
+    s.textContent=u.nome||'Sem nome';
+    p.textContent=[u.email,u.papel,u.empresa||'Sem empresa',u.loja||'Sem loja'].filter(Boolean).join(' · ');
+    w.append(s,p); b.appendChild(w); box.appendChild(b);
+  });
+}
+async function adminCarregarUsuarios(){
+  if(!ADMIN.empresa) return;
+  const reqId=++ADMIN._reqUsers, empresaId=ADMIN.empresa.id;
+  const q=(document.getElementById('admin-busca-usuario')?.value||'').trim();
+  adminCentralStatus('Carregando usuários…');
+  try{
+    const r=await auth({acao:'plataforma_listar_usuarios',empresa_id:empresaId,q});
+    if(reqId!==ADMIN._reqUsers || !ADMIN.empresa || ADMIN.empresa.id!==empresaId) return;
+    ADMIN.usuarios=r.usuarios||[]; adminRenderUsuarios(); adminCentralStatus('Usuários atualizados','ok');
+  }catch(e){ adminCentralStatus(erroAmigavel(e),'erro'); }
+}
+function adminRenderEscalas(){
+  const box=document.getElementById('admin-central-escalas'); if(!box) return;
+  box.replaceChildren();
+  if(!ADMIN.escalas.length){ const p=document.createElement('div'); p.className='admin-empty'; p.textContent='Nenhuma publicação encontrada.'; box.appendChild(p); return; }
+  ADMIN.escalas.forEach(x=>{
+    const b=adminBotao('',()=>{}); b.className='admin-row'; b.disabled=true;
+    const w=document.createElement('span'), s=document.createElement('strong'), p=document.createElement('small');
+    s.textContent=`${x.inicio} a ${x.fim} · v${x.versao}`;
+    p.textContent=`${x.pessoas||'?'} pessoas · ${x.dias||'?'} dias${x.incompleto?' · histórico parcial':''}`;
+    w.append(s,p); b.appendChild(w); box.appendChild(b);
+  });
+}
+async function adminCarregarEscalas(lojaId){
+  if(!lojaId) return;
+  const reqId=++ADMIN._reqEscalas;
+  try{
+    const r=await auth({acao:'plataforma_listar_escalas_publicadas',loja_id:lojaId});
+    if(reqId!==ADMIN._reqEscalas) return;
+    ADMIN.escalas=r.escalas||[]; adminRenderEscalas();
+  }catch(e){ adminCentralStatus(erroAmigavel(e),'erro'); }
+}
+
 function adminRenderLojas(){
   const box=document.getElementById('admin-lojas');if(!box)return;box.replaceChildren();
   if(!ADMIN.lojas.length){const p=document.createElement('div');p.className='admin-empty';p.textContent='Nenhuma loja cadastrada.';box.appendChild(p);return;}
-  ADMIN.lojas.forEach(l=>{const b=adminBotao('',()=>adminEditarLoja(l));b.className='admin-row';const w=document.createElement('span'),s=document.createElement('strong'),p=document.createElement('small');s.textContent=l.nome;p.textContent=l.descricao||'Sem descrição cadastral';w.append(s,p);b.appendChild(w);box.appendChild(b);});
+  ADMIN.lojas.forEach(l=>{const b=adminBotao('',()=>{adminEditarLoja(l);adminCarregarEscalas(l.id);});b.className='admin-row';const w=document.createElement('span'),s=document.createElement('strong'),p=document.createElement('small');s.textContent=l.nome;p.textContent=l.descricao||'Sem descrição cadastral';w.append(s,p);b.appendChild(w);box.appendChild(b);});
 }
 function adminEditarLoja(loja){const f=document.getElementById('admin-form-loja');f.hidden=false;f.dataset.id=loja?.id||'';document.getElementById('admin-loja-nome').value=loja?.nome||'';document.getElementById('admin-loja-descricao').value=loja?.descricao||'';}
 async function adminCarregarSupervisores(){
@@ -376,6 +434,8 @@ function montarAdministracao(){
   const tab=document.getElementById('tab-administracao');if(tab){tab.hidden=!SESSAO.plataforma;tab.onclick=e=>{e.preventDefault();abrirAdministracao();};}
   const busca=document.getElementById('admin-busca-empresa');if(busca)busca.addEventListener('input',()=>adminCarregarEmpresas());
   const buscaS=document.getElementById('admin-busca-supervisor');if(buscaS)buscaS.addEventListener('input',()=>adminCarregarSupervisores());
+  const buscaU=document.getElementById('admin-busca-usuario');if(buscaU)buscaU.addEventListener('input',()=>adminCarregarUsuarios());
+  document.getElementById('admin-recarregar-usuarios')?.addEventListener('click',()=>adminCarregarUsuarios());
   document.getElementById('admin-nova-empresa')?.addEventListener('click',()=>{ADMIN.empresa=null;adminRenderEmpresas();adminPreencherEmpresa({});document.getElementById('admin-painel-lojas').hidden=true;document.getElementById('admin-painel-supervisores').hidden=true;});
   document.getElementById('admin-cancelar-empresa')?.addEventListener('click',()=>document.getElementById('admin-form-empresa').hidden=true);
   document.getElementById('admin-form-empresa')?.addEventListener('submit',async e=>{e.preventDefault();const nome=document.getElementById('admin-empresa-nome').value.trim(),descricao=document.getElementById('admin-empresa-descricao').value.trim();try{const payload=ADMIN.empresa?{acao:'plataforma_editar_empresa',empresa_id:ADMIN.empresa.id,nome,descricao}:{acao:'plataforma_criar_empresa',nome,descricao};await adminRequisicao(payload,async()=>{e.target.hidden=true;await adminCarregarEmpresas();});}catch(x){}});

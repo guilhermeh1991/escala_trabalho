@@ -681,6 +681,56 @@ case 'plataforma_criar_loja':
     responder(['ok' => true, 'id' => $lojaId, 'codigo' => $codigoLoja]);
 
 // -----------------------------------------------------------------------------
+case 'plataforma_listar_usuarios':
+// -----------------------------------------------------------------------------
+    exigirPlataforma();
+    $empresaId = trim((string)campo($dados, 'empresa_id', ''));
+    if ($empresaId !== '' && !ehUuid($empresaId)) falhar('Empresa inválida.');
+    $q = trim((string)campo($dados, 'q', ''));
+    $st = bd()->prepare(
+        'SELECT u.id, u.nome, u.email, u.papel, u.email_confirmado, u.criado_em,
+                u.ultimo_acesso, u.empresa_id, e.nome AS empresa, u.loja_id, l.nome AS loja
+           FROM usuarios u
+           LEFT JOIN empresas e ON e.id = u.empresa_id
+           LEFT JOIN lojas l ON l.id = u.loja_id
+          WHERE (? = \'\' OR u.empresa_id = ?)
+            AND (? = \'\' OR u.nome LIKE CONCAT(\'%\', ?, \'%\')
+                 OR u.email LIKE CONCAT(\'%\', ?, \'%\'))
+          ORDER BY e.nome, u.nome, u.email
+          LIMIT 500');
+    $st->execute([$empresaId, $empresaId, $q, $q, $q]);
+    responder(['usuarios' => $st->fetchAll()]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_listar_escalas_publicadas':
+// -----------------------------------------------------------------------------
+    exigirPlataforma();
+    $lojaId = trim((string)campo($dados, 'loja_id', ''));
+    if (!ehUuid($lojaId)) falhar('Loja inválida.');
+    $st = bd()->prepare(
+        'SELECT v.inicio, v.fim, v.versao, v.publicada_em, v.criado_em,
+                v.resumo, v.snapshot, l.nome AS loja, l.empresa_id, e.nome AS empresa
+           FROM escala_versoes v
+           JOIN lojas l ON l.id = v.loja_id
+           JOIN empresas e ON e.id = l.empresa_id
+          WHERE v.loja_id = ? AND v.publicada = 1
+          ORDER BY v.inicio DESC, v.versao DESC LIMIT 200');
+    $st->execute([$lojaId]);
+    $escalas = array_map(function (array $row): array {
+        $snap = json_decode((string)$row['snapshot'], true) ?: [];
+        $resumo = $row['resumo'] ? (json_decode((string)$row['resumo'], true) ?: []) : [];
+        return [
+            'inicio' => $row['inicio'], 'fim' => $row['fim'],
+            'versao' => (int)$row['versao'],
+            'publicada_em' => $row['publicada_em'], 'criado_em' => $row['criado_em'],
+            'empresa' => $row['empresa'], 'loja' => $row['loja'],
+            'pessoas' => $resumo['pessoas'] ?? null, 'dias' => $resumo['dias'] ?? null,
+            'incompleto' => !empty($snap['incompleto']),
+        ];
+    }, $st->fetchAll());
+    responder(['escalas' => $escalas]);
+
+// -----------------------------------------------------------------------------
 default:
     falhar('Ação desconhecida.', 404);
 }
