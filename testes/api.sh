@@ -187,6 +187,8 @@ echo "$R" | grep -q 'plataforma@exemplo.test' && ok "plataforma lista usuários 
 if echo "$R" | grep -qE 'senha_hash|token_confirmacao|token_recuperacao|csrf'; then falha "listagem de usuários expôs dado sensível"; else ok "listagem não expõe credenciais nem tokens"; fi
 R=$(chamar "$COOKIES_P" auth.php '{"acao":"plataforma_listar_usuarios","empresa_id":"'$EMPRESA_P'"}' "$CSRF_P")
 echo "$R" | grep -q '"usuarios"' && ok "plataforma lista usuários por empresa" || falha "usuários por empresa: $R"
+chamar_com_status "$COOKIES_P" auth.php '{"acao":"plataforma_carregar_escala_publicada","loja_id":"00000000-0000-4000-8000-000000000000","inicio":"2026-01-01","fim":"2026-01-02","versao":1}' "$CSRF_P"
+[ "$HTTP_STATUS" = 404 ] && ok "consulta central não expõe publicação inexistente" || falha "consulta central inesperada: HTTP $HTTP_STATUS $HTTP_BODY"
 R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_editar_empresa\",\"empresa_id\":\"$EMPRESA_P\",\"nome\":\"Empresa <Teste>\",\"descricao\":\"Descrição & segura\"}" "$CSRF_P")
 echo "$R" | grep -q '"ok":true' && ok "plataforma edita cadastro da empresa" || falha "editar empresa: $R"
 R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_editar_loja\",\"loja_id\":\"$LOJA_P\",\"nome\":\"Loja <Texto>\",\"descricao\":\"Descrição sem HTML\"}" "$CSRF_P")

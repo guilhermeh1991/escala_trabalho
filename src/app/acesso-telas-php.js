@@ -384,12 +384,29 @@ function adminRenderEscalas(){
   box.replaceChildren();
   if(!ADMIN.escalas.length){ const p=document.createElement('div'); p.className='admin-empty'; p.textContent='Nenhuma publicação encontrada.'; box.appendChild(p); return; }
   ADMIN.escalas.forEach(x=>{
-    const b=adminBotao('',()=>{}); b.className='admin-row'; b.disabled=true;
+    const b=adminBotao('',()=>adminCarregarEscalaPublicada(x)); b.className='admin-row';
     const w=document.createElement('span'), s=document.createElement('strong'), p=document.createElement('small');
     s.textContent=`${x.inicio} a ${x.fim} · v${x.versao}`;
-    p.textContent=`${x.pessoas||'?'} pessoas · ${x.dias||'?'} dias${x.incompleto?' · histórico parcial':''}`;
+    p.textContent=`${x.pessoas||'?'} pessoas · ${x.dias||'?'} dias${x.incompleto?' · histórico parcial':''} · somente leitura`;
     w.append(s,p); b.appendChild(w); box.appendChild(b);
   });
+}
+function adminRenderEscalaDetalhe(escala){
+  const box=document.getElementById('admin-central-escala-detalhe'); if(!box) return;
+  box.hidden=false;
+  const porId=Object.fromEntries((escala.participantes||[]).map(p=>[String(p.id),p]));
+  const dias=[]; const ini=new Date(escala.inicio+'T12:00:00'), fim=new Date(escala.fim+'T12:00:00');
+  for(const d=new Date(ini);d<=fim;d.setDate(d.getDate()+1)) dias.push(new Date(d));
+  let h=`<div class="admin-leitura-meta"><b>${esc(escala.empresa)} · ${esc(escala.loja)}</b><br>${esc(escala.inicio)} a ${esc(escala.fim)} · versão ${esc(escala.versao)} · publicada em ${esc(escala.publicada_em||'')} · somente leitura</div><table><thead><tr><th>Pessoa</th>${dias.map(d=>`<th>${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}</th>`).join('')}</tr></thead><tbody>`;
+  Object.entries(escala.grade||{}).forEach(([id,linha])=>{const p=porId[id]||{};h+=`<tr><th>${esc(p.nome||id)}</th>${dias.map((_,i)=>`<td>${esc((linha||[])[i]||'')}</td>`).join('')}</tr>`;});
+  h+='</tbody></table>'; box.innerHTML=h;
+}
+async function adminCarregarEscalaPublicada(x){
+  adminCentralStatus('Carregando publicação…');
+  try{
+    const r=await auth({acao:'plataforma_carregar_escala_publicada',loja_id:ADMIN.lojas.find(l=>l.nome===x.loja)?.id||x.loja_id,inicio:x.inicio,fim:x.fim,versao:x.versao});
+    adminRenderEscalaDetalhe(r.escala); adminCentralStatus('Publicação carregada · somente leitura','ok');
+  }catch(e){ adminCentralStatus(erroAmigavel(e),'erro'); }
 }
 async function adminCarregarEscalas(lojaId){
   if(!lojaId) return;

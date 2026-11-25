@@ -723,12 +723,54 @@ case 'plataforma_listar_escalas_publicadas':
             'inicio' => $row['inicio'], 'fim' => $row['fim'],
             'versao' => (int)$row['versao'],
             'publicada_em' => $row['publicada_em'], 'criado_em' => $row['criado_em'],
-            'empresa' => $row['empresa'], 'loja' => $row['loja'],
+            'empresa' => $row['empresa'], 'loja' => $row['loja'], 'loja_id' => $lojaId,
             'pessoas' => $resumo['pessoas'] ?? null, 'dias' => $resumo['dias'] ?? null,
             'incompleto' => !empty($snap['incompleto']),
         ];
     }, $st->fetchAll());
     responder(['escalas' => $escalas]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_carregar_escala_publicada':
+// -----------------------------------------------------------------------------
+    exigirPlataforma();
+    $lojaId = trim((string)campo($dados, 'loja_id', ''));
+    $inicio = trim((string)campo($dados, 'inicio', ''));
+    $fim = trim((string)campo($dados, 'fim', ''));
+    $versao = (int)campo($dados, 'versao', 0);
+    if (!ehUuid($lojaId) || !ehDataValida($inicio) || !ehDataValida($fim) || $versao < 1) {
+        falhar('Identificação da escala inválida.');
+    }
+    $st = bd()->prepare(
+        'SELECT v.grade, v.parametros, v.snapshot, v.inicio, v.fim, v.versao, v.publicada_em,
+                l.nome AS loja, e.nome AS empresa
+           FROM escala_versoes v
+           JOIN lojas l ON l.id = v.loja_id
+           JOIN empresas e ON e.id = l.empresa_id
+          WHERE v.loja_id = ? AND v.inicio = ? AND v.fim = ? AND v.versao = ? AND v.publicada = 1
+          LIMIT 1');
+    $st->execute([$lojaId, $inicio, $fim, $versao]);
+    $row = $st->fetch();
+    if (!$row) falhar('Publicação não encontrada.', 404);
+    $grade = json_decode((string)$row['grade'], true) ?: [];
+    $params = $row['parametros'] ? (json_decode((string)$row['parametros'], true) ?: []) : [];
+    $snapshot = $row['snapshot'] ? (json_decode((string)$row['snapshot'], true) ?: []) : [];
+    $participantes = is_array($snapshot['participantes'] ?? null) ? $snapshot['participantes'] : [];
+    $porId = [];
+    foreach ($participantes as $p) {
+        if (is_array($p) && isset($p['id'])) $porId[(string)$p['id']] = $p;
+    }
+    foreach (array_keys($grade) as $id) {
+        $id = (string)$id;
+        if (!isset($porId[$id])) $porId[$id] = ['id' => $id, 'nome' => $id, 'cargo' => '', 'jornada' => null];
+    }
+    responder(['escala' => [
+        'empresa' => $row['empresa'], 'loja' => $row['loja'],
+        'inicio' => $row['inicio'], 'fim' => $row['fim'], 'versao' => (int)$row['versao'],
+        'publicada_em' => $row['publicada_em'], 'incompleto' => !empty($snapshot['incompleto']),
+        'grade' => $grade, 'horas' => is_array($params['_horas'] ?? null) ? $params['_horas'] : [],
+        'participantes' => array_values($porId),
+    ]]);
 
 // -----------------------------------------------------------------------------
 default:
