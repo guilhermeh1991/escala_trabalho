@@ -10,6 +10,8 @@ web
 
 O usuário principal é o gerente de loja de uma rede de farmácias. Todo mês, ele ou ela confere a equipe e as ausências, configura regras operacionais, gera uma proposta de escala, revisa pendências, salva um rascunho e publica a versão aprovada. Supervisores acompanham apenas lojas explicitamente vinculadas. Colaboradores consultam a própria escala publicada.
 
+O painel central da plataforma tem um único operador: o dono da plataforma, usando a conta superadmin. Ele conhece empresas, lojas e supervisores pelo nome, então a tela pode ser densa e direta em vez de didática. Sua tarefa mais frequente ali é vincular supervisores às lojas que eles devem acompanhar; cadastro de empresas e lojas, conferência de contas e consulta de escalas publicadas são tarefas de apoio a essa. Ele opera o painel em notebook ou desktop a partir de 1440px.
+
 ## Product Purpose
 
 O Shiftflow transforma regras de equipe, jornada, ausência e cobertura em escalas mensais confiáveis. A interface deixa claro o que está decidido, o que bloqueia a publicação e o que não pôde ser verificado. O produto não promete conformidade legal automática nem trata o gerador como otimizador de cobertura intradiária.
@@ -29,6 +31,9 @@ A rotina mensal começa pela conferência da equipe e das ausências, passa pela
 - A grade apresenta pessoas por linha e dias por coluna, com indicadores diários e cobertura intradiária quando as faixas estão configuradas.
 - O projeto é uma aplicação web em JavaScript puro, com backend PHP/MySQL e variantes HostGator, Supabase e offline.
 - A interface usa a identidade Shiftflow: fundo `#F5F6F3`, superfícies `#FFFFFF`, texto `#22352C` e ação `#16634C`.
+- A autoridade de plataforma vem do servidor: o e-mail precisa estar em `super_admins` no `api/config.php` e a conta não pode ter `empresa_id`. Conta vinculada a uma empresa opera aquela empresa, não a plataforma.
+- O painel central é somente leitura para dados operacionais: consulta usuários sem credenciais nem tokens, lista apenas versões publicadas e nunca expõe rascunhos. Editar, publicar ou excluir escala não existe nessa superfície.
+- Um supervisor só alcança lojas da própria empresa, por vínculo explícito em `supervisor_lojas`; revogar uma loja preserva as demais.
 - Cobrança, checkout, contratação de planos e integrações externas não fazem parte desta superfície operacional.
 
 ## Evidence on Hand
