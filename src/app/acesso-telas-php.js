@@ -330,7 +330,8 @@ function adminPreencherEmpresa(empresa){
   form.hidden=false; document.getElementById('admin-empresa-nome').value=empresa?.nome||''; document.getElementById('admin-empresa-descricao').value=empresa?.descricao||'';
 }
 async function adminSelecionarEmpresa(empresa){
-  ADMIN.empresa=empresa; ADMIN.lojas=[]; ADMIN.supervisores=[];
+  ADMIN.empresa=empresa; ADMIN.lojas=[]; ADMIN.supervisores=[]; ADMIN.usuarios=[]; ADMIN.escalas=[];
+  const detalhe=document.getElementById('admin-central-escala-detalhe'); if(detalhe) detalhe.hidden=true;
   adminRenderEmpresas(); adminPreencherEmpresa(empresa);
   document.getElementById('admin-painel-lojas').hidden=false; document.getElementById('admin-painel-supervisores').hidden=false;
   adminTexto(document.getElementById('admin-lojas-titulo'),'Lojas · '+empresa.nome);

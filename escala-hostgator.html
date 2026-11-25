@@ -281,15 +281,16 @@ nav.tabs button{position:relative;background:transparent;border:0;color:#BBD0CB;
 .admin-toolbar .inp{margin-top:5px}
 .admin-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr);gap:18px}
 .admin-list{max-height:420px;overflow:auto;border:1px solid var(--linha);border-radius:var(--radius);background:#fff}
+.admin-list:empty{min-height:88px}
 .admin-row{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid var(--linha-suave);cursor:pointer;text-align:left;width:100%;background:#fff;color:var(--texto)}
 .admin-row:last-child{border-bottom:0}.admin-row:hover,.admin-row[aria-current="true"]{background:var(--teal-suave)}
 .admin-row strong{display:block;font-size:14px}.admin-row small{display:block;color:var(--fraco);margin-top:2px}
 .admin-form{display:grid;gap:12px}.admin-form label{display:grid;gap:5px}.admin-form textarea{min-height:86px;resize:vertical}
-.admin-subhead{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:12px}.admin-subhead h3{margin:0;font-size:16px}.admin-subhead p{margin:3px 0 0;color:var(--fraco);font-size:12.5px}
+.admin-subhead{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:12px}.admin-subhead h3{margin:0;font-size:16px}.admin-subhead p{margin:3px 0 0;color:var(--fraco);font-size:12.5px}.admin-kicker{margin:0 0 5px!important;font-size:10px!important;text-transform:uppercase;letter-spacing:.12em;color:var(--teal)!important;font-weight:700}.admin-hero{padding-bottom:20px}.admin-hero .admin-toolbar{margin-bottom:0}.admin-hero .admin-grid{grid-template-columns:minmax(0,1fr) minmax(280px,.7fr)}
 .admin-supervisores{margin-top:18px}.admin-supervisor{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--linha-suave)}
 .admin-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.admin-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid var(--linha);border-radius:999px;background:var(--superficie);font-size:12px}.admin-chip button{border:0;background:transparent;color:var(--alerta);padding:0 2px;line-height:1}
 .admin-empty{padding:22px;color:var(--fraco);font-size:13px}.admin-loading{color:var(--fraco);font-size:13px}.admin-leitura-escala{margin-top:12px;max-height:520px;overflow:auto}.admin-leitura-escala table{min-width:720px;width:100%;border-collapse:collapse;font-size:12px}.admin-leitura-escala th,.admin-leitura-escala td{padding:6px 8px;border-bottom:1px solid var(--linha-suave);text-align:center}.admin-leitura-escala th:first-child,.admin-leitura-escala td:first-child{text-align:left;position:sticky;left:0;background:var(--painel);z-index:1}.admin-leitura-meta{padding:12px 14px;border-bottom:1px solid var(--linha);font-size:12px;color:var(--fraco)}
-@media(max-width:800px){.admin-grid{grid-template-columns:1fr}.admin-list{max-height:300px}}
+@media(max-width:800px){.admin-grid,.admin-hero .admin-grid{grid-template-columns:1fr}.admin-list{max-height:300px}}
 @media(max-width:360px){.admin-toolbar label{min-width:0;width:100%}.admin-grid{gap:12px}}
 @media(max-width:560px){.admin-toolbar{display:grid;grid-template-columns:1fr}.admin-toolbar label{min-width:0}.admin-subhead{display:block}.admin-supervisor{grid-template-columns:1fr}.admin-form .barra{align-items:stretch;flex-direction:column}.admin-form .btn{width:100%}}
 nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.04)}
@@ -1106,8 +1107,8 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
     </section>
 
     <section class="view" data-view="administracao">
-      <div class="painel">
-        <div class="admin-subhead"><div><h2>Administração da plataforma</h2><p class="desc">Cadastros e vínculos operacionais. Alterações aqui não reescrevem equipes, regras ou escalas.</p></div><span class="chip info" id="admin-status" aria-live="polite"></span></div>
+      <div class="painel admin-hero">
+        <div class="admin-subhead"><div><p class="admin-kicker">Centro de controle</p><h2>Administração da plataforma</h2><p class="desc">Cadastros e vínculos operacionais. Alterações aqui não reescrevem equipes, regras ou escalas.</p></div><span class="chip info" id="admin-status" aria-live="polite"></span></div>
         <div class="admin-toolbar"><label>Localizar empresa<input class="inp" id="admin-busca-empresa" type="search" autocomplete="off"></label><button class="btn" id="admin-nova-empresa">Nova empresa</button></div>
         <div class="admin-grid"><div class="admin-list" id="admin-empresas" aria-label="Empresas"><div class="admin-loading">Carregando empresas…</div></div>
           <form class="admin-form" id="admin-form-empresa" hidden><div class="admin-subhead"><div><h3>Dados da empresa</h3><p>Somente nome e descrição cadastral.</p></div></div><label>Nome<input class="inp" id="admin-empresa-nome" required maxlength="120"></label><label>Descrição<textarea class="inp" id="admin-empresa-descricao" maxlength="500"></textarea></label><div class="barra"><button class="btn primary" type="submit">Salvar empresa</button><button class="btn ghost" type="button" id="admin-cancelar-empresa">Cancelar</button></div></form></div>
@@ -4231,7 +4232,8 @@ function adminPreencherEmpresa(empresa){
   form.hidden=false; document.getElementById('admin-empresa-nome').value=empresa?.nome||''; document.getElementById('admin-empresa-descricao').value=empresa?.descricao||'';
 }
 async function adminSelecionarEmpresa(empresa){
-  ADMIN.empresa=empresa; ADMIN.lojas=[]; ADMIN.supervisores=[];
+  ADMIN.empresa=empresa; ADMIN.lojas=[]; ADMIN.supervisores=[]; ADMIN.usuarios=[]; ADMIN.escalas=[];
+  const detalhe=document.getElementById('admin-central-escala-detalhe'); if(detalhe) detalhe.hidden=true;
   adminRenderEmpresas(); adminPreencherEmpresa(empresa);
   document.getElementById('admin-painel-lojas').hidden=false; document.getElementById('admin-painel-supervisores').hidden=false;
   adminTexto(document.getElementById('admin-lojas-titulo'),'Lojas · '+empresa.nome);
