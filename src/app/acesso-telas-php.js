@@ -336,6 +336,7 @@ function adminAtualizarResumoEmpresa(empresa){
 function adminPreencherEmpresa(empresa, abrir=false){
   const form=document.getElementById('admin-form-empresa'); if(!form)return;
   form.hidden=!abrir;
+  const painel=document.getElementById('admin-painel-empresas'); if(painel) painel.classList.toggle('admin-editando-empresa',abrir);
   document.getElementById('admin-empresa-nome').value=empresa?.nome||'';
   document.getElementById('admin-empresa-descricao').value=empresa?.descricao||'';
   adminAtualizarResumoEmpresa(empresa);
@@ -346,6 +347,8 @@ async function adminSelecionarEmpresa(empresa){
   const config=document.getElementById('admin-central-configuracao'); if(config) config.hidden=true;
   const contexto=document.getElementById('admin-consulta-contexto'); if(contexto){const label=contexto.querySelector('.admin-consulta-label'); if(label) label.textContent='Selecione uma loja para consultar escalas publicadas.';}
   const tabs=document.getElementById('admin-consulta-tabs'); if(tabs) tabs.hidden=true;
+  const painel=document.getElementById('admin-painel-empresas'); if(painel) painel.classList.add('admin-empresa-selecionada');
+  const central=document.getElementById('admin-painel-central'); if(central) central.hidden=false;
   adminRenderEmpresas(); adminPreencherEmpresa(empresa, false);
   document.getElementById('admin-painel-lojas').hidden=false; document.getElementById('admin-painel-supervisores').hidden=false;
   adminTexto(document.getElementById('admin-lojas-titulo'),'Lojas · '+empresa.nome);
@@ -552,7 +555,7 @@ function montarAdministracao(){
   const buscaU=document.getElementById('admin-busca-usuario');if(buscaU)buscaU.addEventListener('input',()=>adminCarregarUsuarios());
   document.getElementById('admin-recarregar-usuarios')?.addEventListener('click',()=>adminCarregarUsuarios());
   document.querySelectorAll('[data-consulta]').forEach(b=>b.addEventListener('click',()=>adminMostrarConsulta(b.dataset.consulta)));
-  document.getElementById('admin-nova-empresa')?.addEventListener('click',()=>{ADMIN.empresa=null;adminRenderEmpresas();adminPreencherEmpresa({},true);document.getElementById('admin-painel-lojas').hidden=true;document.getElementById('admin-painel-supervisores').hidden=true;});
+  document.getElementById('admin-nova-empresa')?.addEventListener('click',()=>{ADMIN.empresa=null;adminRenderEmpresas();adminPreencherEmpresa({},true);document.getElementById('admin-painel-lojas').hidden=true;document.getElementById('admin-painel-supervisores').hidden=true;document.getElementById('admin-painel-central').hidden=true;});
   document.getElementById('admin-editar-empresa')?.addEventListener('click',()=>adminPreencherEmpresa(ADMIN.empresa,true));
   document.getElementById('admin-cancelar-empresa')?.addEventListener('click',()=>document.getElementById('admin-form-empresa').hidden=true);
   document.getElementById('admin-form-empresa')?.addEventListener('submit',async e=>{e.preventDefault();const nome=document.getElementById('admin-empresa-nome').value.trim(),descricao=document.getElementById('admin-empresa-descricao').value.trim();try{const payload=ADMIN.empresa?{acao:'plataforma_editar_empresa',empresa_id:ADMIN.empresa.id,nome,descricao}:{acao:'plataforma_criar_empresa',nome,descricao};await adminRequisicao(payload,async()=>{e.target.hidden=true;await adminCarregarEmpresas();});}catch(x){}});
