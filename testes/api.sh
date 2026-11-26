@@ -8,18 +8,33 @@
 set -u
 cd "$(dirname "$0")/.."
 
-BASE="http://127.0.0.1:8877"
+PORT="${API_TEST_PORT:-8877}"
+BASE="http://127.0.0.1:$PORT"
 COOKIES_A=$(mktemp); COOKIES_B=$(mktemp); COOKIES_P=$(mktemp); COOKIES_S=$(mktemp)
+SERVIDOR=''
 falhas=0
+
+cleanup() {
+  local codigo=$?
+  if [ -n "${SERVIDOR:-}" ]; then
+    kill "$SERVIDOR" 2>/dev/null || true
+    if command -v taskkill >/dev/null 2>&1; then
+      taskkill //PID "$SERVIDOR" //T //F >/dev/null 2>&1 || true
+    fi
+  fi
+  rm -f api/config.php "$COOKIES_A" "$COOKIES_B" "$COOKIES_P" "$COOKIES_S" "${PHP_LOG:-}"
+  exit "$codigo"
+}
+trap cleanup EXIT INT TERM
 
 ok()    { echo "  ok     $1"; }
 falha() { echo "  FALHA  $1"; falhas=$((falhas+1)); }
 
 chamar() { # $1=cookies $2=arquivo $3=json $4=csrf
-  curl -s -c "$1" -b "$1" -X POST "$BASE/api/$2" \
+  printf '%s' "$3" | curl -s -c "$1" -b "$1" -X POST "$BASE/api/$2" \
     -H 'Content-Type: application/json' \
         -H "Origin: $BASE" \
-    ${4:+-H "X-CSRF: $4"} -d "$3"
+    ${4:+-H "X-CSRF: $4"} --data-binary @-
 }
 
 # Mantém corpo e status separados para que testes de autorização não confundam
@@ -27,9 +42,9 @@ chamar() { # $1=cookies $2=arquivo $3=json $4=csrf
 chamar_com_status() { # define HTTP_STATUS e HTTP_BODY
   local cookies="$1" arquivo="$2" payload="$3" csrf="${4:-}" tmp
   tmp=$(mktemp)
-  HTTP_STATUS=$(curl -s -o "$tmp" -w '%{http_code}' -c "$cookies" -b "$cookies" \
+  HTTP_STATUS=$(printf '%s' "$payload" | curl -s -o "$tmp" -w '%{http_code}' -c "$cookies" -b "$cookies" \
     -X POST "$BASE/api/$arquivo" -H 'Content-Type: application/json' \
-    -H "Origin: $BASE" ${csrf:+-H "X-CSRF: $csrf"} -d "$payload")
+    -H "Origin: $BASE" ${csrf:+-H "X-CSRF: $csrf"} --data-binary @-)
   HTTP_BODY=$(<"$tmp")
   rm -f "$tmp"
 }
@@ -102,18 +117,32 @@ mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-008-descricao-cadastros
 mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
   || falha "verificar-e-migrar.sql após as migrações"
 
-cat > api/config.php <<'PHP'
+cat > api/config.php <<PHP
 <?php return [
   'bd_host'=>'127.0.0.1', 'bd_nome'=>'teste_escala',
   'bd_usuario'=>'root', 'bd_senha'=>'',
-  'endereco_site'=>'http://127.0.0.1:8877', 'chave_criacao_empresa'=>'teste-ci-123',
+  'endereco_site'=>'$BASE', 'chave_criacao_empresa'=>'teste-ci-123',
   'email_remetente'=>'teste@local', 'super_admins'=>['plataforma@exemplo.test'],
 ];
 PHP
 
-php -S 127.0.0.1:8877 -t . > /tmp/phpserver.log 2>&1 &
+PHP_LOG="$(pwd)/.tmp-exp/phpserver-$PORT.log"
+php -d opcache.enable=0 -d opcache.enable_cli=0 -S "127.0.0.1:$PORT" -t "$(pwd)" > "$PHP_LOG" 2>&1 &
 SERVIDOR=$!
 sleep 3
+if ! kill -0 "$SERVIDOR" 2>/dev/null; then
+  echo "Servidor PHP não iniciou. Log:" >&2
+  cat "$PHP_LOG" >&2 || true
+  exit 1
+fi
+# Confirma que a porta pertence ao processo iniciado pelo teste e não a um
+# servidor antigo. A resposta de sessão também prova que o document root serve
+# a API esperada antes de qualquer fixture de usuário.
+if ! curl -fsS -X POST "$BASE/api/auth.php" -H 'Content-Type: application/json' -d '{"acao":"sessao"}' | grep -q '"csrf"'; then
+  echo "Servidor PHP respondeu sem o contrato de sessão. Log:" >&2
+  cat "$PHP_LOG" >&2 || true
+  exit 1
+fi
 
 echo ""
 echo "=== 1. Sessão e token ==="
@@ -211,6 +240,27 @@ CONVITE_A=$(echo "$R" | grep -o '"codigo_convite":"[^"]*"' | cut -d'"' -f4)
 EMPRESA_A=$(echo "$R" | grep -o '"empresa_id":"[^"]*"' | cut -d'"' -f4); LOJA_A=$(echo "$R" | grep -o '"loja_id":"[^"]*"' | cut -d'"' -f4)
 PAPEL=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT papel FROM usuarios WHERE email='ana@teste.com';")
 [ "$PAPEL" = "admin" ] && ok "quem cria a empresa vira admin" || falha "papel: $PAPEL"
+
+# O cadastro permanece neutro: o superadmin promove uma conta confirmada e o
+# vínculo explícito, não o payload do navegador, decide o acesso do supervisor.
+ANA_ID=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT id FROM usuarios WHERE email='ana@teste.com';")
+R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_mudar_papel\",\"empresa_id\":\"$EMPRESA_A\",\"usuario_id\":\"$ANA_ID\",\"papel\":\"gestor\"}" "$CSRF_P")
+echo "$R" | grep -q '"papel":"gestor"' && ok "superadmin promove conta confirmada a supervisor" || falha "promoção: $R"
+PAPEL=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT papel FROM usuarios WHERE id='$ANA_ID';")
+LOJA_LEGADA=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT loja_id IS NULL FROM usuarios WHERE id='$ANA_ID';")
+[ "$PAPEL" = "gestor" ] && [ "$LOJA_LEGADA" = "1" ] && ok "promoção limpa loja_id legado" || falha "escopo legado após promoção: papel=$PAPEL loja_nula=$LOJA_LEGADA"
+CSRF_A=$(chamar "$COOKIES_A" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
+R=$(chamar "$COOKIES_A" dados.php '{"acao":"carregar"}' "$CSRF_A")
+echo "$R" | grep -q "Supervisor sem loja" && ok "supervisor promovido sem vínculo fica bloqueado" || falha "supervisor sem vínculo: $R"
+R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_atribuir_supervisor_loja\",\"usuario_id\":\"$ANA_ID\",\"loja_id\":\"$LOJA_A\"}" "$CSRF_P")
+echo "$R" | grep -q '"ok":true' && ok "superadmin vincula loja ao supervisor promovido" || falha "vínculo após promoção: $R"
+R=$(chamar "$COOKIES_A" dados.php '{"acao":"carregar"}' "$CSRF_A")
+echo "$R" | grep -q 'Loja Teste A' && ok "supervisor promovido acessa loja vinculada" || falha "acesso após vínculo: $R"
+R=$(chamar "$COOKIES_P" auth.php "{\"acao\":\"plataforma_mudar_papel\",\"empresa_id\":\"$EMPRESA_A\",\"usuario_id\":\"$ANA_ID\",\"papel\":\"admin\"}" "$CSRF_P")
+echo "$R" | grep -q '"papel":"admin"' && ok "superadmin rebaixa supervisor para administrador" || falha "rebaixamento: $R"
+VINCULOS=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM supervisor_lojas WHERE usuario_id='$ANA_ID';")
+[ "$VINCULOS" = "0" ] && ok "rebaixamento remove vínculos antigos" || falha "vínculos após rebaixamento: $VINCULOS"
+CSRF_A=$(chamar "$COOKIES_A" auth.php '{"acao":"sessao"}' | grep -o '"csrf":"[^"]*"' | cut -d'"' -f4)
 
 R=$(chamar "$COOKIES_A" auth.php '{"acao":"criar_empresa","nome":"Outra"}' "$CSRF_A")
 echo "$R" | grep -q "já pertence" && ok "segunda empresa recusada" || falha "criou duas empresas: $R"
@@ -497,9 +547,6 @@ NR=$(mysql -u root -h 127.0.0.1 teste_escala -sN -e "SELECT COUNT(*) FROM regist
 [ "$NR" -gt 3 ] && ok "$NR ações registradas na auditoria" || falha "auditoria vazia"
 
 # --- encerrar ---------------------------------------------------------------
-kill $SERVIDOR 2>/dev/null
-rm -f api/config.php "$COOKIES_A" "$COOKIES_B"
-
 echo ""
 if [ "$falhas" -eq 0 ]; then
   echo "RESULTADO: todos os testes passaram"
