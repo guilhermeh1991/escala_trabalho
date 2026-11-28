@@ -108,12 +108,12 @@ mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-004-resumo-escala.sql 2
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-005-jornada-estruturada.sql 2>/dev/null
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-006-supervisor-multiloja.sql >/dev/null \
   || falha "migracao-006-supervisor-multiloja.sql"
-mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
-  || falha "verificar-e-migrar.sql após as migrações"
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-007-historico-versoes.sql >/dev/null \
   || falha "migracao-007-historico-versoes.sql"
 mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-008-descricao-cadastros.sql >/dev/null \
   || falha "migracao-008-descricao-cadastros.sql"
+mysql -u root -h 127.0.0.1 teste_escala < banco/migracao-009-folga-fixa-gerente.sql >/dev/null \
+  || falha "migracao-009-folga-fixa-gerente.sql"
 mysql -u root -h 127.0.0.1 teste_escala < banco/verificar-e-migrar.sql >/dev/null \
   || falha "verificar-e-migrar.sql após as migrações"
 
