@@ -55,22 +55,44 @@ function cenario(n){
   const nBl = equipe.filter(c=>!c.gerente && c.cargo!=='CAIXA').length;
   const P = {
     inicio: iso(ini), fim: iso(fim),
-    modelo: pick(['5x2','5x2','5x2','6x1','6x1']),
+    modelo: '5x2',
     cicloDomingo: pick([3,3,2]),
     maxSeq: pick([6,6,6,5,7]),
-    inicioSemana: pick(['P',0,1]),
     minCaixa:  Math.max(0, nCx - ri(2,4)),
     minBalcao: Math.max(0, nBl - ri(2,5)),
     minFarma: 2,
     minSubger: 1,
     subgerFds: rnd()<0.7,
   };
-  P.folgasSemana = P.modelo === '6x1' ? 1 : 2;
+  P.folgasSemana = 2;
   if(rnd()<0.5){
     const base = Math.max(1, equipe.length - ri(3,6));
     P.minDia = {0:Math.max(1,base-2), 1:Math.max(1,base-2), 2:base, 3:base, 4:base, 5:base, 6:base};
   }
   return {nome:'cenário '+n, equipe, P};
+}
+
+/* Tamanho de cada bloco de folgas do período: semanas de domingo a sábado, com
+   a ponta de menos de sete dias absorvida pela vizinha. Só o tamanho interessa
+   aqui, porque a conta de viabilidade não precisa saber onde o bloco começa. */
+function semanasDoPeriodoSimulado(days){
+  const N = days.length;
+  const tam = [];
+  let i = 0;
+  while(i < N){
+    let j = i;
+    while(j+1 < N && days[j+1].getDay() !== 0) j++;
+    tam.push(j - i + 1);
+    i = j + 1;
+  }
+  if(tam.some(k=>k>=7)){
+    if(tam.length>=2 && tam[0]<7 && tam[0]+tam[1]<=13) tam.splice(0, 2, tam[0]+tam[1]);
+    if(tam.length>=2){
+      const u = tam[tam.length-1];
+      if(u<7 && u+tam[tam.length-2]<=13) tam.splice(tam.length-2, 2, u+tam[tam.length-2]);
+    }
+  }
+  return tam;
 }
 
 /* Um cenário é viável se a mão de obra que sobra depois das folgas obrigatórias
@@ -82,11 +104,14 @@ function viabilidade(equipe, P, days){
   const ausente = (c,d) => (c.ausencias||[]).some(a=>a.ini<=iso(d) && iso(d)<=(a.fim||a.ini));
   let disponivel = 0;
   days.forEach(d=>ativos.forEach(c=>{ if(!ausente(c,d)) disponivel++; }));
-  const semanasCheias = Math.floor(N/7), resto = N%7;
+  /* Folgas que o período exige de cada pessoa, pela mesma conta que o motor faz
+     sobre as semanas de domingo a sábado já com a ponta curta fundida. */
+  const folgasPorPessoa = semanasDoPeriodoSimulado(days)
+    .reduce((t,s)=>t + 2*Math.floor(s/7) + ((s%7)>=3 ? 1 : 0), 0);
   let folgas = 0;
   ativos.forEach(c=>{
     if(c.gerente) folgas += days.filter(d=>d.getDay()===0||d.getDay()===6).length;
-    else folgas += P.folgasSemana*semanasCheias + (resto>=3?1:0);
+    else folgas += folgasPorPessoa;
   });
   const capacidade = disponivel - folgas;
   let demanda = 0;
@@ -103,7 +128,7 @@ function viabilidade(equipe, P, days){
     days.forEach(d=>gente.forEach(c=>{ if(!ausente(c,d)) disp++; }));
     let fg = 0;
     gente.forEach(c=>{ fg += c.gerente ? days.filter(d=>d.getDay()===0||d.getDay()===6).length
-                                       : P.folgasSemana*semanasCheias + (resto>=3?1:0); });
+                                       : folgasPorPessoa; });
     return (disp - fg) >= minimo * N;
   }
   const ehCx = c=>!c.gerente && (c.cargo||'').toUpperCase().includes('CAIXA');

@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS colaboradores (
   gerente          TINYINT(1)  NOT NULL DEFAULT 0,
   ativo            TINYINT(1)  NOT NULL DEFAULT 1,
   folga_fixa       TINYINT     NULL,      -- 0=domingo ... 6=sábado
+  folga_fixa_2     TINYINT     NULL,      -- segundo dia fixo do gerente
   primeiro_domingo DATE        NULL,
   dias_desde_folga TINYINT     NULL,
   ordem            INT         NOT NULL DEFAULT 0,

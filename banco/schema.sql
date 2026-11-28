@@ -57,6 +57,7 @@ create table if not exists public.colaboradores (
   gerente          boolean not null default false,
   ativo            boolean not null default true,
   folga_fixa       smallint check (folga_fixa between 0 and 6),
+  folga_fixa_2     smallint check (folga_fixa_2 between 0 and 6),
   primeiro_domingo date,
   dias_desde_folga smallint check (dias_desde_folga between 0 and 30),
   ordem            integer not null default 0,

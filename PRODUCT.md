@@ -26,7 +26,7 @@ A rotina mensal começa pela conferência da equipe e das ausências, passa pela
 
 ## Capabilities and Constraints
 
-- Modelos 5x2 e 6x1, ciclo de domingos, folga fixa, férias, atestados, licenças e jornadas estruturadas.
+- Escala 5x2 com semana de domingo a sábado, ciclo de domingos, folga fixa, férias, atestados, licenças e jornadas estruturadas.
 - Regras legais e políticas da casa têm prioridades explícitas; ausências lançadas são preservadas.
 - A grade apresenta pessoas por linha e dias por coluna, com indicadores diários e cobertura intradiária quando as faixas estão configuradas.
 - O projeto é uma aplicação web em JavaScript puro, com backend PHP/MySQL e variantes HostGator, Supabase e offline.

@@ -779,7 +779,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
     <section class="view" data-view="equipe">
       <div class="painel">
         <h2>Equipe da loja</h2>
-        <p class="desc"><b>E-mail de acesso</b>: preenchendo o e-mail da pessoa, ela cria a própria conta e passa a ver <b>apenas a escala dela</b> — sem acesso à equipe nem à escala dos colegas. Quem tem um perfil com folga fixa semanal folga nos dias que o perfil define; sem perfis configurados, o gerente folga sábado e domingo por política da casa. <b>Folga fixa</b>: em “variável” o sistema escolhe o melhor dia para cada semana; escolhendo um dia, a folga daquela pessoa cai sempre nele — no 6x1 é a folga da semana, no 5x2 é o par que passa a incluir esse dia. “Dom. trabalhados” diz quantos domingos a pessoa já trabalhou seguidos no fim do mês anterior.</p>
+        <p class="desc"><b>E-mail de acesso</b>: preenchendo o e-mail da pessoa, ela cria a própria conta e passa a ver <b>apenas a escala dela</b> — sem acesso à equipe nem à escala dos colegas. Quem tem um perfil com folga fixa semanal folga nos dias que o perfil define; sem perfis configurados, o gerente folga sábado e domingo por política da casa. <b>Folga fixa</b>: em “variável” o sistema escolhe o melhor dia para cada semana; escolhendo um dia, a folga daquela pessoa cai sempre nele, e o par de folgas da semana passa a incluir esse dia. “Dom. trabalhados” diz quantos domingos a pessoa já trabalhou seguidos no fim do mês anterior.</p>
         <div class="barra"><button class="btn small" id="btn-add-colab">Adicionar colaborador</button><span class="chip" id="status-equipe" role="status" aria-live="polite"></span></div>
         <div style="overflow:auto"><table class="simples" id="tab-equipe"></table></div>
       </div>
@@ -799,15 +799,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <p class="desc">Valem para a loja selecionada. O gerador respeita estes números como limite rígido.</p>
 
         <div class="params-grid">
-          <!-- linha 1: modelo e ciclo de domingos -->
-          <div class="pg-cel">
-            <label for="r-modelo">Modelo de escala</label>
-            <select id="r-modelo" class="inp">
-              <option value="5x2">5x2 — duas folgas por semana</option>
-              <option value="6x1">6x1 — uma folga por semana</option>
-            </select>
-            <div class="hint">No 6x1, o domingo do ciclo vem por cima da folga semanal.</div>
-          </div>
+          <!-- linha 1: ciclo de domingos -->
           <div class="pg-cel">
             <label for="r-ciclo">Ciclo de domingos</label>
             <select id="r-ciclo" class="inp">
@@ -823,16 +815,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <div class="hint">Nenhum colaborador passa desse limite.</div>
           </div>
 
-          <!-- linha 2: semana, cobertura -->
-          <div class="pg-cel">
-            <label for="r-semana">Semana conta de</label>
-            <select id="r-semana" class="inp">
-              <option value="P">Blocos de 7 a partir do dia 11</option>
-              <option value="0">Domingo a sábado</option>
-              <option value="1">Segunda a domingo</option>
-            </select>
-            <div class="hint">Define onde começa e termina cada semana de folgas.</div>
-          </div>
+          <!-- linha 2: cobertura -->
           <div class="pg-cel">
             <label for="r-mincaixa">Caixas por dia (meta)</label>
             <input type="number" id="r-mincaixa" class="inp" min="0" max="12">
@@ -936,7 +919,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <ol style="font-size:13.5px;color:var(--tinta2);line-height:1.75;margin:0;padding-left:20px">
           <li>Trava férias, atestados e licenças. Só isso é intocável — todo o resto tem peso.</li>
           <li>Quem tem perfil com folga fixa semanal folga nesses dias, sem outra regra. Sem perfis configurados, o gerente folga sábado e domingo — é política da casa, não exigência legal.</li>
-          <li>No <b>5x2</b>, procura duas folgas por semana em dias seguidos. No <b>6x1</b>, uma folga por semana — e na semana em que cai o domingo do ciclo a pessoa folga duas vezes, porque a folga da semana e a do domingo são direitos separados.</li>
+          <li>Procura <b>duas folgas por semana em dias seguidos</b>. A semana vai de <b>domingo a sábado</b>. Quando a ponta do período cai no meio da semana, ela é somada à semana vizinha: o bloco maior pede as folgas proporcionais, em vez de exigir um par num pedaço de dois dias.</li>
           <li>Para cada pessoa, monta todas as combinações possíveis de folga de cada semana e escolhe a sequência do mês inteiro de menor custo. Não decide semana a semana: colar o fim de semana depende do que foi feito na semana anterior.</li>
           <li>As regras marcadas como referência trabalhista viajam dentro dessa conta com peso em outra ordem de grandeza, de propósito. O sistema sinaliza os limites configurados e não substitui a conferência jurídica da operação.</li>
           <li>Depois vêm, nesta ordem: ficar sem nenhum farmacêutico (quase proibido), manter o subgerente na loja, chegar a dois farmacêuticos, o mínimo do dia da semana, o mínimo de caixa e balcão, e o equilíbrio entre os dias.</li>
@@ -946,7 +929,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
       </div>
       <div class="painel">
         <h2>O que o sistema não inventa</h2>
-        <p class="desc" style="margin:0">Manter dois farmacêuticos por dia com três no quadro é apertado: cada um precisa folgar em dias que os outros dois trabalham, e quanto menor a folga de pessoal, mais dias ficam com um só — o rodapé marca esses dias. Quando a loja tem um único farmacêutico, não há como dar a folga dele e manter a presença: o sistema concede a folga e marca o dia para você combinar substituição. O mesmo vale para subgerente único no fim de semana. Um <b>mínimo obrigatório</b> configurado continua bloqueando a publicação mesmo quando não há ninguém disponível para cobri-lo: quem decide abrir mão do piso é quem administra a loja, alterando os parâmetros. Escala de uma folga por semana (6x1) tem uma limitação de matemática: com semanas fixas, o dia de folga só consegue andar para trás, nunca para frente, sem estourar o limite de dias seguidos.</p>
+        <p class="desc" style="margin:0">Manter dois farmacêuticos por dia com três no quadro é apertado: cada um precisa folgar em dias que os outros dois trabalham, e quanto menor a folga de pessoal, mais dias ficam com um só — o rodapé marca esses dias. Quando a loja tem um único farmacêutico, não há como dar a folga dele e manter a presença: o sistema concede a folga e marca o dia para você combinar substituição. O mesmo vale para subgerente único no fim de semana. Um <b>mínimo obrigatório</b> configurado continua bloqueando a publicação mesmo quando não há ninguém disponível para cobri-lo: quem decide abrir mão do piso é quem administra a loja, alterando os parâmetros.</p>
       </div>
     </section>
 
@@ -1034,7 +1017,7 @@ async function sha256(txt){
 function seedLojas(){
   const mk = (l)=>l.map((r,i)=>({id:r[0].toLowerCase().replace(/[^a-z]/g,'')+i, nome:r[0], cargo:r[1], horario:r[2],
                                  gerente:!!r[3], ativo:true, domTrabConsec:null, diasDesdeFolga:0,
-                                 folgaFixa:null, ausencias:[]}));
+                                 folgaFixa:null, folgaFixa2:null, ausencias:[]}));
   return {
     'demo-aurora':{
       nome:'Unidade Aurora',
@@ -1053,7 +1036,7 @@ function seedLojas(){
         ['COLABORADOR 12','CAIXA','14:40 AS 23:00'],
         ['COLABORADOR 13','AX. LOJA','09:00 AS 18:00'],
       ]),
-      params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:'P', minCaixa:2, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
+      params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0, minCaixa:2, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
                minDia:{0:7, 1:7, 2:9, 3:9, 4:9, 5:9, 6:9}}
     },
     'demo-horizonte':{
@@ -1076,7 +1059,7 @@ function seedLojas(){
         ['COLABORADOR 28','REPOSITOR','08:00 AS 17:00'],
         ['COLABORADOR 29','AX. LOJA','08:00 AS 17:00'],
       ]),
-      params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:'P', minCaixa:3, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
+      params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0, minCaixa:3, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
                minDia:{0:9, 1:9, 2:11, 3:9, 4:11, 5:9, 6:11}}
     }
   };
@@ -1317,9 +1300,8 @@ function pintarParams(){
   pintarExpediente();
   pintarFaixas();
   const p = loja().params;
-  $('#r-modelo').value = p.modelo || (p.folgasSemana===1 ? '6x1' : '5x2');
   $('#r-ciclo').value=p.cicloDomingo; avisoCiclo(); $('#r-maxseq').value=p.maxSeq;
-  $('#r-semana').value=String(p.inicioSemana); $('#r-mincaixa').value=p.minCaixa; $('#r-minbalcao').value=p.minBalcao;
+  $('#r-mincaixa').value=p.minCaixa; $('#r-minbalcao').value=p.minBalcao;
   $('#r-minfarma').value=p.minFarma; $('#r-minsubger').value = p.minSubger!=null?p.minSubger:1;
   $('#r-subger').checked = p.subgerFds!==false;
   $('#r-prioridade').value = p.prioridade || 'par';
@@ -1357,14 +1339,15 @@ $('#btn-add-faixa').onclick = ()=>{
   pintarFaixas();
 };
 $('#btn-salvar-params').onclick = async ()=>{
-  const modelo = $('#r-modelo').value;
   const paramsAnteriores = Object.assign({}, loja().params);
   /* Começa do objeto anterior: salvar os campos visíveis não pode apagar perfis,
      pisos, expediente, faixas ou funções que esta tela não editou. */
   loja().params = Object.assign({}, paramsAnteriores, {
-    modelo, folgasSemana: modelo==='6x1' ? 1 : 2,
+    /* Só existe 5x2 e a semana é sempre domingo a sábado. As duas chaves
+       continuam sendo gravadas porque o histórico de versões as registra e o
+       servidor as usa para detectar adulteração de regra. */
+    modelo:'5x2', folgasSemana:2, inicioSemana:0,
     cicloDomingo:+$('#r-ciclo').value, maxSeq:+$('#r-maxseq').value,
-    inicioSemana:($('#r-semana').value==='P'?'P':+$('#r-semana').value),
     minCaixa:+$('#r-mincaixa').value, minBalcao:+$('#r-minbalcao').value,
     minFarma:+$('#r-minfarma').value, minSubger:+$('#r-minsubger').value,
     subgerFds:$('#r-subger').checked, minDia:lerMinDias(), prioridade:$('#r-prioridade').value
@@ -1597,17 +1580,43 @@ function configurarJornadaDetalhe(box,c){
   campos('aplicar').addEventListener('click',async()=>{ const {j,valida}=atualizar(); if(!valida) return; c.jornada=j; c.horario=textoJornada(j); if(S.equipeEscala){ const eq=S.equipeEscala.find(x=>x.id===c.id); if(eq){eq.jornada=j;eq.horario=c.horario;} } if(S.res&&S.res.ativos){ const at=S.res.ativos.find(x=>x.id===c.id); if(at){at.jornada=j;at.horario=c.horario;} validarEscalaAtual(); pintarGrade(); } await salvarEquipe(); jornadaAberta=null; pintarEquipe(); });
   atualizar();
 }
+function diasFixosGerenteTela(c){
+  const a = c.folgaFixa == null || c.folgaFixa === '' ? null : Number(c.folgaFixa);
+  const b = c.folgaFixa2 == null || c.folgaFixa2 === '' ? null : Number(c.folgaFixa2);
+  if(Number.isInteger(a) && Number.isInteger(b) && a!==b) return [a,b];
+  const perfil = c.perfil && loja().params.perfis && loja().params.perfis[c.perfil];
+  const p = perfil && perfil.regras && Array.isArray(perfil.regras.folgaFixaSemanal)
+    ? perfil.regras.folgaFixaSemanal.map(Number).filter(x=>x>=0&&x<=6) : [];
+  const distintos = [...new Set(p)];
+  return distintos.length>=2 ? distintos.slice(0,2) : [0,6];
+}
+function opcoesFolgaFixa(valor){
+  return `<option value="">variável</option>${DIAS_SEMANA_NOME.map((d,k)=>`<option value="${k}"${String(valor)===String(k)?' selected':''}>${d}</option>`).join('')}`;
+}
+function renderFolgasFixas(c){
+  if(!c.gerente) return `<select data-f="folgaFixa">${opcoesFolgaFixa(c.folgaFixa)}</select>`;
+  const dias = diasFixosGerenteTela(c);
+  const primeiro = c.folgaFixa == null || c.folgaFixa === '' ? dias[0] : c.folgaFixa;
+  const segundo = c.folgaFixa2 == null || c.folgaFixa2 === '' ? dias[1] : c.folgaFixa2;
+  return `<div class="folgas-fixas-gerente"><label>1ª<select data-f="folgaFixa" aria-label="Primeira folga fixa">${opcoesFolgaFixa(primeiro)}</select></label><label>2ª<select data-f="folgaFixa2" aria-label="Segunda folga fixa">${opcoesFolgaFixa(segundo)}</select></label><small>no domingo do ciclo, o domingo substitui a 1ª</small></div>`;
+}
 function pintarEquipe(){
   const t = $('#tab-equipe');
-  t.innerHTML = `<thead><tr><th>Nome</th><th>Cargo</th><th>Horário</th><th style="width:70px">Gerente</th><th style="width:118px">Folga fixa</th><th style="width:190px">1º domingo de folga</th><th style="width:60px">Ativo</th><th style="width:40px"></th></tr></thead><tbody></tbody>`;
+  t.innerHTML = `<thead><tr><th>Nome</th><th>Cargo</th><th>Horário</th><th style="width:70px">Gerente</th><th style="width:150px">Folgas fixas</th><th style="width:190px">1º domingo de folga</th><th style="width:60px">Ativo</th><th style="width:40px"></th></tr></thead><tbody></tbody>`;
   const tb = t.querySelector('tbody');
   loja().colabs.forEach((c,i)=>{
     const tr = document.createElement('tr'); const j=jornadaDe(c);
-    tr.innerHTML = `<td><input value="${esc(c.nome)}" data-f="nome"></td><td><select data-f="cargo">${CARGOS.map(x=>`<option${x===c.cargo?' selected':''}>${x}</option>`).join('')}</select></td><td class="horario-cel"><button type="button" class="horario-abrir" aria-expanded="${jornadaAberta===c.id}" data-jornada-abrir><span><span class="hora">${esc(c.horario||textoJornada(j)||'Horário não informado')}</span><span class="modelo">${esc(resumoModelo(c))}</span></span><i class="seta" aria-hidden="true"></i></button></td><td style="text-align:center"><input type="checkbox" data-f="gerente" ${c.gerente?'checked':''}></td><td><select data-f="folgaFixa"><option value="">variável</option>${DIAS_SEMANA_NOME.map((d,k)=>`<option value="${k}"${String(c.folgaFixa)===String(k)?' selected':''}>${d}</option>`).join('')}</select></td><td>${renderDomPicker(c)}</td><td style="text-align:center"><input type="checkbox" data-f="ativo" ${c.ativo!==false?'checked':''}></td><td><button class="btn danger small" type="button" title="Remover" data-remover>×</button></td>`;
+    tr.innerHTML = `<td><input value="${esc(c.nome)}" data-f="nome"></td><td><select data-f="cargo">${CARGOS.map(x=>`<option${x===c.cargo?' selected':''}>${x}</option>`).join('')}</select></td><td class="horario-cel"><button type="button" class="horario-abrir" aria-expanded="${jornadaAberta===c.id}" data-jornada-abrir><span><span class="hora">${esc(c.horario||textoJornada(j)||'Horário não informado')}</span><span class="modelo">${esc(resumoModelo(c))}</span></span><i class="seta" aria-hidden="true"></i></button></td><td style="text-align:center"><input type="checkbox" data-f="gerente" ${c.gerente?'checked':''}></td><td>${renderFolgasFixas(c)}</td><td>${renderDomPicker(c)}</td><td style="text-align:center"><input type="checkbox" data-f="ativo" ${c.ativo!==false?'checked':''}></td><td><button class="btn danger small" type="button" title="Remover" data-remover>×</button></td>`;
     tr.querySelectorAll('[data-f]').forEach(el=>el.onchange=async()=>{
       const f=el.dataset.f; let v=el.type==='checkbox'?el.checked:el.value;
-      if(f==='folgaFixa') v=v===''?null:+v;
+      if(f==='folgaFixa' || f==='folgaFixa2') v=v===''?null:+v;
       const anterior = c[f]; c[f]=v;
+      if(c.gerente && (f==='folgaFixa' || f==='folgaFixa2') && c.folgaFixa != null && c.folgaFixa2 != null && c.folgaFixa === c.folgaFixa2){
+        c[f]=anterior;
+        alert('As duas folgas fixas do gerente devem ser diferentes.');
+        pintarEquipe();
+        return;
+      }
       if(!(await salvarEquipe())) c[f]=anterior;
       pintarEquipe(); pintarAus();
     });
@@ -1631,7 +1640,7 @@ function pintarEquipe(){
   });
 }
 $('#btn-add-colab').onclick = async ()=>{
-  loja().colabs.push({id:gerarId(),nome:'NOVO COLABORADOR',cargo:'BALCONISTA',horario:'',jornada:null,gerente:false,ativo:true,domTrabConsec:null,diasDesdeFolga:0,folgaFixa:null,ausencias:[]});
+  loja().colabs.push({id:gerarId(),nome:'NOVO COLABORADOR',cargo:'BALCONISTA',horario:'',jornada:null,gerente:false,ativo:true,domTrabConsec:null,diasDesdeFolga:0,folgaFixa:null,folgaFixa2:null,ausencias:[]});
   const salvo = await salvarEquipe();
   if(salvo) pintarEquipe(); else loja().colabs.pop();
 };

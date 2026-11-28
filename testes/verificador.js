@@ -23,6 +23,58 @@ function jornada(c){
   return horas.length>=2 ? {entrada:horas[0],saida:horas[1]} : null;
 }
 function horasTexto(txt){ return (String(txt||'').match(/\d{1,2}:\d{2}/g)||[]).map(h=>h.padStart(5,'0')).filter(h=>minutos(h)!=null); }
+
+/* Quantas folgas um bloco de `k` dias deve ter. Escrito aqui por conta própria:
+   duas folgas a cada sete dias completos, e uma a mais se o resto chegar a três
+   dias. Resto de um ou dois dias não gera exigência. */
+function folgasExigidas(k){
+  const semanasInteiras = Math.floor(k / 7);
+  const resto = k - semanasInteiras * 7;
+  return semanasInteiras * 2 + (resto >= 3 ? 1 : 0);
+}
+
+/* Semanas da conferência. A escala nova vai de domingo a sábado e a ponta curta
+   é absorvida pela semana vizinha; 'P' e segunda-a-domingo só aparecem ao
+   reconferir escala publicada sob a regra antiga. */
+function semanasDaConferencia(days, inicioSemana){
+  const N = days.length;
+  const montar = lista => {
+    lista.forEach(s=>{ s.dias=[]; for(let k=s.ini;k<=s.fim;k++) s.dias.push(k); });
+    return lista;
+  };
+  if(inicioSemana === 'P'){
+    const s=[];
+    for(let i=0;i<N;i+=7) s.push({ini:i, fim:Math.min(i+6,N-1)});
+    return montar(s);
+  }
+  const primeiroDia = (inicioSemana == null) ? 0 : Number(inicioSemana);
+  const s=[];
+  let i=0;
+  while(i<N){
+    let j=i;
+    while(j+1<N && days[j+1].getDay()!==primeiroDia) j++;
+    s.push({ini:i, fim:j});
+    i=j+1;
+  }
+  if(primeiroDia !== 0) return montar(s);
+  // domingo a sábado: funde a ponta curta, com as mesmas duas condições do motor
+  const comp = s.filter(x=>x.fim-x.ini+1 >= 7).length;
+  if(comp >= 1){
+    const largura = x => x.fim - x.ini + 1;
+    if(s.length>=2 && largura(s[0])<7 && largura(s[0])+largura(s[1])<=13){
+      s[1].ini = s[0].ini;
+      s.shift();
+    }
+    if(s.length>=2){
+      const fim = s[s.length-1], penultima = s[s.length-2];
+      if(largura(fim)<7 && largura(fim)+largura(penultima)<=13){
+        penultima.fim = fim.fim;
+        s.pop();
+      }
+    }
+  }
+  return montar(s);
+}
 function entradaDia(c,i,res){ const hs=horasTexto(res.horas&&res.horas[c.id]&&res.horas[c.id][i]); return hs.length ? hs[0] : (jornada(c)||{}).entrada; }
 function fimDiaMinutos(c,i,res){
   const hs=horasTexto(res.horas&&res.horas[c.id]&&res.horas[c.id][i]);
@@ -43,19 +95,8 @@ function verificar(res, colabs, P, estadoInicial){
   const V = [];                                  // violações
   const add = (regra, quem, txt) => V.push({regra, quem, txt});
 
-  // semanas, recalculadas aqui de propósito
-  const semanas = [];
-  if(P.inicioSemana === 'P'){
-    for(let i=0;i<N;i+=7) semanas.push({ini:i, fim:Math.min(i+6,N-1)});
-  } else {
-    let i=0;
-    while(i<N){
-      let j=i;
-      while(j+1<N && days[j+1].getDay()!==P.inicioSemana) j++;
-      semanas.push({ini:i, fim:j}); i=j+1;
-    }
-  }
-  semanas.forEach(s=>{ s.dias=[]; for(let k=s.ini;k<=s.fim;k++) s.dias.push(k); });
+  // semanas, recalculadas aqui de propósito (decisão 0005)
+  const semanas = semanasDaConferencia(days, P.inicioSemana);
 
   ativos.forEach(c=>{
     const arr = grid[c.id];
@@ -108,16 +149,21 @@ function verificar(res, colabs, P, estadoInicial){
     // perfil definido, o gerente mantém sábado e domingo, como antes.
     const perfisLoja = (P && P.perfis) || {};
     const perfilDaPessoa = c.perfil && perfisLoja[c.perfil] ? perfisLoja[c.perfil] : null;
-    const diasDoPerfil = perfilDaPessoa && Array.isArray(perfilDaPessoa.regras && perfilDaPessoa.regras.folgaFixaSemanal)
+    const fichaGerente = c.gerente && Number.isInteger(Number(c.folgaFixa)) && Number.isInteger(Number(c.folgaFixa2))
+      && Number(c.folgaFixa)!==Number(c.folgaFixa2) ? [Number(c.folgaFixa),Number(c.folgaFixa2)] : null;
+    const diasDoPerfil = fichaGerente || (perfilDaPessoa && Array.isArray(perfilDaPessoa.regras && perfilDaPessoa.regras.folgaFixaSemanal)
       ? perfilDaPessoa.regras.folgaFixaSemanal.map(Number)
-      : (c.gerente ? [0,6] : []);
+      : (c.gerente ? [0,6] : []));
     if(diasDoPerfil.length){
-      const nomePerfil = perfilDaPessoa ? perfilDaPessoa.nome : 'gerente (padrão da casa)';
+      const nomePerfil = perfilDaPessoa ? perfilDaPessoa.nome : (fichaGerente ? 'ficha do gerente' : 'gerente (padrão da casa)');
       days.forEach((d,i)=>{
-        if(diasDoPerfil.includes(d.getDay()) && !descansa(i))
-          add('R6-perfil-folga-fixa', c.nome, `perfil "${nomePerfil}" prevê folga, mas trabalha em ${dd(days[i])}`);
+        if(!diasDoPerfil.includes(d.getDay()) || descansa(i)) return;
+        const semana = semanas.find(s=>s.dias.includes(i));
+        const domingo = semana && semana.dias.find(k=>days[k].getDay()===0);
+        const substituida = !!(fichaGerente && fichaGerente[0]===d.getDay() && domingo!=null && descansa(domingo));
+        if(!substituida) add('R6-perfil-folga-fixa', c.nome, `perfil "${nomePerfil}" prevê folga, mas trabalha em ${dd(days[i])}`);
       });
-      return;   // quem tem folga fixa de perfil não entra nas demais regras de folga
+      if(!fichaGerente) return;   // perfil legado continua encerrando as regras de folga
     }
 
     // R2 — nunca mais de maxSeq dias seguidos trabalhados
@@ -128,14 +174,15 @@ function verificar(res, colabs, P, estadoInicial){
       if(seq === P.maxSeq+1) add('R2-sequencia', c.nome, `${seq} dias seguidos até ${dd(days[i])}`);
     }
 
-    // R1 — folgas por semana
+    // R1 — folgas por semana, proporcional ao tamanho do bloco
     semanas.forEach(s=>{
-      if(s.dias.length < 7) return;                       // semana parcial: proporcional, ver R1b
+      const pedido = folgasExigidas(s.dias.length);
+      if(pedido < 1) return;                              // ponta de 1 ou 2 dias não exige folga
       const afast = s.dias.filter(i=>AUSENCIA.includes(arr[i])).length;
-      if(afast >= 6) return;                              // semana praticamente toda de férias
-      const n = s.dias.filter(i=>FOLGA_X.includes(arr[i])).length + Math.min(afast, P.folgasSemana);
-      if(n < P.folgasSemana)
-        add('R1-folgas-semana', c.nome, `semana de ${dd(days[s.ini])}: ${n} folga(s), pedido ${P.folgasSemana}`);
+      if(afast >= s.dias.length - 1) return;              // bloco praticamente todo de férias
+      const n = s.dias.filter(i=>FOLGA_X.includes(arr[i])).length + Math.min(afast, pedido);
+      if(n < pedido)
+        add('R1-folgas-semana', c.nome, `semana de ${dd(days[s.ini])}: ${n} folga(s), pedido ${pedido}`);
     });
 
     // R3 — domingos: no máximo (ciclo-1) trabalhados seguidos
@@ -151,24 +198,9 @@ function verificar(res, colabs, P, estadoInicial){
       } else { corrida=0; jaAvisou=false; }
     });
 
-    // R10 — no 6x1, a semana que tem folga de domingo deve ter também a folga comum
-    if(P.modelo === '6x1'){
-      semanas.forEach(s=>{
-        if(s.dias.length < 7) return;
-        const afast = s.dias.filter(i=>AUSENCIA.includes(arr[i])).length;
-        if(afast >= 4) return;
-        const domFolga = s.dias.filter(i=>days[i].getDay()===0 && FOLGA_X.includes(arr[i]));
-        if(!domFolga.length) return;
-        const total = s.dias.filter(i=>FOLGA_X.includes(arr[i])).length;
-        if(total < 2)
-          add('R10-6x1-domingo', c.nome, `semana de ${dd(days[s.ini])}: folgou o domingo do ciclo mas não teve a folga da semana`);
-      });
-    }
-
-    // R4 — folga em par nas semanas sem domingo de folga (não vale no 6x1)
+    // R4 — folga em par nas semanas sem domingo de folga
     semanas.forEach(s=>{
-      if(P.modelo === '6x1') return;
-      if(s.dias.length < 7) return;
+      if(folgasExigidas(s.dias.length) < 2) return;
       const folgas = s.dias.filter(i=>FOLGA_X.includes(arr[i]));
       if(folgas.length < 2) return;
       const temDomingoFolga = s.dias.some(i=>days[i].getDay()===0 && FOLGA_X.includes(arr[i]));
@@ -253,16 +285,17 @@ function metricas(res, colabs, P){
   const m = a => a.reduce((x,y)=>x+y,0)/a.length;
   const dp = a => { const md=m(a); return Math.sqrt(a.reduce((x,y)=>x+(y-md)**2,0)/a.length); };
   // só faz sentido cobrar par onde a semana pede 2 folgas e é semana cheia
-  const semanas = [];
-  if(P.inicioSemana==='P'){ for(let i=0;i<N;i+=7) semanas.push({ini:i, fim:Math.min(i+6,N-1)}); }
-  else { let i=0; while(i<N){ let j=i; while(j+1<N && days[j+1].getDay()!==P.inicioSemana) j++; semanas.push({ini:i,fim:j}); i=j+1; } }
+  const semanas = semanasDaConferencia(days, P.inicioSemana);
   let emPar=0, soltas=0;
   ativos.forEach(c=>{
     const arr = grid[c.id]; if(!arr || c.gerente) return;
     const viz = (k)=>k>=0&&k<N&&DESCANSO.includes(arr[k]);
+    /* Só blocos que pedem exatamente duas folgas entram na conta. Num bloco de
+       três, uma das folgas é necessariamente avulsa — o teto seria 66,7% e a
+       média viraria uma medida da composição do período, não da qualidade da
+       escala. O limiar sempre quis medir "o par saiu quando era possível". */
     semanas.forEach(s=>{
-      if(s.fim - s.ini + 1 < 7) return;
-      if((P.folgasSemana||2) < 2 || P.modelo === '6x1') return;
+      if(folgasExigidas(s.dias.length) !== 2) return;
       for(let i=s.ini;i<=s.fim;i++){
         if(!FOLGA_X.includes(arr[i])) continue;
         if(viz(i-1)||viz(i+1)) emPar++; else soltas++;

@@ -15,18 +15,41 @@ uma infração trabalhista para salvar a cobertura de dois dias — e a troca at
 parecia razoável olhando dia a dia. Ver
 [decisão 0003](decisoes/0003-pesos-em-faixas.md).
 
-| Faixa | Regra | Peso |
-|---|---|---|
-| 1 — lei | Máximo de dias seguidos trabalhados | 200.000 |
-| 1 — lei | Teto de domingos seguidos trabalhados | 150.000 |
-| 2 — casa | 6x1: folga da semana além do domingo do ciclo | 30.000 |
-| 2 — casa | Dia de folga fixa escolhido para a pessoa | 25.000 |
-| 3 — loja | Ficar sem nenhum farmacêutico | 5.000 |
-| 3 — loja | Manter subgerente na loja | 1.400 |
-| 3 — loja | Chegar a dois farmacêuticos | 900 |
-| 3 — loja | Mínimo de pessoas do dia da semana | 400 |
-| 3 — loja | Mínimo de caixa e de balcão | 600 |
-| 4 — qualidade | Folga em dias seguidos, equilíbrio entre dias | 60 a 1.600 |
+A tabela abaixo é a lista completa: toda penalidade que o motor aplica está
+aqui, com o nome da chave em `PESO` (`src/motor/motor.js`). Peso que não está
+nesta tabela não existe no código.
+
+| Faixa | Regra | Chave | Peso |
+|---|---|---|---|
+| 1 — lei | Máximo de dias seguidos trabalhados | `estouroSeq` | 200.000 |
+| 1 — lei | Teto de domingos seguidos trabalhados | `pulaDomingo` | 150.000 |
+| 2 — casa | Furar o domingo de folga fixado por data | `domingoAncorado` | 28.000 |
+| 2 — casa | Folgar em domingo fora do ciclo ancorado | `domingoExtra` | 28.000 |
+| 2 — casa | Dia de folga fixa escolhido para a pessoa | `diaFixo` | 25.000 |
+| 2 — casa | Folgar em domingo fora da fase automática | `domingoForaRotacao` | 24.000 |
+| 2 — casa | Deixar passar o domingo da fase automática | `domingoRotacao` | 24.000 |
+| 3 — loja | Ficar sem nenhum farmacêutico | `farmaCritico` | 5.000 |
+| 3 — loja | Manter subgerente na loja | `subger` | 1.400 |
+| 3 — loja | Chegar a dois farmacêuticos | `farmaAlvo` | 900 |
+| 3 — loja | Subgerente ausente no fim de semana | `subgerFds` | 900 |
+| 3 — loja | Mínimo de caixa e de balcão | `equipe` | 600 |
+| 3 — loja | Folgar em domingo que não é o seu | `outroDomingo` | 450 |
+| 3 — loja | Mínimo de pessoas do dia da semana | `curva` | 400 |
+| 3 — loja | Cada folga além do teto do dia | `teto` | 150 |
+| 4 — qualidade | Terceira folga na semana, descolada do par | `extraFolgaSolta` | 1.600 |
+| 4 — qualidade | Folga extra colada ao par | `extraFolga` | 700 |
+| 4 — qualidade | Cada dia além de 3 num bloco de descanso | `blocoLongo` | 500 |
+| 4 — qualidade | Duas folgas na semana sem serem dias seguidos | `separado` | 210 |
+| 4 — qualidade | Folga única na semana | `avulso` | 130 |
+| 4 — qualidade | **Bônus**: par de folgas que inclui o domingo dele | `bonusDomColado` | −250 |
+
+Os pesos de `curva` e `teto` são substituídos pelo parâmetro **"Quando não
+couber tudo"**: `par` usa 400 e 150, `equilibrado` usa 800 e 250, `equipe` usa
+1.800 e 400.
+
+Note que os quatro pesos de domingo da faixa 2 estão **acima** do dia de folga
+fixa. Um domingo de folga fixado por data é mais forte que a preferência de dia
+fixo da semana — e isso não se deduz da ordem das seções deste documento.
 
 A única restrição verdadeiramente rígida é **dia já ocupado por férias,
 atestado ou licença**, mais **a loja não pode ficar vazia**. Todo o resto é
@@ -83,12 +106,39 @@ gente, o comportamento depende do parâmetro **"Quando não couber tudo"**:
 
 Medido nas lojas reais, três competências. A escolha é de negócio, não técnica.
 
-### 6x1 — uma folga por semana, mais o domingo do ciclo
+### A semana vai de domingo a sábado
 
-A folga da semana e a folga de domingo são **direitos separados**. Na semana em
-que cai o domingo do ciclo, a pessoa folga duas vezes: o domingo e o dia comum.
+Não é configurável. A grade e os documentos impressos já marcam o domingo como
+início de semana, e agora a contagem de folgas concorda com o que se vê na tela.
 
-Não há exigência de dias colados no 6x1.
+O período costuma ir do dia 11 ao dia 10, então as pontas quase nunca caem em
+domingo: sobra um pedaço de 1 a 6 dias em cada extremidade. **Um pedaço desses é
+somado à semana vizinha**, formando um bloco de 8 a 13 dias, e o alvo passa a ser
+o do bloco inteiro:
+
+| Bloco | Folgas | Bloco | Folgas |
+|---|---|---|---|
+| 7 dias | 2 | 11 dias | 3 |
+| 8 dias | 2 | 12 dias | 3 |
+| 9 dias | 2 | 13 dias | 3 |
+| 10 dias | 3 | | |
+
+A conta é `2 × (dias ÷ 7, arredondado para baixo) + 1 se o resto chegar a 3`. É a
+mesma regra proporcional de sempre, e por isso **somar a ponta à vizinha dá
+exatamente o mesmo total que contá-la separada**: ninguém ganha nem perde folga
+por causa da fusão.
+
+Por que não exigir duas folgas na ponta: em 7 de 24 períodos a ponta tem **um dia
+só**. Numa ponta de dois dias, com doze pessoas e mínimo de sete por dia, seriam
+doze folgas no mesmo dia — a loja fecharia. Ver
+[decisão 0012](decisoes/0012-semana-domingo-a-sabado.md).
+
+Duas condições para a fusão, ambas descobertas medindo:
+
+1. só funde se existir ao menos uma semana de calendário completa, senão um
+   período curto inteiro viraria um "bloco" que não é semana nenhuma;
+2. só funde se o bloco resultante ficar com no máximo 13 dias, senão as duas
+   pontas de um período de 14 dias colapsam num bloco único.
 
 ## 4. Domingo de folga colado ao fim de semana
 
@@ -119,14 +169,15 @@ regras em si:
 
 O colaborador aponta para um perfil pelo campo `perfil`. **Loja sem perfis
 configurados mantém o comportamento anterior**: quem está marcado como gerente
-folga sábado e domingo. Nada muda até alguém configurar perfis.
+folga sábado e domingo. Se a ficha do gerente tiver duas folgas fixas, elas
+prevalecem sobre o perfil; na semana do domingo do ciclo, o domingo substitui a
+primeira folga fixa e a segunda permanece. Nada muda para gerentes antigos até
+alguém configurar os dois dias.
 
 Isso importa porque a folga de fim de semana do gerente nunca foi exigência da
 lei — é política da casa. O alerta agora diz qual perfil decidiu, em vez de
-apresentar a regra como obrigação universal. Pela mesma razão, a regra do 6x1
-(folga da semana além do domingo do ciclo) é marcada como `politica-da-casa`,
-enquanto limite de dias seguidos, ciclo de domingos, folgas semanais mínimas e
-descanso de 11h são marcados como `lei`.
+apresentar a regra como obrigação universal. Limite de dias seguidos, ciclo de
+domingos, folgas semanais mínimas e descanso de 11h são marcados como `lei`.
 
 Consequência operacional do perfil de gerente: a loja fica sem gerente todo fim
 de semana. Foi por isso que a regra do subgerente existe.
@@ -254,8 +305,7 @@ fica marcada como parcial.
 
 ## 9. Folga fixa
 
-Por colaborador, opcional. No 6x1 é a folga da semana; no 5x2 é o par que passa
-a incluir aquele dia.
+Por colaborador, opcional. O par de folgas da semana passa a incluir aquele dia.
 
 Custo de cada dia fixo, medido na loja 330:
 

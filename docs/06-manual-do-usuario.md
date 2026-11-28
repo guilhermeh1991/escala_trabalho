@@ -71,16 +71,24 @@ custa nada. Concentrar várias pessoas no mesmo dia é o que aperta.
 
 Valem por loja.
 
-**Modelo de escala** — 5x2 ou 6x1. No 6x1, quem pega o domingo do ciclo folga
-duas vezes naquela semana.
+A escala é sempre **5x2**: duas folgas por semana, em dias seguidos. A semana vai
+de **domingo a sábado** e não é configurável — é a mesma semana que a grade e os
+documentos impressos já mostram.
 
-**Semana conta de** — onde começa e termina a semana de folgas. Muda bastante o
-resultado; ver a tabela em [03 — Algoritmo](03-algoritmo.md).
+Para um gerente, a ficha pode definir **Folga fixa 1** e **Folga fixa 2**. Se
+forem sexta e sábado, ele folga sexta+sábado normalmente. Na semana em que o
+domingo marcado no ciclo cair, o domingo substitui a primeira folga: fica
+domingo+sábado. A ficha prevalece ao perfil da loja; gerente antigo sem os dois
+campos continua com sábado+domingo.
+
+Quando o período começa ou termina no meio da semana, aquela ponta é **somada à
+semana vizinha**. Num período de 11/08 a 10/09, por exemplo, saem três blocos:
+11/08–22/08 (12 dias, 3 folgas), 23/08–29/08 (7 dias, 2 folgas) e 30/08–10/09
+(12 dias, 3 folgas). O total não muda por causa disso: continua sendo o mesmo
+número de folgas que a regra proporcional já dava.
 
 **Mínimo de pessoas por dia da semana** — o alvo que o gerador persegue. Já vem
-preenchido com a média que a sua planilha praticava. **Ao trocar de 5x2 para
-6x1, suba estes números**: cada pessoa passa a folgar uma vez em vez de duas,
-então há mais gente disponível por dia.
+preenchido com a média que a sua planilha praticava.
 
 **Quando não couber tudo** — a escolha entre preservar a folga do colaborador ou
 a equipe na loja. Não há resposta certa; é decisão de negócio.

@@ -47,8 +47,8 @@ perfis sem cair em recursão de política.
 
 Para uma base existente, siga primeiro o [roteiro de atualização e backup](../docs/11-atualizacao-hostgator.md).
 Depois aplique `banco/verificar-e-migrar.sql` atualizado: ele inclui as migrações
-002 a 008, inclusive `escala_versoes` e as colunas de concorrência/publicação da
-007. Confira os indicadores finais e `banco/conferir-atualizacao.sql` antes de
+002 a 009, inclusive `escala_versoes`, as colunas de concorrência/publicação da
+007 e a segunda folga fixa do gerente. Confira os indicadores finais e `banco/conferir-atualizacao.sql` antes de
 publicar a API. A relação de supervisores também está disponível isoladamente em
 `banco/migracao-006-supervisor-multiloja.sql`. A migração copia os vínculos
 legados uma única vez e não restaura revogações em execuções posteriores.

@@ -19,3 +19,5 @@ depois, por quem não estava lá.
 | [0009](0009-documentos-impressos.md) | Documento impresso sem identificação ambígua | aceita |
 | [0010](0010-regras-por-perfil-e-autoridade-do-banco.md) | Regra tem dono: perfil declarado e autoridade do banco | aceita |
 | [0011](0011-cobertura-intradiaria.md) | Cobertura medida por faixa de horário | aceita |
+| [0012](0012-semana-domingo-a-sabado.md) | A semana vai de domingo a sábado, ponta curta somada à vizinha | aceita |
+| [0013](0013-folgas-fixas-do-gerente.md) | Gerente com duas folgas fixas e substituição no domingo do ciclo | aceita |
