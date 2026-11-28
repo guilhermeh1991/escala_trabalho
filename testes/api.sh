@@ -126,7 +126,13 @@ cat > api/config.php <<PHP
 ];
 PHP
 
-PHP_LOG="$(pwd)/.tmp-exp/phpserver-$PORT.log"
+# Log do servidor em arquivo temporário do sistema: um caminho dentro do
+# repositório depende de uma pasta que só existe na máquina de quem escreveu o
+# teste, e o checkout limpo do CI não a tem. O cleanup já remove "$PHP_LOG".
+PHP_LOG="$(mktemp "${TMPDIR:-/tmp}/shiftflow-api-php-${PORT}.XXXXXX")" || {
+  printf '%s\n' 'Não foi possível criar o log temporário do PHP.' >&2
+  exit 1
+}
 php -d opcache.enable=0 -d opcache.enable_cli=0 -S "127.0.0.1:$PORT" -t "$(pwd)" > "$PHP_LOG" 2>&1 &
 SERVIDOR=$!
 sleep 3

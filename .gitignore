@@ -25,3 +25,7 @@ __pycache__/
 /backups/
 /*.sql
 /*.zip
+
+# Logs e capturas de investigação local. Nenhum script versionado deve
+# depender desta pasta: ela não existe no checkout limpo do CI.
+/.tmp-exp/
