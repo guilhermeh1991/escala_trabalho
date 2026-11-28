@@ -22,6 +22,10 @@ cleanup() {
       taskkill //PID "$SERVIDOR" //T //F >/dev/null 2>&1 || true
     fi
   fi
+  if [ "$codigo" -ne 0 ] && [ -f "${PHP_LOG:-}" ]; then
+    echo "=== log do servidor PHP ===" >&2
+    cat "$PHP_LOG" >&2 || true
+  fi
   rm -f api/config.php "$COOKIES_A" "$COOKIES_B" "$COOKIES_P" "$COOKIES_S" "${PHP_LOG:-}"
   exit "$codigo"
 }
