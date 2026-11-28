@@ -494,7 +494,7 @@ case 'salvar_escala':
         } else {
             $st = bd()->prepare('INSERT INTO escalas
                 (id, loja_id, inicio, fim, grade, parametros, resumo, versao, publicada, publicada_em, versao_publicada, atualizado_por)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
             $st->execute([$escalaId, $lojaId, $inicio, $fim, json_encode($grade, JSON_UNESCAPED_UNICODE),
                 json_encode($paramsRecebidos, JSON_UNESCAPED_UNICODE), json_encode($resumo, JSON_UNESCAPED_UNICODE),
                 $versao, $publicar, $publicar ? date('Y-m-d H:i:s') : null,
