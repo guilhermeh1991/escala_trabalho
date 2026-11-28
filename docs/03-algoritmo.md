@@ -75,37 +75,43 @@ pessoas, períodos de 7 a 35 dias, férias e atestados incluídos.
 
 | Medida | Valor | Limiar do CI |
 |---|---|---|
-| Escalas limpas — 5x2 | 95% | ≥ 90% |
-| Escalas limpas — 6x1 | 95% | ≥ 90% |
-| Folgas em par — 5x2 | 95,4% | ≥ 94% |
-| Desvio da equipe por dia | 1,54 | ≤ 2,00 |
-| Dias sem folga por escala | 0,56 | ≤ 1,50 |
-| Lojas reais, 12 competências | 100% | = 100% |
-| Tempo por escala | 265 ms | ≤ 1500 ms |
+| Escalas limpas | 95,3% | ≥ 90% |
+| Folgas em par | 94,7% | ≥ 94% |
+| Desvio da equipe por dia | 1,40 | ≤ 2,00 |
+| Dias sem folga por escala | 0,42 | ≤ 1,50 |
+| Lojas reais, 6 competências | 100% | = 100% |
+| Tempo por escala | 176 ms | ≤ 1500 ms |
+
+"Folgas em par" conta apenas os blocos que pedem **exatamente duas** folgas. Num
+bloco de três, uma delas é necessariamente avulsa — o teto seria 66,7% — e a
+média viraria uma medida da composição do período, não da qualidade da escala.
 
 ## Limites de matemática
 
-Os 5% que ainda falham nas simulações concentram-se em configurações extremas.
-Não são defeitos a corrigir:
+Os cerca de 5% que ainda falham nas simulações concentram-se em configurações
+extremas. Não são defeitos a corrigir:
 
-**6x1 com semana fixa.** Com uma folga por semana e semanas de sete dias, o
-intervalo entre duas folgas é `7 + (posição nova − posição antiga) − 1`. Para
-ficar em seis dias ou menos, a posição nova precisa ser menor ou igual à antiga:
-**o dia de folga só anda para trás, nunca para frente.** Quando chega na posição
-zero, fica fixo. É por isso que o 6x1 tende naturalmente ao dia fixo — e é assim
-que as lojas já operam.
-
-**Domingo + segunda no bloco que começa na terça.** Contando a semana do dia 11,
-o bloco começa na terça, o domingo cai na posição 6 e a segunda na 7. Para
-folgar domingo e segunda, a folga da semana anterior teria que cair no domingo
-dela, que é proibido por não ser o domingo dela. **A combinação é inalcançável
-nesse formato de semana.** Por isso a definição de semana é um parâmetro:
+**Domingo + segunda no bloco que começa na terça.** Quando o bloco começa na
+terça, o domingo cai na posição 6 e a segunda na 7. Para folgar domingo e
+segunda, a folga da semana anterior teria que cair no domingo dela, que é
+proibido por não ser o domingo dela. **A combinação é inalcançável quando a
+semana não começa no domingo** — e foi uma das razões para fixar a semana em
+domingo a sábado. Medição que embasou a escolha:
 
 | Semana conta de | Desvio | Folga na segunda | Folga no sábado |
 |---|---|---|---|
 | Dia 11, blocos de 7 | 1,46 | 0,5 | 4,3 |
-| Domingo a sábado | 1,06 | 3,5 | 2,8 |
+| **Domingo a sábado** (adotado) | 1,06 | 3,5 | 2,8 |
 | Segunda a domingo | 0,97 | 3,5 | 3,3 |
+
+Blocos de 7 a partir do dia 11 prendiam a folga no sábado e quase nunca davam
+segunda-feira. Segunda a domingo empata em qualidade, mas mediu 75,7% de escalas
+limpas contra 95,0% do domingo a sábado. Ver
+[decisão 0012](decisoes/0012-semana-domingo-a-sabado.md).
+
+**Três folgas num bloco fundido.** Um bloco de 10 a 13 dias pede três folgas, e
+três folgas não formam dois pares. O motor monta um par mais um dia avulso: é o
+melhor arranjo possível, não uma falha.
 
 **Farmacêutico único.** Um farmacêutico sozinho com nove folgas no mês deixa
 nove dias sem cobertura. Nenhuma escala resolve; a folga é direito dele.

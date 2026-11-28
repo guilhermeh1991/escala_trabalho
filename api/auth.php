@@ -16,6 +16,41 @@ if ($acao !== 'sessao') {
     exigirCsrf();
 }
 
+// Estas ações administrativas ficam em despacho explícito para não depender da
+// posição dos cases no switch: são usadas pelo painel central e precisam manter
+// o mesmo contrato em qualquer cópia do PHP servida pelo ambiente local.
+if ($acao === 'plataforma_editar_empresa') {
+    $u = exigirPlataforma();
+    $empresaId = (string)campo($dados, 'empresa_id', '');
+    if (!ehUuid($empresaId)) falhar('Empresa inválida.');
+    $nome = trim((string)campo($dados, 'nome', ''));
+    $descricao = mb_substr(trim((string)campo($dados, 'descricao', '')), 0, 500);
+    if (mb_strlen($nome) < 2) falhar('Informe o nome da empresa.');
+    $st = bd()->prepare('SELECT 1 FROM empresas WHERE id = ? LIMIT 1');
+    $st->execute([$empresaId]);
+    if (!$st->fetchColumn()) falhar('Empresa não encontrada.', 404);
+    bd()->prepare('UPDATE empresas SET nome = ?, descricao = ? WHERE id = ?')
+        ->execute([$nome, $descricao !== '' ? $descricao : null, $empresaId]);
+    registrar($u['id'], $empresaId, 'plataforma_empresa_editada', ['nome' => $nome, 'descricao' => $descricao]);
+    responder(['ok' => true]);
+}
+if ($acao === 'plataforma_editar_loja') {
+    $u = exigirPlataforma();
+    $lojaId = (string)campo($dados, 'loja_id', '');
+    if (!ehUuid($lojaId)) falhar('Loja inválida.');
+    $nome = mb_substr(trim((string)campo($dados, 'nome', '')), 0, 80);
+    $descricao = mb_substr(trim((string)campo($dados, 'descricao', '')), 0, 500);
+    if ($nome === '') falhar('Informe o nome da loja.');
+    $st = bd()->prepare('SELECT empresa_id FROM lojas WHERE id = ? LIMIT 1');
+    $st->execute([$lojaId]);
+    $empresaId = $st->fetchColumn();
+    if (!$empresaId) falhar('Loja não encontrada.', 404);
+    bd()->prepare('UPDATE lojas SET nome = ?, descricao = ? WHERE id = ?')
+        ->execute([$nome, $descricao !== '' ? $descricao : null, $lojaId]);
+    registrar($u['id'], $empresaId, 'plataforma_loja_editada', ['loja' => $lojaId, 'nome' => $nome, 'descricao' => $descricao]);
+    responder(['ok' => true]);
+}
+
 switch ($acao) {
 
 // -----------------------------------------------------------------------------
@@ -489,6 +524,40 @@ case 'plataforma_listar_lojas':
     responder(['lojas' => $st->fetchAll()]);
 
 // -----------------------------------------------------------------------------
+case 'plataforma_carregar_configuracao_loja':
+// -----------------------------------------------------------------------------
+    exigirPlataforma();
+    $lojaId = trim((string)campo($dados, 'loja_id', ''));
+    if (!ehUuid($lojaId)) falhar('Loja inválida.');
+    $st = bd()->prepare(
+        'SELECT l.id, l.empresa_id, l.nome, l.descricao, l.versao, l.parametros,
+                e.nome AS empresa_nome
+           FROM lojas l JOIN empresas e ON e.id = l.empresa_id
+          WHERE l.id = ? LIMIT 1');
+    $st->execute([$lojaId]);
+    $loja = $st->fetch();
+    if (!$loja) falhar('Loja não encontrada.', 404);
+    $bruto = is_string($loja['parametros'] ?? null) ? json_decode($loja['parametros'], true) : [];
+    $parametros = is_array($bruto) ? $bruto : [];
+    $chaves = [
+        'modelo', 'folgasSemana', 'cicloDomingo', 'maxSeq', 'minInterjornada',
+        'minCaixa', 'minBalcao', 'minFarma', 'minSubger', 'minDia',
+        'minCaixaObrigatorio', 'minBalcaoObrigatorio', 'minFarmaObrigatorio',
+        'minSubgerObrigatorio', 'minDiaObrigatorio', 'perfis', 'expediente',
+        'faixas', 'funcoes',
+    ];
+    $configuracao = [];
+    foreach ($chaves as $chave) {
+        if (array_key_exists($chave, $parametros)) $configuracao[$chave] = $parametros[$chave];
+    }
+    responder(['loja' => [
+        'id' => $loja['id'], 'empresa_id' => $loja['empresa_id'],
+        'empresa' => $loja['empresa_nome'], 'nome' => $loja['nome'],
+        'descricao' => $loja['descricao'], 'versao' => (int)$loja['versao'],
+        'configuracao' => $configuracao,
+    ]]);
+
+// -----------------------------------------------------------------------------
 case 'plataforma_criar_empresa':
 // -----------------------------------------------------------------------------
     $u = exigirPlataforma();
@@ -518,41 +587,6 @@ case 'plataforma_criar_empresa':
         ['nome' => $nome, 'loja' => $nomeLoja]);
     responder(['ok' => true, 'empresa_id' => $empresaId, 'loja_id' => $lojaId,
                'codigo_convite' => $codigo, 'codigo_loja' => $codigoLoja]);
-
-// -----------------------------------------------------------------------------
-case 'plataforma_editar_empresa':
-// -----------------------------------------------------------------------------
-    $u = exigirPlataforma();
-    $empresaId = (string)campo($dados, 'empresa_id', '');
-    if (!ehUuid($empresaId)) falhar('Empresa inválida.');
-    $nome = trim((string)campo($dados, 'nome', ''));
-    $descricao = mb_substr(trim((string)campo($dados, 'descricao', '')), 0, 500);
-    if (mb_strlen($nome) < 2) falhar('Informe o nome da empresa.');
-    $st = bd()->prepare('SELECT 1 FROM empresas WHERE id=? LIMIT 1');
-    $st->execute([$empresaId]);
-    if (!$st->fetchColumn()) falhar('Empresa não encontrada.', 404);
-    bd()->prepare('UPDATE empresas SET nome=?, descricao=? WHERE id=?')
-        ->execute([$nome, $descricao !== '' ? $descricao : null, $empresaId]);
-    registrar($u['id'], $empresaId, 'plataforma_empresa_editada', ['nome' => $nome, 'descricao' => $descricao]);
-    responder(['ok' => true]);
-
-// -----------------------------------------------------------------------------
-case 'plataforma_editar_loja':
-// -----------------------------------------------------------------------------
-    $u = exigirPlataforma();
-    $lojaId = (string)campo($dados, 'loja_id', '');
-    if (!ehUuid($lojaId)) falhar('Loja inválida.');
-    $nome = mb_substr(trim((string)campo($dados, 'nome', '')), 0, 80);
-    $descricao = mb_substr(trim((string)campo($dados, 'descricao', '')), 0, 500);
-    if ($nome === '') falhar('Informe o nome da loja.');
-    $st = bd()->prepare('SELECT empresa_id FROM lojas WHERE id=? LIMIT 1');
-    $st->execute([$lojaId]);
-    $empresaId = $st->fetchColumn();
-    if (!$empresaId) falhar('Loja não encontrada.', 404);
-    bd()->prepare('UPDATE lojas SET nome=?, descricao=? WHERE id=?')
-        ->execute([$nome, $descricao !== '' ? $descricao : null, $lojaId]);
-    registrar($u['id'], $empresaId, 'plataforma_loja_editada', ['loja' => $lojaId, 'nome' => $nome, 'descricao' => $descricao]);
-    responder(['ok' => true]);
 
 // -----------------------------------------------------------------------------
 case 'supervisor_listar_lojas':
@@ -700,6 +734,63 @@ case 'plataforma_listar_usuarios':
           LIMIT 500');
     $st->execute([$empresaId, $empresaId, $q, $q, $q]);
     responder(['usuarios' => $st->fetchAll()]);
+
+// -----------------------------------------------------------------------------
+case 'plataforma_mudar_papel':
+// -----------------------------------------------------------------------------
+    $u = exigirPlataforma();
+    $empresaId = trim((string)campo($dados, 'empresa_id', ''));
+    $usuarioId = trim((string)campo($dados, 'usuario_id', ''));
+    $papelNovo = trim((string)campo($dados, 'papel', ''));
+    if (!ehUuid($empresaId) || !ehUuid($usuarioId)) falhar('Identificador inválido.');
+    if (!in_array($papelNovo, ['admin', 'gestor'], true)) {
+        falhar('Este fluxo só permite os perfis administrador e supervisor.');
+    }
+
+    $st = bd()->prepare(
+        'SELECT id, empresa_id, papel, email_confirmado
+           FROM usuarios
+          WHERE id = ? AND empresa_id = ? AND email_confirmado = 1
+          LIMIT 1');
+    $st->execute([$usuarioId, $empresaId]);
+    $alvo = $st->fetch();
+    if (!$alvo) {
+        falhar('Usuário confirmado não encontrado nesta empresa.', 404);
+    }
+    if (ehSuperAdmin($alvo)) {
+        falhar('A conta da plataforma não pode receber papel de empresa.', 403);
+    }
+
+    $papelAnterior = (string)$alvo['papel'];
+    if ($papelAnterior === $papelNovo) {
+        responder(['ok' => true, 'papel_anterior' => $papelAnterior, 'papel' => $papelNovo]);
+    }
+
+    bd()->beginTransaction();
+    try {
+        if ($papelNovo === 'gestor') {
+            // Supervisor não usa usuarios.loja_id como autorização: só a relação
+            // supervisor_lojas pode conceder acesso a uma ou mais unidades.
+            bd()->prepare('UPDATE usuarios SET papel = ?, loja_id = NULL WHERE id = ? AND empresa_id = ?')
+                ->execute([$papelNovo, $usuarioId, $empresaId]);
+        } else {
+            // Ao voltar a administrador, vínculos antigos não podem reaparecer
+            // caso a conta seja promovida novamente no futuro.
+            bd()->prepare('DELETE FROM supervisor_lojas WHERE usuario_id = ?')->execute([$usuarioId]);
+            bd()->prepare('UPDATE usuarios SET papel = ?, loja_id = NULL WHERE id = ? AND empresa_id = ?')
+                ->execute([$papelNovo, $usuarioId, $empresaId]);
+        }
+        bd()->commit();
+    } catch (Throwable $e) {
+        if (bd()->inTransaction()) bd()->rollBack();
+        error_log('plataforma mudar papel: ' . $e->getMessage());
+        falhar(mensagemErroBanco($e, 'Não foi possível alterar o perfil.'), 500);
+    }
+
+    registrar($u['id'], $empresaId, 'plataforma_papel_alterado', [
+        'alvo' => $usuarioId, 'papel_anterior' => $papelAnterior, 'papel' => $papelNovo,
+    ]);
+    responder(['ok' => true, 'papel_anterior' => $papelAnterior, 'papel' => $papelNovo]);
 
 // -----------------------------------------------------------------------------
 case 'plataforma_listar_escalas_publicadas':

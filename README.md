@@ -14,11 +14,10 @@ enxerga isso e produz escalas ilegais.
 
 | Medida | Valor | Como é medido |
 |---|---|---|
-| Escalas sem violação trabalhista — 5x2 | 95% | 300 cenários aleatórios |
-| Escalas sem violação trabalhista — 6x1 | 95% | 300 cenários aleatórios |
-| Lojas reais (330 e 332), 12 competências | 100% | `testes/executar.js` |
-| Folgas em dias seguidos (5x2) | 95% | proporção de folgas com par |
-| Tempo para montar uma escala | 265 ms | 13 pessoas, 31 dias |
+| Escalas sem violação trabalhista | 95,3% | 300 cenários aleatórios |
+| Lojas reais (330 e 332), 6 competências | 100% | `testes/executar.js` |
+| Folgas em dias seguidos | 94,7% | proporção de folgas com par |
+| Tempo para montar uma escala | 176 ms | 13 pessoas, 31 dias |
 
 Os números são conferidos a cada envio de código. Se caírem abaixo dos limiares
 em `testes/executar.js`, o CI reprova.
@@ -92,9 +91,9 @@ Guias: [HostGator](docs/07-implantacao-hostgator.md) · [Supabase](docs/04-impla
 1. A cada dois domingos trabalhados, um domingo de folga — teto legal da
    Lei 10.101/2000.
 2. Nunca mais de seis dias seguidos trabalhados.
-3. **5x2**: duas folgas por semana, em dias seguidos.
-   **6x1**: uma folga por semana; na semana do domingo do ciclo, a pessoa folga
-   duas vezes, porque são direitos separados.
+3. **5x2**: duas folgas por semana, em dias seguidos. A semana vai de domingo a
+   sábado; quando a ponta do período cai no meio da semana, ela é somada à
+   semana vizinha e o bloco pede as folgas proporcionais.
 4. No domingo de folga, tenta colar sábado ou segunda.
 5. Gerente folga todo sábado e domingo.
 6. Dois farmacêuticos na loja (um é tolerado em último caso, nenhum quase nunca).
@@ -145,9 +144,9 @@ ele valida repete os mesmos enganos. Foi assim que sete defeitos apareceram.
 
 São limites de matemática, não defeitos a corrigir:
 
-- **6x1 com semana fixa**: com uma folga por semana, o dia de folga só consegue
-  andar para trás, nunca para frente, sem estourar os seis dias. Na prática o
-  6x1 tende ao dia fixo, que é como as lojas já operam.
+- **Três folgas não formam dois pares**: um bloco de 10 a 13 dias pede três
+  folgas, então uma delas é necessariamente avulsa. O motor monta um par mais um
+  dia solto, que é o melhor arranjo possível.
 - **Farmacêutico único**: não há escala que dê a folga legal a ele e mantenha
   cobertura. O sistema concede a folga e marca o dia em vermelho.
 - **Dois subgerentes com exigência diária**: eles nunca podem folgar no mesmo

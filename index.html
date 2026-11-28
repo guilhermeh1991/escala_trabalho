@@ -279,22 +279,22 @@ nav.tabs button{position:relative;background:transparent;border:0;color:#BBD0CB;
 .admin-toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:16px}
 .admin-toolbar label{min-width:220px;flex:1}
 .admin-toolbar .inp{margin-top:5px}
-.admin-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr);gap:18px}
-.admin-list{max-height:420px;overflow:auto;border:1px solid var(--linha);border-radius:var(--radius);background:#fff}
+.admin-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr);gap:18px;align-items:start}
+.admin-list{max-height:380px;overflow:auto;border:1px solid var(--linha);border-radius:var(--radius);background:#fff;align-self:start}
 .admin-list:empty{min-height:88px}
-.admin-row{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid var(--linha-suave);cursor:pointer;text-align:left;width:100%;background:#fff;color:var(--texto)}
+.admin-row{display:flex;justify-content:space-between;gap:12px;padding:11px 14px;border-bottom:1px solid var(--linha-suave);cursor:pointer;text-align:left;width:100%;background:#fff;color:var(--texto)}
 .admin-row:last-child{border-bottom:0}.admin-row:hover,.admin-row[aria-current="true"]{background:var(--teal-suave)}
-.admin-row strong{display:block;font-size:14px}.admin-row small{display:block;color:var(--fraco);margin-top:2px}
+.admin-row strong{display:block;font-size:14px}.admin-row small{display:block;color:var(--fraco);margin-top:2px}.admin-user-row,.admin-loja-row{align-items:center}.admin-loja-row>span:first-child{min-width:0;overflow-wrap:normal;word-break:normal}.admin-user-row>.btn{flex:0 0 auto;white-space:nowrap}.admin-row-actions{display:flex;gap:6px;align-items:center;flex:0 0 auto}.admin-row-actions .btn{white-space:nowrap}.admin-escala-row{align-items:center}.admin-escala-row .chip{flex:0 0 auto}
 .admin-form{display:grid;gap:12px}.admin-form label{display:grid;gap:5px}.admin-form textarea{min-height:86px;resize:vertical}
-.admin-subhead{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:12px}.admin-subhead h3{margin:0;font-size:16px}.admin-subhead p{margin:3px 0 0;color:var(--fraco);font-size:12.5px}.admin-hero{padding-bottom:20px}.admin-hero .admin-toolbar{margin-bottom:0}.admin-hero .admin-grid{grid-template-columns:minmax(0,1fr) minmax(280px,.7fr)}
-.admin-supervisores{margin-top:4px;border-top:1px solid var(--linha-suave)}.admin-supervisor{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,auto);gap:14px;align-items:center;padding:13px 0;border-bottom:1px solid var(--linha-suave)}
+.admin-subhead{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:12px}.admin-subhead h3{margin:0;font-size:16px}.admin-subhead p{margin:3px 0 0;color:var(--fraco);font-size:12.5px}.admin-hero{padding-bottom:16px}.admin-hero .admin-toolbar{margin-bottom:0}.admin-hero .admin-grid{grid-template-columns:minmax(0,1fr) minmax(280px,.7fr)}.admin-empresa-grid{grid-template-columns:minmax(0,1.3fr) minmax(250px,.7fr)}.admin-hero:not(.admin-empresa-selecionada) .admin-empresa-grid{grid-template-columns:minmax(0,1fr)}.admin-hero:not(.admin-empresa-selecionada):not(.admin-editando-empresa) #admin-resumo-empresa,.admin-hero:not(.admin-empresa-selecionada):not(.admin-editando-empresa) #admin-form-empresa{display:none}.admin-hero:not(.admin-empresa-selecionada) #admin-empresas{max-height:360px}.admin-hero.admin-editando-empresa .admin-empresa-grid{grid-template-columns:minmax(0,1fr) minmax(280px,.7fr)}.admin-contexto-empresa{display:flex;justify-content:space-between;align-items:center;gap:12px;align-self:start;padding:13px 14px;border:1px solid var(--linha);border-radius:var(--radius);background:var(--fundo)}.admin-contexto-empresa strong,.admin-contexto-empresa small{display:block}.admin-contexto-empresa small{margin-top:4px;color:var(--fraco);font-size:12px}
+.admin-supervisores{margin-top:4px;border-top:1px solid var(--linha-suave)}.admin-supervisor{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,auto);gap:14px;align-items:center;padding:11px 0;border-bottom:1px solid var(--linha-suave)}
 .admin-supervisor strong{font-size:14px}.admin-supervisor small{display:block;color:var(--fraco);margin-top:1px;font-size:12.5px}
 .admin-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.admin-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 7px 4px 9px;border:1px solid #BFD4C9;border-radius:999px;background:var(--teal-suave);color:var(--teal-escuro);font-size:12px;font-weight:600}.admin-chip button{border:0;background:transparent;color:var(--teal-escuro);padding:0 2px;line-height:1;border-radius:999px}.admin-chip button:hover{color:var(--alerta)}.admin-chip button:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
 .admin-sem-vinculo{display:inline-block;margin-top:7px;font-size:12px;color:var(--m-fg)}
-.admin-empty{padding:22px;color:var(--fraco);font-size:13px}.admin-loading{color:var(--fraco);font-size:13px}.admin-leitura-escala{margin-top:12px;max-height:520px;overflow:auto}.admin-leitura-escala table{min-width:720px;width:100%;border-collapse:collapse;font-size:12px}.admin-leitura-escala th,.admin-leitura-escala td{padding:6px 8px;border-bottom:1px solid var(--linha-suave);text-align:center}.admin-leitura-escala th:first-child,.admin-leitura-escala td:first-child{text-align:left;position:sticky;left:0;background:var(--painel);z-index:1}.admin-leitura-meta{padding:12px 14px;border-bottom:1px solid var(--linha);font-size:12px;color:var(--fraco)}
-@media(max-width:800px){.admin-grid,.admin-hero .admin-grid{grid-template-columns:1fr}.admin-list{max-height:300px}}
-@media(max-width:360px){.admin-toolbar label{min-width:0;width:100%}.admin-grid{gap:12px}}
-@media(max-width:560px){.admin-toolbar{display:grid;grid-template-columns:1fr}.admin-toolbar label{min-width:0}.admin-subhead{display:block}.admin-supervisor{grid-template-columns:1fr}.admin-form .barra{align-items:stretch;flex-direction:column}.admin-form .btn{width:100%}}
+.admin-empty{padding:20px;color:var(--fraco);font-size:13px;line-height:1.45}.admin-loading{color:var(--fraco);font-size:13px}.admin-central-grid{display:grid;grid-template-columns:minmax(270px,.8fr) minmax(0,1.2fr);gap:18px;align-items:start}.admin-central-grid .admin-list{max-height:330px}.admin-consulta-contexto{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 12px;margin-bottom:8px;border:1px solid var(--linha);border-radius:var(--radius);background:var(--fundo);font-size:12.5px;color:var(--tinta2)}.admin-consulta-tabs{display:flex;gap:5px}.admin-consulta-tabs .btn[aria-pressed="true"]{background:var(--teal-suave);border-color:var(--teal);color:var(--teal-escuro)}.admin-configuracao{margin-top:10px;border:1px solid var(--linha);border-radius:var(--radius);background:var(--painel);overflow:hidden}.admin-config-head{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--linha);font-size:13px}.admin-config-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--linha-suave)}.admin-config-grid>div{display:grid;gap:4px;padding:10px 12px;background:var(--painel)}.admin-config-grid small{font-size:11px;color:var(--fraco)}.admin-config-grid b{font-size:13px;color:var(--tinta)}.admin-config-note{padding:10px 12px;color:var(--info-fg);font-size:12px;border-top:1px solid var(--linha)}.admin-leitura-escala{margin-top:10px;max-height:520px;overflow:auto;border:1px solid var(--linha);border-radius:var(--radius);background:var(--painel)}.admin-leitura-escala table{min-width:720px;width:100%;border-collapse:collapse;font-size:12px}.admin-leitura-escala th,.admin-leitura-escala td{padding:6px 8px;border-bottom:1px solid var(--linha-suave);text-align:center}.admin-leitura-escala th:first-child,.admin-leitura-escala td:first-child{text-align:left;position:sticky;left:0;background:var(--painel);z-index:1}.admin-leitura-meta{display:grid;gap:4px;padding:12px 14px;border-bottom:1px solid var(--linha);font-size:12px;color:var(--fraco)}.admin-leitura-meta div{display:flex;gap:8px;align-items:center;color:var(--tinta);font-size:13px}.admin-leitura-meta em{font-style:normal;color:var(--info-fg)}
+@media(max-width:800px){.admin-grid,.admin-hero .admin-grid,.admin-central-grid,.admin-empresa-grid{grid-template-columns:1fr}.admin-list{max-height:300px}.admin-contexto-empresa{align-self:stretch}}
+@media(max-width:360px){.admin-toolbar label{min-width:0;width:100%}.admin-grid{gap:12px}.admin-row-actions{flex-wrap:wrap;justify-content:flex-end}}
+@media(max-width:560px){.admin-toolbar{display:grid;grid-template-columns:1fr}.admin-toolbar label{min-width:0}.admin-subhead{display:block}.admin-supervisor{grid-template-columns:1fr}.admin-form .barra{align-items:stretch;flex-direction:column}.admin-form .btn{width:100%}.admin-row-actions{width:100%;justify-content:flex-start}.admin-row-actions .btn{flex:1}.admin-loja-row{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}.admin-loja-row>span:first-child{display:block;min-width:0;overflow-wrap:anywhere;word-break:normal}.admin-loja-row .admin-row-actions{width:100%;display:grid;grid-template-columns:repeat(3,1fr)}.admin-config-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-consulta-contexto{align-items:flex-start;flex-direction:column}}
 nav.tabs button:hover{color:#fff;background:rgba(255,255,255,.04)}
 nav.tabs button[aria-current="true"]{color:#fff;border-bottom-color:#91D4C9;font-weight:600}
 main{padding:24px;max-width:1900px;margin:0 auto}
@@ -751,6 +751,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
     <div id="tela-vinculo" style="display:none">
       <h1>Sua empresa</h1>
       <p class="sub">Crie uma empresa nova ou entre em uma já existente.</p>
+      <div class="aviso" style="margin:0 0 12px;text-align:left;font-size:13px">Quem cria uma empresa vira administrador. Para atuar como supervisor, use um código de convite ou aguarde a promoção pelo administrador da plataforma.</div>
       <label for="vn-empresa">Nome da empresa</label>
       <input id="vn-empresa" class="inp" placeholder="Empresa Exemplo">
       <label for="vn-loja">Nome da primeira loja</label>
@@ -906,7 +907,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
     <section class="view" data-view="equipe">
       <div class="painel">
         <h2>Equipe da loja</h2>
-        <p class="desc"><b>E-mail de acesso</b>: preenchendo o e-mail da pessoa, ela cria a própria conta e passa a ver <b>apenas a escala dela</b> — sem acesso à equipe nem à escala dos colegas. Quem tem um perfil com folga fixa semanal folga nos dias que o perfil define; sem perfis configurados, o gerente folga sábado e domingo por política da casa. <b>Folga fixa</b>: em “variável” o sistema escolhe o melhor dia para cada semana; escolhendo um dia, a folga daquela pessoa cai sempre nele — no 6x1 é a folga da semana, no 5x2 é o par que passa a incluir esse dia. “Dom. trabalhados” diz quantos domingos a pessoa já trabalhou seguidos no fim do mês anterior.</p>
+        <p class="desc"><b>E-mail de acesso</b>: preenchendo o e-mail da pessoa, ela cria a própria conta e passa a ver <b>apenas a escala dela</b> — sem acesso à equipe nem à escala dos colegas. Quem tem um perfil com folga fixa semanal folga nos dias que o perfil define; sem perfis configurados, o gerente folga sábado e domingo por política da casa. <b>Folga fixa</b>: em “variável” o sistema escolhe o melhor dia para cada semana; escolhendo um dia, a folga daquela pessoa cai sempre nele, e o par de folgas da semana passa a incluir esse dia. “Dom. trabalhados” diz quantos domingos a pessoa já trabalhou seguidos no fim do mês anterior.</p>
         <div class="barra"><button class="btn small" id="btn-add-colab">Adicionar colaborador</button><span class="chip" id="status-equipe" role="status" aria-live="polite"></span></div>
         <div style="overflow:auto"><table class="simples" id="tab-equipe"></table></div>
       </div>
@@ -926,15 +927,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <p class="desc">Valem para a loja selecionada. O gerador respeita estes números como limite rígido.</p>
 
         <div class="params-grid">
-          <!-- linha 1: modelo e ciclo de domingos -->
-          <div class="pg-cel">
-            <label for="r-modelo">Modelo de escala</label>
-            <select id="r-modelo" class="inp">
-              <option value="5x2">5x2 — duas folgas por semana</option>
-              <option value="6x1">6x1 — uma folga por semana</option>
-            </select>
-            <div class="hint">No 6x1, o domingo do ciclo vem por cima da folga semanal.</div>
-          </div>
+          <!-- linha 1: ciclo de domingos -->
           <div class="pg-cel">
             <label for="r-ciclo">Ciclo de domingos</label>
             <select id="r-ciclo" class="inp">
@@ -950,16 +943,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
             <div class="hint">Nenhum colaborador passa desse limite.</div>
           </div>
 
-          <!-- linha 2: semana, cobertura -->
-          <div class="pg-cel">
-            <label for="r-semana">Semana conta de</label>
-            <select id="r-semana" class="inp">
-              <option value="P">Blocos de 7 a partir do dia 11</option>
-              <option value="0">Domingo a sábado</option>
-              <option value="1">Segunda a domingo</option>
-            </select>
-            <div class="hint">Define onde começa e termina cada semana de folgas.</div>
-          </div>
+          <!-- linha 2: cobertura -->
           <div class="pg-cel">
             <label for="r-mincaixa">Caixas por dia (meta)</label>
             <input type="number" id="r-mincaixa" class="inp" min="0" max="12">
@@ -1063,7 +1047,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
         <ol style="font-size:13.5px;color:var(--tinta2);line-height:1.75;margin:0;padding-left:20px">
           <li>Trava férias, atestados e licenças. Só isso é intocável — todo o resto tem peso.</li>
           <li>Quem tem perfil com folga fixa semanal folga nesses dias, sem outra regra. Sem perfis configurados, o gerente folga sábado e domingo — é política da casa, não exigência legal.</li>
-          <li>No <b>5x2</b>, procura duas folgas por semana em dias seguidos. No <b>6x1</b>, uma folga por semana — e na semana em que cai o domingo do ciclo a pessoa folga duas vezes, porque a folga da semana e a do domingo são direitos separados.</li>
+          <li>Procura <b>duas folgas por semana em dias seguidos</b>. A semana vai de <b>domingo a sábado</b>. Quando a ponta do período cai no meio da semana, ela é somada à semana vizinha: o bloco maior pede as folgas proporcionais, em vez de exigir um par num pedaço de dois dias.</li>
           <li>Para cada pessoa, monta todas as combinações possíveis de folga de cada semana e escolhe a sequência do mês inteiro de menor custo. Não decide semana a semana: colar o fim de semana depende do que foi feito na semana anterior.</li>
           <li>As regras marcadas como referência trabalhista viajam dentro dessa conta com peso em outra ordem de grandeza, de propósito. O sistema sinaliza os limites configurados e não substitui a conferência jurídica da operação.</li>
           <li>Depois vêm, nesta ordem: ficar sem nenhum farmacêutico (quase proibido), manter o subgerente na loja, chegar a dois farmacêuticos, o mínimo do dia da semana, o mínimo de caixa e balcão, e o equilíbrio entre os dias.</li>
@@ -1073,7 +1057,7 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
       </div>
       <div class="painel">
         <h2>O que o sistema não inventa</h2>
-        <p class="desc" style="margin:0">Manter dois farmacêuticos por dia com três no quadro é apertado: cada um precisa folgar em dias que os outros dois trabalham, e quanto menor a folga de pessoal, mais dias ficam com um só — o rodapé marca esses dias. Quando a loja tem um único farmacêutico, não há como dar a folga dele e manter a presença: o sistema concede a folga e marca o dia para você combinar substituição. O mesmo vale para subgerente único no fim de semana. Um <b>mínimo obrigatório</b> configurado continua bloqueando a publicação mesmo quando não há ninguém disponível para cobri-lo: quem decide abrir mão do piso é quem administra a loja, alterando os parâmetros. Escala de uma folga por semana (6x1) tem uma limitação de matemática: com semanas fixas, o dia de folga só consegue andar para trás, nunca para frente, sem estourar o limite de dias seguidos.</p>
+        <p class="desc" style="margin:0">Manter dois farmacêuticos por dia com três no quadro é apertado: cada um precisa folgar em dias que os outros dois trabalham, e quanto menor a folga de pessoal, mais dias ficam com um só — o rodapé marca esses dias. Quando a loja tem um único farmacêutico, não há como dar a folga dele e manter a presença: o sistema concede a folga e marca o dia para você combinar substituição. O mesmo vale para subgerente único no fim de semana. Um <b>mínimo obrigatório</b> configurado continua bloqueando a publicação mesmo quando não há ninguém disponível para cobri-lo: quem decide abrir mão do piso é quem administra a loja, alterando os parâmetros.</p>
       </div>
     </section>
 
@@ -1109,18 +1093,28 @@ table.simples td input:focus,table.simples td select:focus{outline:2px solid var
     </section>
 
     <section class="view" data-view="administracao">
-      <div class="painel admin-hero">
+      <div class="painel admin-hero" id="admin-painel-empresas">
         <div class="admin-subhead"><div><h2>Administração da plataforma</h2><p class="desc">Escolha a empresa para liberar vínculos de supervisor, cadastro de lojas e consulta somente leitura.</p></div><span class="chip info" id="admin-status" aria-live="polite"></span></div>
         <div class="admin-toolbar"><label>Localizar empresa<input class="inp" id="admin-busca-empresa" type="search" autocomplete="off"></label><button class="btn" id="admin-nova-empresa">Nova empresa</button></div>
-        <div class="admin-grid"><div class="admin-list" id="admin-empresas" aria-label="Empresas"><div class="admin-loading">Carregando empresas…</div></div>
+        <div class="admin-grid admin-empresa-grid"><div class="admin-list" id="admin-empresas" aria-label="Empresas"><div class="admin-loading">Carregando empresas…</div></div>
+          <div class="admin-contexto-empresa" id="admin-resumo-empresa" hidden><div><strong id="admin-resumo-empresa-nome">Nenhuma empresa selecionada</strong><small id="admin-resumo-empresa-descricao">Sem descrição cadastral</small></div><button class="btn ghost small" type="button" id="admin-editar-empresa">Editar dados</button></div>
           <form class="admin-form" id="admin-form-empresa" hidden><div class="admin-subhead"><div><h3>Dados da empresa</h3><p>Somente nome e descrição cadastral.</p></div></div><label>Nome<input class="inp" id="admin-empresa-nome" required maxlength="120"></label><label>Descrição<textarea class="inp" id="admin-empresa-descricao" maxlength="500"></textarea></label><div class="barra"><button class="btn primary" type="submit">Salvar empresa</button><button class="btn ghost" type="button" id="admin-cancelar-empresa">Cancelar</button></div></form></div>
       </div>
       <div class="painel" id="admin-painel-supervisores" hidden><div class="admin-subhead"><div><h2 id="admin-supervisores-titulo">Supervisores autorizados</h2><p class="desc">Cada supervisor enxerga apenas as lojas vinculadas aqui. Revogar uma loja preserva as demais.</p></div></div><div class="admin-toolbar"><label>Localizar supervisor<input class="inp" id="admin-busca-supervisor" type="search" autocomplete="off"></label></div><div id="admin-supervisores" class="admin-supervisores"></div></div>
       <div class="painel" id="admin-painel-lojas" hidden><div class="admin-subhead"><div><h2 id="admin-lojas-titulo">Lojas</h2><p class="desc">Nome e descrição da unidade. Equipe, parâmetros e escalas ficam preservados.</p></div><button class="btn" id="admin-nova-loja">Nova loja</button></div><div class="admin-grid"><div class="admin-list" id="admin-lojas"></div><form class="admin-form" id="admin-form-loja" hidden><label>Nome<input class="inp" id="admin-loja-nome" required maxlength="80"></label><label>Descrição<textarea class="inp" id="admin-loja-descricao" maxlength="500"></textarea></label><div class="barra"><button class="btn primary" type="submit">Salvar loja</button><button class="btn ghost" type="button" id="admin-cancelar-loja">Cancelar</button></div></form></div></div>
-      <div class="painel" id="admin-painel-central">
-        <div class="admin-subhead"><div><h2>Consulta central</h2><p class="desc">Usuários e escalas publicadas em modo somente leitura. Rascunhos e credenciais nunca aparecem aqui.</p></div><span class="chip info" id="admin-central-status" aria-live="polite"></span></div>
-        <div class="admin-toolbar"><label>Localizar usuário por nome ou e-mail<input class="inp" id="admin-busca-usuario" type="search" autocomplete="off"></label><button class="btn ghost small" type="button" id="admin-recarregar-usuarios">Atualizar usuários</button></div>
-        <div class="admin-grid"><div class="admin-list" id="admin-usuarios" aria-label="Usuários cadastrados"><div class="admin-loading">Selecione uma empresa para consultar usuários.</div></div><div><div class="admin-list" id="admin-central-escalas" aria-label="Escalas publicadas"><div class="admin-empty">Selecione uma loja para consultar escalas publicadas.</div></div><div class="admin-list admin-leitura-escala" id="admin-central-escala-detalhe" aria-label="Escala publicada selecionada" hidden><div class="admin-empty">Selecione uma publicação para consultar os dados.</div></div></div></div>
+      <div class="painel admin-painel-central" id="admin-painel-central" hidden>
+        <div class="admin-subhead"><div><h2>Consulta central</h2><p class="desc">Usuários e escalas publicadas em um só lugar. A leitura da escala é protegida: esta área nunca edita, publica ou exclui.</p></div><span class="chip info" id="admin-central-status" aria-live="polite"></span></div>
+        <div class="admin-central-grid">
+          <div>
+            <div class="admin-toolbar"><label>Localizar usuário por nome ou e-mail<input class="inp" id="admin-busca-usuario" type="search" autocomplete="off"></label><button class="btn ghost small" type="button" id="admin-recarregar-usuarios">Atualizar usuários</button></div>
+            <div class="admin-list" id="admin-usuarios" aria-label="Usuários cadastrados"><div class="admin-loading">Selecione uma empresa para consultar usuários.</div></div>
+          </div>
+          <div>
+            <div class="admin-consulta-contexto" id="admin-consulta-contexto"><span class="admin-consulta-label">Selecione uma loja para consultar escalas publicadas.</span><span class="admin-consulta-tabs" id="admin-consulta-tabs" hidden><button type="button" class="btn ghost small" data-consulta="escalas">Escalas publicadas</button><button type="button" class="btn ghost small" data-consulta="configuracao">Configuração</button></span></div>
+            <div class="admin-list" id="admin-central-escalas" aria-label="Escalas publicadas"><div class="admin-empty">Escolha “Ver escalas” em uma loja.</div></div>
+            <div class="admin-list admin-leitura-escala" id="admin-central-escala-detalhe" aria-label="Escala publicada selecionada" hidden><div class="admin-empty">Selecione uma publicação para consultar os dados.</div></div><div class="admin-configuracao" id="admin-central-configuracao" aria-label="Configuração operacional da loja" hidden></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1474,6 +1468,23 @@ function cargoDe(c){
 }
 function isFarma(c){ return (c.cargo||'').toUpperCase().includes('FARMA'); }
 function isSubger(c){ const x=(c.cargo||'').toUpperCase(); return x.includes('SUBGER') || x.startsWith('SUB/'); }
+function diaSemanaValido(v){ return Number.isInteger(Number(v)) && Number(v)>=0 && Number(v)<=6; }
+function diasFixosGerente(c, P){
+  if(!c || !c.gerente) return [];
+  const primeiro = diaSemanaValido(c.folgaFixa) ? Number(c.folgaFixa) : null;
+  const segundo = diaSemanaValido(c.folgaFixa2) ? Number(c.folgaFixa2) : null;
+  if(primeiro != null && segundo != null && primeiro !== segundo) return [primeiro, segundo];
+  const perfil = c.perfil && P && P.perfis && P.perfis[c.perfil] ? P.perfis[c.perfil] : null;
+  const diasPerfil = perfil && perfil.regras && Array.isArray(perfil.regras.folgaFixaSemanal)
+    ? perfil.regras.folgaFixaSemanal.map(Number).filter(diaSemanaValido) : [];
+  const distintos = [...new Set(diasPerfil)];
+  return distintos.length >= 2 ? distintos.slice(0,2) : [0,6];
+}
+function gerenteTemFolgaPersonalizada(c, P){
+  return !!(c && c.gerente && diasFixosGerente(c, P).length === 2
+    && !(diasFixosGerente(c, P)[0] === 0 && diasFixosGerente(c, P)[1] === 6
+      && !(diaSemanaValido(c.folgaFixa) && diaSemanaValido(c.folgaFixa2))));
+}
 function turnoDe(c){
   const m = /(\d{1,2}):(\d{2})/.exec(c.horario||'');
   if(!m) return 'flex';
@@ -1593,9 +1604,67 @@ function ausenciaEm(c, d){
 }
 
 /* ============================================================
+   SEMANA: DOMINGO A SÁBADO
+   ============================================================ */
+/* Quantas folgas um bloco de `k` dias exige. É a regra proporcional de sempre
+   (semana cheia pede 2; sobra de 3 a 6 dias pede 1), escrita de um jeito que
+   também vale para os blocos de 8 a 13 dias criados pela fusão da ponta.
+   Para uma ponta única a fusão dá exatamente o mesmo total que contá-la
+   separada — por isso ninguém perde nem ganha folga por causa da fusão. */
+function folgasDoBloco(k){
+  return 2 * Math.floor(k / 7) + ((k % 7) >= 3 ? 1 : 0);
+}
+
+/* A semana vai de domingo a sábado. Como o período costuma ir do dia 11 ao dia
+   10, as pontas quase nunca caem em domingo: sobra um pedaço de 1 a 6 dias em
+   cada extremidade. Um pedaço de 1 ou 2 dias não tem como receber duas folgas —
+   exigir isso esvaziaria a loja — então ele é absorvido pela semana vizinha e o
+   alvo passa a ser o do bloco inteiro.
+
+   Duas guardas, descobertas medindo:
+   1. só funde se existir ao menos uma semana de calendário completa, senão um
+      período curto inteiro viraria um "bloco" que não é semana nenhuma;
+   2. só funde se o bloco resultante ficar com no máximo 13 dias, senão as duas
+      pontas de um período de 14 dias colapsam num bloco só. */
+const LIMITE_BLOCO_FUNDIDO = 13;
+function semanasDomingoASabado(days){
+  const N = days.length;
+  const semanas = [];
+  let i = 0;
+  while(i < N){
+    let j = i;
+    while(j+1 < N && days[j+1].getDay() !== 0) j++;
+    semanas.push({ini:i, fim:j});
+    i = j + 1;
+  }
+  const tamanho = s => s.fim - s.ini + 1;
+  if(semanas.some(s => tamanho(s) >= 7)){
+    if(semanas.length >= 2 && tamanho(semanas[0]) < 7
+       && tamanho(semanas[0]) + tamanho(semanas[1]) <= LIMITE_BLOCO_FUNDIDO){
+      semanas[1].ini = semanas[0].ini;
+      semanas.shift();
+    }
+    if(semanas.length >= 2){
+      const ultima = semanas[semanas.length-1], anterior = semanas[semanas.length-2];
+      if(tamanho(ultima) < 7
+         && tamanho(ultima) + tamanho(anterior) <= LIMITE_BLOCO_FUNDIDO){
+        anterior.fim = ultima.fim;
+        semanas.pop();
+      }
+    }
+  }
+  semanas.forEach((s,k)=>{
+    s.idx = k;
+    s.dias = [];
+    for(let d=s.ini; d<=s.fim; d++) s.dias.push(d);
+  });
+  return semanas;
+}
+
+/* ============================================================
    GERAÇÃO
-   params = {inicio, fim, inicioSemana(0=dom,1=seg), folgasSemana,
-             cicloDomingo, maxSeq, minCaixa, minBalcao, farmaPorTurno}
+   params = {inicio, fim, folgasSemana, cicloDomingo, maxSeq,
+             minCaixa, minBalcao, farmaPorTurno}
    ============================================================ */
 /* O trabalho pesado da geração é por pessoa. Expor isso como generator permite
    que a tela ceda o fio entre pessoas e continue respondendo, sem mexer em uma
@@ -1622,28 +1691,18 @@ function* gerarEscalaPassos(colabs, params){
     grid[c.id] = days.map(d => ausenciaEm(c,d) || null);   // null = a definir; '' = trabalha
   });
 
-  /* ---- semanas ---- */
-  const semanas = [];
-  if(P.inicioSemana === 'P'){
-    for(let i=0;i<N;i+=7) semanas.push({ini:i, fim:Math.min(i+6,N-1), idx:semanas.length});
-  } else {
-    let i = 0;
-    while(i < N){
-      let j = i;
-      while(j+1 < N && days[j+1].getDay() !== P.inicioSemana) j++;
-      semanas.push({ini:i, fim:j, idx:semanas.length});
-      i = j+1;
-    }
-  }
-  semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
+  /* ---- semanas: domingo a sábado ---- */
+  const semanas = semanasDomingoASabado(days);
 
-  /* ---- alvo de folgas por dia: espalhar em vez de empilhar ---- */
+  /* ---- alvo de folgas por dia: espalhar em vez de empilhar ----
+     Soma o alvo de cada bloco, a mesma conta que `opcoesDaSemana` usa. Se as
+     duas divergirem, o alvo por dia e o mínimo diário automático saem errados
+     sem que nada acuse. */
   let previsto = 0;
-  const semanasCompletas = () => semanas.filter(s2=>s2.dias.length>=7).length;
-  const semanasParciais  = () => semanas.filter(s2=>s2.dias.length>=3 && s2.dias.length<7).length;
+  const folgasDoPeriodo = semanas.reduce((t,s)=>t + folgasDoBloco(s.dias.length), 0);
   ativos.forEach(c=>{
     if(c.gerente){ previsto += days.filter(d=>d.getDay()===0||d.getDay()===6).length; }
-    else { previsto += P.folgasSemana * semanasCompletas() + semanasParciais(); }
+    else { previsto += folgasDoPeriodo; }
   });
   const alvoDia    = previsto / N;
 
@@ -1690,13 +1749,13 @@ function* gerarEscalaPassos(colabs, params){
   /* Pesos em faixas separadas por ordem de grandeza. A soma de todos os custos de
      cobertura de um mês precisa continuar menor que uma única infração legal —
      senão o motor "compra" a infração para salvar a cobertura, que foi o erro
-     encontrado nas simulações do 6x1. */
+     encontrado nas simulações. */
   const PESO = Object.assign({
     // faixa 1: obrigação legal
     estouroSeq: 200000,        // passar do limite de dias seguidos trabalhados
+    folgaSemanal: 180000,      // deixar o bloco abaixo das folgas que a semana exige
     pulaDomingo: 150000,       // trabalhar mais domingos seguidos do que o ciclo permite
     // faixa 2: regra da casa
-    soDomingo: 30000,          // no 6x1, ficar sem a folga da semana por causa do domingo
     diaFixo: 25000,            // não respeitar o dia de folga fixa escolhido para a pessoa
     domingoAncorado: 28000,    // furar o domingo de folga que o usuário fixou na data
     domingoExtra: 28000,       // folgar em domingo fora do ciclo ancorado
@@ -1707,7 +1766,7 @@ function* gerarEscalaPassos(colabs, params){
     curva: 400, equipe: 600, teto: 150, outroDomingo: 450,
     // faixa 4: qualidade da escala
     extraFolga: 700, extraFolgaSolta: 1600, blocoLongo: 500, bonusDomColado: 250,
-    solto: 95, avulso: 130, separado: 210, domAvulso: 60
+    avulso: 130, separado: 210
   }, ajustePrioridade, P.pesos||{});
   function custoSuave(c, i){
     let custo = 0;
@@ -1761,14 +1820,16 @@ function* gerarEscalaPassos(colabs, params){
     return d > 0 ? d : 0;
   }
 
-  /* ---- 1) GERENTES: folga todo sábado e domingo ---- */
+  /* ---- 1) GERENTES: dois dias fixos; legado continua sábado+domingo ---- */
+  const gerentesPersonalizados = ativos.filter(c=>gerenteTemFolgaPersonalizada(c, P));
   ativos.filter(c=>c.gerente).forEach(c=>{
+    const diasFixos = diasFixosGerente(c, P);
     days.forEach((d,i)=>{
-      if(grid[c.id][i]===null && (d.getDay()===0 || d.getDay()===6)) grid[c.id][i]='X';
+      if(grid[c.id][i]===null && diasFixos.includes(d.getDay())) grid[c.id][i]='X';
     });
   });
 
-  /* ---- 2) domingos de folga (a cada N domingos trabalhados, 1 folga) ---- */
+  /* ---- 2) domingos de folga (a cada N domingos trabalhados) ---- */
   const domingos = [];
   days.forEach((d,i)=>{ if(d.getDay()===0) domingos.push(i); });
 
@@ -1828,12 +1889,13 @@ function* gerarEscalaPassos(colabs, params){
      Só depois os automáticos escolhem a fase menos ocupada; isso impede que o
      contador automático comece em uma fase já reservada. */
   const semGerente = ativos.filter(c=>!c.gerente);
+  const participantesDomingo = semGerente.concat(gerentesPersonalizados);
   const faseDefinida = {};
-  semGerente.forEach(c=>{ faseDefinida[c.id] = fasePreferida(c); });
-  semGerente.filter(c=>faseDefinida[c.id] != null).forEach(c=>{
+  participantesDomingo.forEach(c=>{ faseDefinida[c.id] = fasePreferida(c); });
+  participantesDomingo.filter(c=>faseDefinida[c.id] != null).forEach(c=>{
     registrarFase(c, faseDefinida[c.id]);
   });
-  semGerente.filter(c=>faseDefinida[c.id] == null).forEach(c=>{
+  participantesDomingo.filter(c=>faseDefinida[c.id] == null).forEach(c=>{
     const cargo = cargoDe(c);
     const ocupadas = fasesOcupadasPorCargo[cargo] || [];
     const inicio = (contadorCargoDomingo[cargo] || 0) % P.cicloDomingo;
@@ -1845,6 +1907,21 @@ function* gerarEscalaPassos(colabs, params){
     }
     contadorCargoDomingo[cargo] = inicio + 1;
     registrarFase(c, primeiro);
+  });
+
+  /* Gerente personalizado participa do ciclo de domingos. Quando chega o seu
+     domingo, ele substitui a primeira folga fixa; a segunda permanece. Assim
+     sexta+sábado vira domingo+sábado naquela semana, não três folgas. */
+  gerentesPersonalizados.forEach(c=>{
+    const fixos = diasFixosGerente(c, P);
+    const primeira = fixos[0], segunda = fixos[1];
+    (domFolga[c.id] || new Set()).forEach(i=>{
+      if(grid[c.id][i] === null) grid[c.id][i] = 'X';
+      const sem = semanas.find(s=>s.dias.includes(i));
+      if(!sem || primeira === 0 || primeira === segunda) return;
+      const alvo = sem.dias.find(k=>days[k].getDay()===primeira);
+      if(alvo != null && alvo !== i && grid[c.id][alvo] === 'X') grid[c.id][alvo] = null;
+    });
   });
 
   /* ---- 3) folgas: cadeia do mês inteiro por colaborador (programação dinâmica) ----
@@ -1921,15 +1998,12 @@ function* gerarEscalaPassos(colabs, params){
       return {dias, novos, domSemana: domSemana.length, domFolgado: domFolgado.length};
     };
 
-    /* 6x1: a folga da semana e a folga de domingo são direitos separados —
-       na semana em que cai o domingo do ciclo, a pessoa folga duas vezes. */
-    if(P.modelo === '6x1')
-        return opcoes6x1(c, sem, {fixos, jaX, nDias, ausentes, domSemana, marcar, meuDomingo});
-
-    let alvo = nDias>=7 ? P.folgasSemana : (nDias>=3 ? 1 : 0);
-    const semOpcao = [Object.assign({tipo:'fixo', custo:0}, marcar([]))];
-    if(ausentes >= nDias - 1) return semOpcao;
+    let alvo = folgasDoBloco(nDias);
     const faltam = Math.max(0, alvo - jaX);
+    /* Não fechar a semana é opção de último recurso: paga pelas folgas que
+       deixou de dar, igual a qualquer outra opção abaixo do alvo. */
+    const semOpcao = [Object.assign({tipo:'fixo', custo: faltam * PESO.folgaSemanal}, marcar([]))];
+    if(ausentes >= nDias - 1) return [Object.assign({tipo:'fixo', custo:0}, marcar([]))];
     const ok = i => sem.dias.includes(i) && !bloqueioRigido(c,i);
     const custoDomingo = (dias, novos, custoInicial=0) => {
       let custo = custoInicial;
@@ -1956,8 +2030,9 @@ function* gerarEscalaPassos(colabs, params){
       return custo;
     };
     if(faltam === 0){
-      // semana já fechada: normalmente não se mexe. Mas em semana curta ou na última,
-      // deixa a opção de uma folga a mais, que é o que evita a ponta de 7 dias no fim do mês.
+      // bloco já fechado: normalmente não se mexe. Mas em bloco curto ou no
+      // último, deixa a opção de uma folga a mais, que é o que evita a ponta de
+      // sete dias no fim do período.
       if(nDias >= 7 && sem.idx < semanas.length-1) return semOpcao;
       const extras = sem.dias.filter(ok).map(i =>
         Object.assign({tipo:'avulso', extra:'ponta', custo:0}, marcar([i])));
@@ -1978,6 +2053,19 @@ function* gerarEscalaPassos(colabs, params){
       for(let k=0;k<sem.dias.length-1;k++){
         const a=sem.dias[k], b=sem.dias[k+1];
         if(b===a+1 && ok(a) && ok(b)) brutas.push({novos:[a,b], tipo:'par'});
+      }
+      /* Bloco fundido pede três folgas: um par mais um dia. Sem isso o motor só
+         sabe montar pares e fica sempre uma folga abaixo do alvo. O terceiro dia
+         aqui é exigência, não luxo, então não paga `extraFolga`. */
+      if(faltam >= 3){
+        const pares = brutas.filter(o=>o.tipo==='par').slice(0,12);
+        pares.forEach(par=>{
+          sem.dias.forEach(i=>{
+            if(par.novos.includes(i) || !ok(i)) return;
+            if(par.novos.some(j=>Math.abs(j-i)===1)) return;   // encostaria, virando bloco de 3
+            brutas.push({novos:par.novos.concat([i]).sort((a,b)=>a-b), tipo:'par-mais-um'});
+          });
+        });
       }
       if(brutas.length===0){
         const livres = sem.dias.filter(ok);
@@ -2018,7 +2106,16 @@ function* gerarEscalaPassos(colabs, params){
 
     return brutas.map(o=>{
       const info = marcar(o.novos);
-      let custo = (o.tipo==='separado' ? PESO.separado : o.tipo==='avulso' ? PESO.avulso : 0);
+      let custo = (o.tipo==='separado' ? PESO.separado
+                 : o.tipo==='avulso' ? PESO.avulso
+                 : o.tipo==='par-mais-um' ? PESO.separado
+                 : 0);
+      /* Folga semanal é direito legal: ficar abaixo do alvo do bloco custa caro.
+         Com semanas de 7 dias isso nunca pesava, porque qualquer par já atendia
+         o alvo 2. O bloco fundido pede 3, e sem este custo o motor escolhia a
+         opção de 2 por ser mais barata na cobertura. */
+      const faltaNoAlvo = alvo - (jaX + o.novos.length);
+      if(faltaNoAlvo > 0) custo += faltaNoAlvo * PESO.folgaSemanal;
       if(o.extra) custo += (o.extra==='colado' ? PESO.extraFolga : PESO.extraFolgaSolta);
       custo = custoDomingo(info.dias, o.novos, custo);
 
@@ -2044,85 +2141,6 @@ function* gerarEscalaPassos(colabs, params){
         custo += Math.abs((o.novos[0] - sem.ini) - desejado) * 18;
       }
       if(o.novos.length===1 && (ehFolga(c,o.novos[0]-1) || ehFolga(c,o.novos[0]+1))) custo -= 80;
-      return Object.assign({tipo:o.tipo, extra:o.extra, custo}, info);
-    });
-  }
-
-  /* Opções de uma semana no modelo 6x1: uma folga na semana e, quando for a vez
-     do domingo dele, o domingo por cima — sem exigência de dias colados. */
-  function opcoes6x1(c, sem, ctx){
-    const {fixos, jaX, nDias, ausentes, domSemana, marcar} = ctx;
-    const semOpcao = [Object.assign({tipo:'fixo', custo:0}, marcar([]))];
-    if(ausentes >= nDias - 1) return semOpcao;
-
-    const ok = i => sem.dias.includes(i) && !bloqueioRigido(c,i);
-    const domingo = domSemana.find(i => ok(i));
-    const domJaFolga = domSemana.some(i => DESCANSO.includes(grid[c.id][i]));
-    const comuns = sem.dias.filter(i => ok(i) && days[i].getDay() !== 0);
-    const alvoSemana = nDias >= 7 ? 1 : (nDias >= 3 ? 1 : 0);
-    const faltamSemana = Math.max(0, alvoSemana - jaX);
-
-    const brutas = [];
-    if(faltamSemana >= 1){
-      comuns.forEach(i => brutas.push({novos:[i], tipo:'semanal'}));
-      // mesma folga da semana somada ao domingo do ciclo
-      if(domingo != null && !domJaFolga)
-        comuns.forEach(i => brutas.push({novos:[i, domingo].sort((a,b)=>a-b), tipo:'semanal-e-domingo'}));
-      // só o domingo: atende a semana, mas perde a folga comum — último caso
-      if(domingo != null && !domJaFolga) brutas.push({novos:[domingo], tipo:'so-domingo'});
-      if(!comuns.length && domingo != null && !domJaFolga) brutas.push({novos:[domingo], tipo:'so-domingo'});
-    } else if(domingo != null && !domJaFolga){
-      // a semana já tem a folga comum; falta encaixar o domingo do ciclo
-      brutas.push({novos:[domingo], tipo:'domingo-do-ciclo'});
-      brutas.push({novos:[], tipo:'fixo'});
-    }
-    if(!brutas.length) return semOpcao;
-
-    // variantes com um dia a mais, quando a cadeia dos dias seguidos não fecha
-    const extras = [];
-    brutas.slice(0,10).forEach(o=>{
-      if(!o.novos.length) return;
-      sem.dias.forEach(i=>{
-        if(o.novos.includes(i) || !ok(i) || days[i].getDay()===0) return;
-        extras.push({novos:o.novos.concat([i]).sort((a,b)=>a-b), tipo:o.tipo, extra:'solto'});
-      });
-    });
-    brutas.push(...extras);
-
-    const slotFixo = slotBase[c.id] % Math.max(1, nDias);
-    const fixo = (c.folgaFixa != null && c.folgaFixa !== '') ? Number(c.folgaFixa) : null;
-    return brutas.map(o=>{
-      const info = marcar(o.novos);
-      let custo = 0;
-      // quem tem folga fixa no domingo já cumpre a folga da semana no próprio domingo
-      if(o.tipo === 'so-domingo' && fixo !== 0) custo += PESO.soDomingo;
-      if(o.tipo === 'domingo-do-ciclo')  custo += 0;
-      if(o.tipo === 'fixo' && !o.novos.length) custo += PESO.pulaDomingo;   // deixar o domingo passar
-      if(o.extra) custo += PESO.extraFolgaSolta;
-      o.novos.forEach(i=>{
-        custo += custoSuave(c,i);
-        if(days[i].getDay()===0){
-          // No 6x1 o domingo é direito do ciclo, mas a preferência continua
-          // sendo distribuir as folgas do mesmo cargo de forma equilibrada.
-          const minhasFolgas = folgasDoCargoNoDomingo(i, cargoDe(c));
-          const menorNoCiclo = domingos.reduce((menor, outroDomingo) =>
-            Math.min(menor, folgasDoCargoNoDomingo(outroDomingo, cargoDe(c))), Infinity);
-          if(minhasFolgas > menorNoCiclo) custo += (minhasFolgas - menorNoCiclo) * PESO.outroDomingo;
-        }
-      });
-      custo += pesoBalanceamento(c, o.novos);
-  if(domAncorado[c.id] && ctx.meuDomingo != null
-     && !info.dias.includes(ctx.meuDomingo)
-     && !AUSENTE.includes(grid[c.id][ctx.meuDomingo])) custo += PESO.domingoAncorado;
-      if(fixo != null){
-        // dia de folga escolhido para a pessoa: só cede quando não há alternativa
-        const temODia = o.novos.some(i => days[i].getDay() === fixo);
-        const cabeNaSemana = sem.dias.some(i => days[i].getDay() === fixo && !AUSENTE.includes(grid[c.id][i]));
-        if(!temODia && cabeNaSemana && o.novos.length) custo += PESO.diaFixo;
-      } else {
-        const comum = o.novos.find(i => days[i].getDay() !== 0);
-        if(comum != null) custo += Math.abs((comum - sem.ini) - slotFixo) * 22;
-      }
       return Object.assign({tipo:o.tipo, extra:o.extra, custo}, info);
     });
   }
@@ -2283,7 +2301,7 @@ function* gerarEscalaPassos(colabs, params){
   /* ---- 5) fecha: null vira dia trabalhado ---- */
   ativos.forEach(c=>{ for(let i=0;i<N;i++) if(grid[c.id][i]===null) grid[c.id][i]=''; });
 
-  return {days, grid, semanas, ativos, params:P, diag, desdeFolga};
+  return {days, grid, semanas, ativos, params:P, diag, desdeFolga, domFolga};
 }
 
 /* Estado que uma grade salva deixa para o período seguinte. Uma linha ausente
@@ -2336,13 +2354,22 @@ function estadoFinalDaGrade(grade, inicio, fim, opcoes){
   return estado;
 }
 
+/* Escala nova é sempre domingo a sábado. `inicioSemana` só continua sendo lido
+   para reconferir escala antiga: uma escala publicada quando a semana era
+   "blocos de 7 a partir do dia 11" ('P') ou "segunda a domingo" (1) precisa
+   continuar sendo julgada pela regra da época, senão o veredito de uma escala já
+   aprovada muda sozinho. Ver decisão 0010. */
 function semanasDoPeriodo(days, inicioSemana){
   const N = days.length;
-  const semanas = [];
   if(inicioSemana === 'P'){
+    const semanas = [];
     for(let i=0;i<N;i+=7) semanas.push({ini:i, fim:Math.min(i+6,N-1), idx:semanas.length});
-  } else {
-    const iniSem = Number(inicioSemana || 0);
+    semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
+    return semanas;
+  }
+  if(inicioSemana != null && Number(inicioSemana) !== 0){
+    const iniSem = Number(inicioSemana);
+    const semanas = [];
     let i = 0;
     while(i < N){
       let j = i;
@@ -2350,9 +2377,10 @@ function semanasDoPeriodo(days, inicioSemana){
       semanas.push({ini:i, fim:j, idx:semanas.length});
       i = j+1;
     }
+    semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
+    return semanas;
   }
-  semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
-  return semanas;
+  return semanasDomingoASabado(days);
 }
 
 /* ============================================================
@@ -2424,37 +2452,43 @@ function validar(res, colabs){
        que decidiu. Loja sem perfis mantém sábado e domingo para o gerente. */
     const perfisLoja = P.perfis || {};
     const perfilPessoa = c.perfil && perfisLoja[c.perfil] ? perfisLoja[c.perfil] : null;
-    const diasPerfil = perfilPessoa && Array.isArray(perfilPessoa.regras && perfilPessoa.regras.folgaFixaSemanal)
+    const diasFichaGerente = c.gerente && diaSemanaValido(c.folgaFixa) && diaSemanaValido(c.folgaFixa2)
+      && Number(c.folgaFixa) !== Number(c.folgaFixa2)
+      ? [Number(c.folgaFixa), Number(c.folgaFixa2)] : null;
+    const diasPerfil = diasFichaGerente || (perfilPessoa && Array.isArray(perfilPessoa.regras && perfilPessoa.regras.folgaFixaSemanal)
       ? perfilPessoa.regras.folgaFixaSemanal.map(Number)
-      : (c.gerente ? [0,6] : []);
+      : (c.gerente ? [0,6] : []));
+    const gerentePersonalizado = !!(c.gerente && diasPerfil.length >= 2
+      && !(Number(diasPerfil[0]) === 0 && Number(diasPerfil[1]) === 6));
     if(diasPerfil.length){
-      const nomePerfil = perfilPessoa ? perfilPessoa.nome : 'gerente (padrão da casa)';
+      const nomePerfil = perfilPessoa ? perfilPessoa.nome : (gerentePersonalizado ? 'ficha do gerente' : 'gerente (padrão da casa)');
       const basePerfil = perfilPessoa ? (perfilPessoa.base || 'politica-da-casa') : 'politica-da-casa';
+      const diasFixoGerente = gerentePersonalizado ? diasPerfil : [];
       days.forEach((d,i)=>{
-        if(diasPerfil.includes(d.getDay()) && !folga(i)){
-          av.push({tipo:'perfil-folga-fixa', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
-            perfil:(perfilPessoa ? perfilPessoa.id || c.perfil : 'gerente'), base:basePerfil,
-            txt:`Perfil "${nomePerfil}" prevê folga em ${DIA_NOME[d.getDay()]}, mas a pessoa está escalada em ${ddmm(d)}`});
-        }
+        if(!diasPerfil.includes(d.getDay()) || folga(i)) return;
+        const semana = semanas.find(s=>s.dias.includes(i));
+        const domingoDaSemana = semana && semana.dias.find(k=>days[k].getDay()===0);
+        const substituida = gerentePersonalizado && diasFixoGerente[0] === d.getDay()
+          && domingoDaSemana != null && folga(domingoDaSemana);
+        if(substituida) return;
+        av.push({tipo:'perfil-folga-fixa', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
+          perfil:(perfilPessoa ? perfilPessoa.id || c.perfil : 'gerente'), base:basePerfil,
+          txt:`Perfil "${nomePerfil}" prevê folga em ${DIA_NOME[d.getDay()]}, mas a pessoa está escalada em ${ddmm(d)}`});
       });
     }
 
-    // 1) folgas por semana (obrigatória para não-gerentes)
+    /* 1) folgas por semana (obrigatória para não-gerentes). O alvo acompanha o
+       tamanho do bloco: semana cheia pede 2, bloco de 10 a 13 dias pede 3, e
+       uma ponta de 1 ou 2 dias não pede nenhuma. */
     semanas.forEach(s=>{
-      if(s.dias.length<7) return;
+      const alvoSemana = folgasDoBloco(s.dias.length);
+      if(alvoSemana < 1) return;
       const n = s.dias.filter(i=>arr[i]==='X'||arr[i]==='FC').length;
       const ferias = s.dias.filter(i=>arr[i]==='F'||arr[i]==='AT'||arr[i]==='LC').length;
-      if(ferias>=5) return;
-      if(!c.gerente && (n + Math.min(ferias, P.folgasSemana)) < P.folgasSemana)
+      if(ferias >= s.dias.length - 1) return;
+      if(!c.gerente && (n + Math.min(ferias, alvoSemana)) < alvoSemana)
         av.push({tipo:'folgas-semana', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', base:'lei',
-          txt:`Semana de ${ddmm(days[s.ini])}: ${n} folga(s), mínimo ${P.folgasSemana}`});
-      if(!c.gerente && P.modelo === '6x1' && ferias < 4){
-        const domFolga = s.dias.some(i=>days[i].getDay()===0 && (arr[i]==='X'||arr[i]==='FC'));
-        if(domFolga && n < 2){
-          av.push({tipo:'6x1-domingo', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', base:'politica-da-casa',
-            txt:`Semana de ${ddmm(days[s.ini])}: folgou no domingo do ciclo mas ficou sem a folga semanal do 6x1 (política da casa)`});
-        }
-      }
+          txt:`Semana de ${ddmm(days[s.ini])}: ${n} folga(s), mínimo ${alvoSemana}`});
     });
 
     // 2) sequência máxima (obrigatória para não-gerentes)
@@ -2497,7 +2531,7 @@ function validar(res, colabs){
     if(!c.gerente && folgaFixaVal != null && folgaFixaVal !== ''){
       const diaFixo = Number(folgaFixaVal);
       semanas.forEach(s2=>{
-        if(s2.dias.length < 7) return;
+        if(folgasDoBloco(s2.dias.length) < 1) return;
         const cabe = s2.dias.filter(i=>days[i].getDay()===diaFixo && !['F','AT','LC'].includes(arr[i]));
         if(!cabe.length) return;
         const folgou = cabe.some(i=>arr[i]==='X' || arr[i]==='FC');
@@ -2508,8 +2542,8 @@ function validar(res, colabs){
 
     // 4) folgas isoladas fora do domingo no 5x2 (preferência / qualidade)
     const semanaParcial = new Set();
-    semanas.forEach(s2=>{ if(s2.dias.length<7) s2.dias.forEach(i=>semanaParcial.add(i)); });
-    if(!c.gerente && P.modelo !== '6x1'){
+    semanas.forEach(s2=>{ if(folgasDoBloco(s2.dias.length) < 2) s2.dias.forEach(i=>semanaParcial.add(i)); });
+    if(!c.gerente){
       for(let i=0;i<N;i++){
         if(arr[i]!=='X' || semanaParcial.has(i)) continue;
         const antes = i>0 && folga(i-1), depois = i<N-1 && folga(i+1);
@@ -3853,7 +3887,7 @@ function marcarSync(estado, msg){
 function seedLojas(){
   const mk = (l)=>l.map((r,i)=>({nome:r[0], cargo:r[1], horario:r[2],
                                  gerente:!!r[3], ativo:true, domTrabConsec:null, diasDesdeFolga:0,
-                                 folgaFixa:null, ausencias:[]}));
+                                 folgaFixa:null, folgaFixa2:null, ausencias:[]}));
   return {
     'demo-aurora':{
       nome:'Unidade Aurora',
@@ -3872,7 +3906,7 @@ function seedLojas(){
         ['COLABORADOR 12','CAIXA','14:40 AS 23:00'],
         ['COLABORADOR 13','AX. LOJA','09:00 AS 18:00'],
       ]),
-      params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:'P', minCaixa:2, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
+      params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0, minCaixa:2, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
                minDia:{0:7, 1:7, 2:9, 3:9, 4:9, 5:9, 6:9}}
     },
     'demo-horizonte':{
@@ -3895,7 +3929,7 @@ function seedLojas(){
         ['COLABORADOR 28','REPOSITOR','08:00 AS 17:00'],
         ['COLABORADOR 29','AX. LOJA','08:00 AS 17:00'],
       ]),
-      params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:'P', minCaixa:3, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
+      params:{modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6, inicioSemana:0, minCaixa:3, minBalcao:4, minFarma:2, minSubger:1, subgerFds:true, prioridade:'par',
                minDia:{0:9, 1:9, 2:11, 3:9, 4:11, 5:9, 6:11}}
     }
   };
@@ -4184,7 +4218,7 @@ async function pintarAcessos(){
 }
 
 /* ---------- administração da plataforma ---------- */
-const ADMIN = {empresa:null, empresas:[], lojas:[], supervisores:[], usuarios:[], escalas:[], carregando:false, _reqEmp:0, _reqLoj:0, _reqSup:0, _reqUsers:0, _reqEscalas:0};
+const ADMIN = {empresa:null, empresas:[], lojas:[], supervisores:[], usuarios:[], escalas:[], lojaConsulta:null, configuracaoLoja:null, carregando:false, _reqEmp:0, _reqLoj:0, _reqSup:0, _reqUsers:0, _reqEscalas:0, _reqConfig:0};
 function adminStatus(txt, tipo='info'){
   const el = document.getElementById('admin-status');
   if(!el) return;
@@ -4229,14 +4263,31 @@ async function adminCarregarEmpresas(){
   }
   catch(e){ adminStatus(erroAmigavel(e),'erro'); }
 }
-function adminPreencherEmpresa(empresa){
+function adminAtualizarResumoEmpresa(empresa){
+  const resumo=document.getElementById('admin-resumo-empresa'); if(!resumo)return;
+  resumo.hidden=!empresa;
+  const nome=document.getElementById('admin-resumo-empresa-nome');
+  const descricao=document.getElementById('admin-resumo-empresa-descricao');
+  if(nome) nome.textContent=empresa?.nome||'Nenhuma empresa selecionada';
+  if(descricao) descricao.textContent=empresa?.descricao||'Sem descrição cadastral';
+}
+function adminPreencherEmpresa(empresa, abrir=false){
   const form=document.getElementById('admin-form-empresa'); if(!form)return;
-  form.hidden=false; document.getElementById('admin-empresa-nome').value=empresa?.nome||''; document.getElementById('admin-empresa-descricao').value=empresa?.descricao||'';
+  form.hidden=!abrir;
+  const painel=document.getElementById('admin-painel-empresas'); if(painel) painel.classList.toggle('admin-editando-empresa',abrir);
+  document.getElementById('admin-empresa-nome').value=empresa?.nome||'';
+  document.getElementById('admin-empresa-descricao').value=empresa?.descricao||'';
+  adminAtualizarResumoEmpresa(empresa);
 }
 async function adminSelecionarEmpresa(empresa){
-  ADMIN.empresa=empresa; ADMIN.lojas=[]; ADMIN.supervisores=[]; ADMIN.usuarios=[]; ADMIN.escalas=[];
+  ADMIN.empresa=empresa; ADMIN.lojas=[]; ADMIN.supervisores=[]; ADMIN.usuarios=[]; ADMIN.escalas=[]; ADMIN.lojaConsulta=null; ADMIN.configuracaoLoja=null;
   const detalhe=document.getElementById('admin-central-escala-detalhe'); if(detalhe) detalhe.hidden=true;
-  adminRenderEmpresas(); adminPreencherEmpresa(empresa);
+  const config=document.getElementById('admin-central-configuracao'); if(config) config.hidden=true;
+  const contexto=document.getElementById('admin-consulta-contexto'); if(contexto){const label=contexto.querySelector('.admin-consulta-label'); if(label) label.textContent='Selecione uma loja para consultar escalas publicadas.';}
+  const tabs=document.getElementById('admin-consulta-tabs'); if(tabs) tabs.hidden=true;
+  const painel=document.getElementById('admin-painel-empresas'); if(painel) painel.classList.add('admin-empresa-selecionada');
+  const central=document.getElementById('admin-painel-central'); if(central) central.hidden=false;
+  adminRenderEmpresas(); adminPreencherEmpresa(empresa, false);
   document.getElementById('admin-painel-lojas').hidden=false; document.getElementById('admin-painel-supervisores').hidden=false;
   adminTexto(document.getElementById('admin-lojas-titulo'),'Lojas · '+empresa.nome);
   adminTexto(document.getElementById('admin-supervisores-titulo'),'Supervisores · '+empresa.nome);
@@ -4267,12 +4318,34 @@ function adminRenderUsuarios(){
   box.replaceChildren();
   if(!ADMIN.usuarios.length){ const p=document.createElement('div'); p.className='admin-empty'; p.textContent='Nenhum usuário encontrado.'; box.appendChild(p); return; }
   ADMIN.usuarios.forEach(u=>{
-    const b=adminBotao('',()=>{}); b.className='admin-row'; b.disabled=true;
+    const row=document.createElement('div'); row.className='admin-row admin-user-row';
     const w=document.createElement('span'), s=document.createElement('strong'), p=document.createElement('small');
     s.textContent=u.nome||'Sem nome';
-    p.textContent=[u.email,u.papel,u.empresa||'Sem empresa',u.loja||'Sem loja'].filter(Boolean).join(' · ');
-    w.append(s,p); b.appendChild(w); box.appendChild(b);
+    p.textContent=[u.email,u.papel==='gestor'?'Supervisor':u.papel,u.empresa||'Sem empresa',u.loja||'Sem loja'].filter(Boolean).join(' · ');
+    w.append(s,p); row.appendChild(w);
+    const souContaPlataforma = SESSAO.usuario && u.id === SESSAO.usuario.id;
+    if(!souContaPlataforma && ['admin','gestor'].includes(u.papel)){
+      const botao=adminBotao(u.papel==='gestor'?'Tornar administrador':'Promover a supervisor',()=>adminMudarPapel(u));
+      botao.classList.add('small'); botao.setAttribute('aria-label',botao.textContent+' '+(u.nome||'usuário'));
+      row.appendChild(botao);
+    }
+    box.appendChild(row);
   });
+}
+async function adminMudarPapel(usuario){
+  const promovendo=usuario.papel==='admin';
+  const destino=promovendo?'supervisor':'administrador';
+  const aviso=promovendo
+    ? `Promover ${usuario.nome||usuario.email} a supervisor? A conta deixará de enxergar todas as lojas e só acessará unidades vinculadas no painel.`
+    : `Tornar ${usuario.nome||usuario.email} administrador? Os vínculos de supervisor serão removidos e a conta voltará a enxergar toda a empresa.`;
+  if(!confirm(aviso)) return;
+  try{
+    await adminRequisicao({acao:'plataforma_mudar_papel',empresa_id:ADMIN.empresa.id,usuario_id:usuario.id,papel:promovendo?'gestor':'admin'},async()=>{
+      await adminCarregarUsuarios();
+      await adminCarregarSupervisores();
+    });
+    adminCentralStatus(`${usuario.nome||usuario.email} agora é ${destino}. ${promovendo?'Vincule as lojas no painel de supervisores.':''}`,'ok');
+  }catch(e){}
 }
 async function adminCarregarUsuarios(){
   if(!ADMIN.empresa) return;
@@ -4285,32 +4358,54 @@ async function adminCarregarUsuarios(){
     ADMIN.usuarios=r.usuarios||[]; adminRenderUsuarios(); adminCentralStatus('Usuários atualizados','ok');
   }catch(e){ adminCentralStatus(erroAmigavel(e),'erro'); }
 }
+function adminMostrarConsulta(tipo){
+  const escalas=document.getElementById('admin-central-escalas');
+  const detalhe=document.getElementById('admin-central-escala-detalhe');
+  const config=document.getElementById('admin-central-configuracao');
+  const tabs=document.getElementById('admin-consulta-tabs');
+  if(tabs) tabs.hidden=!ADMIN.lojaConsulta;
+  if(escalas) escalas.hidden=tipo!=='escalas';
+  if(detalhe && tipo==='escalas' && detalhe.dataset.aberta!=='true') detalhe.hidden=true;
+  if(config) config.hidden=tipo!=='configuracao';
+}
 function adminRenderEscalas(){
   const box=document.getElementById('admin-central-escalas'); if(!box) return;
   box.replaceChildren();
-  if(!ADMIN.escalas.length){ const p=document.createElement('div'); p.className='admin-empty'; p.textContent='Nenhuma publicação encontrada.'; box.appendChild(p); return; }
+  if(!ADMIN.lojaConsulta){
+    const p=document.createElement('div'); p.className='admin-empty'; p.textContent='Selecione uma loja para consultar as escalas publicadas.'; box.appendChild(p); return;
+  }
+  if(!ADMIN.escalas.length){
+    const p=document.createElement('div'); p.className='admin-empty';
+    p.textContent='Nenhuma escala publicada nesta loja. Rascunhos não aparecem na consulta central.';
+    box.appendChild(p); return;
+  }
   ADMIN.escalas.forEach(x=>{
-    const b=adminBotao('',()=>adminCarregarEscalaPublicada(x)); b.className='admin-row';
+    const b=adminBotao('',()=>adminCarregarEscalaPublicada(x)); b.className='admin-row admin-escala-row';
+    b.dataset.escalaVersao=x.versao; b.dataset.escalaInicio=x.inicio;
     const w=document.createElement('span'), s=document.createElement('strong'), p=document.createElement('small');
-    s.textContent=`${x.inicio} a ${x.fim} · v${x.versao}`;
-    p.textContent=`${x.pessoas||'?'} pessoas · ${x.dias||'?'} dias${x.incompleto?' · histórico parcial':''} · somente leitura`;
-    w.append(s,p); b.appendChild(w); box.appendChild(b);
+    s.textContent=`${x.inicio} a ${x.fim}`;
+    p.textContent=x.incompleto
+      ? `Versão ${x.versao} · publicada em ${x.publicada_em||'—'} · dados históricos parciais`
+      : `Versão ${x.versao} · publicada em ${x.publicada_em||'—'} · ${x.pessoas||'?'} pessoas · ${x.dias||'?'} dias`;
+    w.append(s,p);
+    const chip=document.createElement('span'); chip.className='chip ok'; chip.textContent='Publicado';
+    b.append(w,chip); box.appendChild(b);
   });
 }
 function adminRenderEscalaDetalhe(escala){
   const box=document.getElementById('admin-central-escala-detalhe'); if(!box) return;
-  box.hidden=false;
+  box.hidden=false; box.dataset.aberta='true'; adminMostrarConsulta('escalas');
   const porId=Object.fromEntries((escala.participantes||[]).map(p=>[String(p.id),p]));
   const dias=[]; const ini=new Date(escala.inicio+'T12:00:00'), fim=new Date(escala.fim+'T12:00:00');
   for(const d=new Date(ini);d<=fim;d.setDate(d.getDate()+1)) dias.push(new Date(d));
-  let h=`<div class="admin-leitura-meta"><b>${esc(escala.empresa)} · ${esc(escala.loja)}</b><br>${esc(escala.inicio)} a ${esc(escala.fim)} · versão ${esc(escala.versao)} · publicada em ${esc(escala.publicada_em||'')} · somente leitura</div><table><thead><tr><th>Pessoa</th>${dias.map(d=>`<th>${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}</th>`).join('')}</tr></thead><tbody>`;
+  let h=`<div class="admin-leitura-meta"><div><b>${esc(escala.empresa)} · ${esc(escala.loja)}</b><span class="chip ok">Publicado</span></div><small>${esc(escala.inicio)} a ${esc(escala.fim)} · versão ${esc(escala.versao)} · publicada em ${esc(escala.publicada_em||'')}</small><em>Leitura somente — publicação protegida</em></div><table><thead><tr><th>Pessoa</th>${dias.map(d=>`<th>${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}</th>`).join('')}</tr></thead><tbody>`;
   Object.entries(escala.grade||{}).forEach(([id,linha])=>{const p=porId[id]||{};h+=`<tr><th>${esc(p.nome||id)}</th>${dias.map((_,i)=>`<td>${esc((linha||[])[i]||'')}</td>`).join('')}</tr>`;});
   h+='</tbody></table>'; box.innerHTML=h;
 }
 async function adminCarregarEscalaPublicada(x){
   adminCentralStatus('Carregando publicação…');
   try{
-    const r=await auth({acao:'plataforma_carregar_escala_publicada',loja_id:ADMIN.lojas.find(l=>l.nome===x.loja)?.id||x.loja_id,inicio:x.inicio,fim:x.fim,versao:x.versao});
+    const r=await auth({acao:'plataforma_carregar_escala_publicada',loja_id:x.loja_id||ADMIN.lojaConsulta?.id,inicio:x.inicio,fim:x.fim,versao:x.versao});
     adminRenderEscalaDetalhe(r.escala); adminCentralStatus('Publicação carregada · somente leitura','ok');
   }catch(e){ adminCentralStatus(erroAmigavel(e),'erro'); }
 }
@@ -4324,10 +4419,48 @@ async function adminCarregarEscalas(lojaId){
   }catch(e){ adminCentralStatus(erroAmigavel(e),'erro'); }
 }
 
+function adminSelecionarLojaConsulta(loja){
+  ADMIN.lojaConsulta=loja; ADMIN.escalas=[]; ADMIN.configuracaoLoja=null;
+  const contexto=document.getElementById('admin-consulta-contexto');
+  if(contexto) contexto.querySelector('.admin-consulta-label').textContent=`${loja.nome} · somente escalas publicadas`;
+  const detalhe=document.getElementById('admin-central-escala-detalhe'); if(detalhe){detalhe.hidden=true;detalhe.dataset.aberta='false';}
+  adminMostrarConsulta('escalas'); adminCarregarEscalas(loja.id);
+}
+async function adminAbrirConfiguracaoLoja(loja){
+  ADMIN.lojaConsulta=loja; ADMIN.configuracaoLoja=null;
+  const contexto=document.getElementById('admin-consulta-contexto');
+  if(contexto) contexto.querySelector('.admin-consulta-label').textContent=`${loja.nome} · configuração operacional somente leitura`;
+  const detalhe=document.getElementById('admin-central-escala-detalhe'); if(detalhe){detalhe.hidden=true;detalhe.dataset.aberta='false';}
+  adminMostrarConsulta('configuracao');
+  const box=document.getElementById('admin-central-configuracao');
+  if(box){box.hidden=false;box.innerHTML='<div class="admin-empty">Carregando configuração operacional…</div>';}
+  const reqId=++ADMIN._reqConfig;
+  try{
+    const r=await auth({acao:'plataforma_carregar_configuracao_loja',loja_id:loja.id});
+    if(reqId!==ADMIN._reqConfig)return;
+    ADMIN.configuracaoLoja=r.loja; adminRenderConfiguracaoLoja(r.loja);
+  }catch(e){if(box)box.innerHTML=`<div class="admin-empty">${esc(erroAmigavel(e))}</div>`;}
+}
+function adminValor(v){return v===undefined||v===null||v===''?'Não configurado':String(v);}
+function adminRenderConfiguracaoLoja(loja){
+  const box=document.getElementById('admin-central-configuracao'); if(!box)return;
+  const c=loja.configuracao||{}, faixas=Array.isArray(c.faixas)?c.faixas:Object.keys(c.faixas||{});
+  const perfis=Object.keys(c.perfis||{}).length, funcoes=Object.keys(c.funcoes||{}).length;
+  box.innerHTML=`<div class="admin-config-head"><strong>${esc(loja.empresa)} · ${esc(loja.nome)}</strong><span class="chip info">Somente leitura</span></div><div class="admin-config-grid"><div><small>Folgas por semana</small><b>${esc(adminValor(c.folgasSemana))}</b></div><div><small>Ciclo de domingo</small><b>${esc(adminValor(c.cicloDomingo))}</b></div><div><small>Máximo de sequência</small><b>${esc(adminValor(c.maxSeq))}</b></div><div><small>Versão da configuração</small><b>${esc(adminValor(loja.versao))}</b></div><div><small>Perfis operacionais</small><b>${perfis?perfis+' configurado(s)':'Não configurado'}</b></div><div><small>Faixas de cobertura</small><b>${faixas.length?faixas.length+' dia(s) configurado(s)':'Não configurado'}</b></div><div><small>Funções de cobertura</small><b>${funcoes?funcoes+' configurada(s)':'Não configurado'}</b></div></div><div class="admin-config-note">Os parâmetros ajudam a entender a montagem da escala. A configuração só pode ser alterada no ambiente operacional da loja.</div>`;
+}
 function adminRenderLojas(){
   const box=document.getElementById('admin-lojas');if(!box)return;box.replaceChildren();
   if(!ADMIN.lojas.length){const p=document.createElement('div');p.className='admin-empty';p.textContent='Nenhuma loja cadastrada.';box.appendChild(p);return;}
-  ADMIN.lojas.forEach(l=>{const b=adminBotao('',()=>{adminEditarLoja(l);adminCarregarEscalas(l.id);});b.className='admin-row';const w=document.createElement('span'),s=document.createElement('strong'),p=document.createElement('small');s.textContent=l.nome;p.textContent=l.descricao||'Sem descrição cadastral';w.append(s,p);b.appendChild(w);box.appendChild(b);});
+  ADMIN.lojas.forEach(l=>{
+    const row=document.createElement('div'); row.className='admin-row admin-loja-row'; row.dataset.lojaId=l.id;
+    const w=document.createElement('span'),s=document.createElement('strong'),p=document.createElement('small');
+    s.textContent=l.nome; p.textContent=l.descricao||'Sem descrição cadastral'; w.append(s,p);
+    const actions=document.createElement('span'); actions.className='admin-row-actions';
+    const ver=adminBotao('Ver escalas',()=>adminSelecionarLojaConsulta(l)); ver.dataset.acao='ver-escalas'; ver.dataset.lojaId=l.id;
+    const config=adminBotao('Configuração',()=>adminAbrirConfiguracaoLoja(l)); config.dataset.acao='ver-configuracao'; config.dataset.lojaId=l.id;
+    const editar=adminBotao('Editar',()=>adminEditarLoja(l)); editar.dataset.acao='editar-loja'; editar.dataset.lojaId=l.id;
+    actions.append(ver,config,editar); row.append(w,actions); box.appendChild(row);
+  });
 }
 function adminEditarLoja(loja){const f=document.getElementById('admin-form-loja');f.hidden=false;f.dataset.id=loja?.id||'';document.getElementById('admin-loja-nome').value=loja?.nome||'';document.getElementById('admin-loja-descricao').value=loja?.descricao||'';}
 async function adminCarregarSupervisores(){
@@ -4359,7 +4492,9 @@ function montarAdministracao(){
   const buscaS=document.getElementById('admin-busca-supervisor');if(buscaS)buscaS.addEventListener('input',()=>adminCarregarSupervisores());
   const buscaU=document.getElementById('admin-busca-usuario');if(buscaU)buscaU.addEventListener('input',()=>adminCarregarUsuarios());
   document.getElementById('admin-recarregar-usuarios')?.addEventListener('click',()=>adminCarregarUsuarios());
-  document.getElementById('admin-nova-empresa')?.addEventListener('click',()=>{ADMIN.empresa=null;adminRenderEmpresas();adminPreencherEmpresa({});document.getElementById('admin-painel-lojas').hidden=true;document.getElementById('admin-painel-supervisores').hidden=true;});
+  document.querySelectorAll('[data-consulta]').forEach(b=>b.addEventListener('click',()=>adminMostrarConsulta(b.dataset.consulta)));
+  document.getElementById('admin-nova-empresa')?.addEventListener('click',()=>{ADMIN.empresa=null;adminRenderEmpresas();adminPreencherEmpresa({},true);document.getElementById('admin-painel-lojas').hidden=true;document.getElementById('admin-painel-supervisores').hidden=true;document.getElementById('admin-painel-central').hidden=true;});
+  document.getElementById('admin-editar-empresa')?.addEventListener('click',()=>adminPreencherEmpresa(ADMIN.empresa,true));
   document.getElementById('admin-cancelar-empresa')?.addEventListener('click',()=>document.getElementById('admin-form-empresa').hidden=true);
   document.getElementById('admin-form-empresa')?.addEventListener('submit',async e=>{e.preventDefault();const nome=document.getElementById('admin-empresa-nome').value.trim(),descricao=document.getElementById('admin-empresa-descricao').value.trim();try{const payload=ADMIN.empresa?{acao:'plataforma_editar_empresa',empresa_id:ADMIN.empresa.id,nome,descricao}:{acao:'plataforma_criar_empresa',nome,descricao};await adminRequisicao(payload,async()=>{e.target.hidden=true;await adminCarregarEmpresas();});}catch(x){}});
   document.getElementById('admin-nova-loja')?.addEventListener('click',()=>adminEditarLoja({}));
@@ -4624,9 +4759,8 @@ function pintarParams(){
   pintarExpediente();
   pintarFaixas();
   const p = loja().params;
-  $('#r-modelo').value = p.modelo || (p.folgasSemana===1 ? '6x1' : '5x2');
   $('#r-ciclo').value=p.cicloDomingo; avisoCiclo(); $('#r-maxseq').value=p.maxSeq;
-  $('#r-semana').value=String(p.inicioSemana); $('#r-mincaixa').value=p.minCaixa; $('#r-minbalcao').value=p.minBalcao;
+  $('#r-mincaixa').value=p.minCaixa; $('#r-minbalcao').value=p.minBalcao;
   $('#r-minfarma').value=p.minFarma; $('#r-minsubger').value = p.minSubger!=null?p.minSubger:1;
   $('#r-subger').checked = p.subgerFds!==false;
   $('#r-prioridade').value = p.prioridade || 'par';
@@ -4664,14 +4798,15 @@ $('#btn-add-faixa').onclick = ()=>{
   pintarFaixas();
 };
 $('#btn-salvar-params').onclick = async ()=>{
-  const modelo = $('#r-modelo').value;
   const paramsAnteriores = Object.assign({}, loja().params);
   /* Começa do objeto anterior: salvar os campos visíveis não pode apagar perfis,
      pisos, expediente, faixas ou funções que esta tela não editou. */
   loja().params = Object.assign({}, paramsAnteriores, {
-    modelo, folgasSemana: modelo==='6x1' ? 1 : 2,
+    /* Só existe 5x2 e a semana é sempre domingo a sábado. As duas chaves
+       continuam sendo gravadas porque o histórico de versões as registra e o
+       servidor as usa para detectar adulteração de regra. */
+    modelo:'5x2', folgasSemana:2, inicioSemana:0,
     cicloDomingo:+$('#r-ciclo').value, maxSeq:+$('#r-maxseq').value,
-    inicioSemana:($('#r-semana').value==='P'?'P':+$('#r-semana').value),
     minCaixa:+$('#r-mincaixa').value, minBalcao:+$('#r-minbalcao').value,
     minFarma:+$('#r-minfarma').value, minSubger:+$('#r-minsubger').value,
     subgerFds:$('#r-subger').checked, minDia:lerMinDias(), prioridade:$('#r-prioridade').value
@@ -4904,17 +5039,43 @@ function configurarJornadaDetalhe(box,c){
   campos('aplicar').addEventListener('click',async()=>{ const {j,valida}=atualizar(); if(!valida) return; c.jornada=j; c.horario=textoJornada(j); if(S.equipeEscala){ const eq=S.equipeEscala.find(x=>x.id===c.id); if(eq){eq.jornada=j;eq.horario=c.horario;} } if(S.res&&S.res.ativos){ const at=S.res.ativos.find(x=>x.id===c.id); if(at){at.jornada=j;at.horario=c.horario;} validarEscalaAtual(); pintarGrade(); } await salvarEquipe(); jornadaAberta=null; pintarEquipe(); });
   atualizar();
 }
+function diasFixosGerenteTela(c){
+  const a = c.folgaFixa == null || c.folgaFixa === '' ? null : Number(c.folgaFixa);
+  const b = c.folgaFixa2 == null || c.folgaFixa2 === '' ? null : Number(c.folgaFixa2);
+  if(Number.isInteger(a) && Number.isInteger(b) && a!==b) return [a,b];
+  const perfil = c.perfil && loja().params.perfis && loja().params.perfis[c.perfil];
+  const p = perfil && perfil.regras && Array.isArray(perfil.regras.folgaFixaSemanal)
+    ? perfil.regras.folgaFixaSemanal.map(Number).filter(x=>x>=0&&x<=6) : [];
+  const distintos = [...new Set(p)];
+  return distintos.length>=2 ? distintos.slice(0,2) : [0,6];
+}
+function opcoesFolgaFixa(valor){
+  return `<option value="">variável</option>${DIAS_SEMANA_NOME.map((d,k)=>`<option value="${k}"${String(valor)===String(k)?' selected':''}>${d}</option>`).join('')}`;
+}
+function renderFolgasFixas(c){
+  if(!c.gerente) return `<select data-f="folgaFixa">${opcoesFolgaFixa(c.folgaFixa)}</select>`;
+  const dias = diasFixosGerenteTela(c);
+  const primeiro = c.folgaFixa == null || c.folgaFixa === '' ? dias[0] : c.folgaFixa;
+  const segundo = c.folgaFixa2 == null || c.folgaFixa2 === '' ? dias[1] : c.folgaFixa2;
+  return `<div class="folgas-fixas-gerente"><label>1ª<select data-f="folgaFixa" aria-label="Primeira folga fixa">${opcoesFolgaFixa(primeiro)}</select></label><label>2ª<select data-f="folgaFixa2" aria-label="Segunda folga fixa">${opcoesFolgaFixa(segundo)}</select></label><small>no domingo do ciclo, o domingo substitui a 1ª</small></div>`;
+}
 function pintarEquipe(){
   const t = $('#tab-equipe');
-  t.innerHTML = `<thead><tr><th>Nome</th><th>Cargo</th><th>Horário</th><th style="width:70px">Gerente</th><th style="width:118px">Folga fixa</th><th style="width:190px">1º domingo de folga</th><th style="width:60px">Ativo</th><th style="width:40px"></th></tr></thead><tbody></tbody>`;
+  t.innerHTML = `<thead><tr><th>Nome</th><th>Cargo</th><th>Horário</th><th style="width:70px">Gerente</th><th style="width:150px">Folgas fixas</th><th style="width:190px">1º domingo de folga</th><th style="width:60px">Ativo</th><th style="width:40px"></th></tr></thead><tbody></tbody>`;
   const tb = t.querySelector('tbody');
   loja().colabs.forEach((c,i)=>{
     const tr = document.createElement('tr'); const j=jornadaDe(c);
-    tr.innerHTML = `<td><input value="${esc(c.nome)}" data-f="nome"></td><td><select data-f="cargo">${CARGOS.map(x=>`<option${x===c.cargo?' selected':''}>${x}</option>`).join('')}</select></td><td class="horario-cel"><button type="button" class="horario-abrir" aria-expanded="${jornadaAberta===c.id}" data-jornada-abrir><span><span class="hora">${esc(c.horario||textoJornada(j)||'Horário não informado')}</span><span class="modelo">${esc(resumoModelo(c))}</span></span><i class="seta" aria-hidden="true"></i></button></td><td style="text-align:center"><input type="checkbox" data-f="gerente" ${c.gerente?'checked':''}></td><td><select data-f="folgaFixa"><option value="">variável</option>${DIAS_SEMANA_NOME.map((d,k)=>`<option value="${k}"${String(c.folgaFixa)===String(k)?' selected':''}>${d}</option>`).join('')}</select></td><td>${renderDomPicker(c)}</td><td style="text-align:center"><input type="checkbox" data-f="ativo" ${c.ativo!==false?'checked':''}></td><td><button class="btn danger small" type="button" title="Remover" data-remover>×</button></td>`;
+    tr.innerHTML = `<td><input value="${esc(c.nome)}" data-f="nome"></td><td><select data-f="cargo">${CARGOS.map(x=>`<option${x===c.cargo?' selected':''}>${x}</option>`).join('')}</select></td><td class="horario-cel"><button type="button" class="horario-abrir" aria-expanded="${jornadaAberta===c.id}" data-jornada-abrir><span><span class="hora">${esc(c.horario||textoJornada(j)||'Horário não informado')}</span><span class="modelo">${esc(resumoModelo(c))}</span></span><i class="seta" aria-hidden="true"></i></button></td><td style="text-align:center"><input type="checkbox" data-f="gerente" ${c.gerente?'checked':''}></td><td>${renderFolgasFixas(c)}</td><td>${renderDomPicker(c)}</td><td style="text-align:center"><input type="checkbox" data-f="ativo" ${c.ativo!==false?'checked':''}></td><td><button class="btn danger small" type="button" title="Remover" data-remover>×</button></td>`;
     tr.querySelectorAll('[data-f]').forEach(el=>el.onchange=async()=>{
       const f=el.dataset.f; let v=el.type==='checkbox'?el.checked:el.value;
-      if(f==='folgaFixa') v=v===''?null:+v;
+      if(f==='folgaFixa' || f==='folgaFixa2') v=v===''?null:+v;
       const anterior = c[f]; c[f]=v;
+      if(c.gerente && (f==='folgaFixa' || f==='folgaFixa2') && c.folgaFixa != null && c.folgaFixa2 != null && c.folgaFixa === c.folgaFixa2){
+        c[f]=anterior;
+        alert('As duas folgas fixas do gerente devem ser diferentes.');
+        pintarEquipe();
+        return;
+      }
       if(!(await salvarEquipe())) c[f]=anterior;
       pintarEquipe(); pintarAus();
     });
@@ -4938,7 +5099,7 @@ function pintarEquipe(){
   });
 }
 $('#btn-add-colab').onclick = async ()=>{
-  loja().colabs.push({id:gerarId(),nome:'NOVO COLABORADOR',cargo:'BALCONISTA',horario:'',jornada:null,gerente:false,ativo:true,domTrabConsec:null,diasDesdeFolga:0,folgaFixa:null,ausencias:[]});
+  loja().colabs.push({id:gerarId(),nome:'NOVO COLABORADOR',cargo:'BALCONISTA',horario:'',jornada:null,gerente:false,ativo:true,domTrabConsec:null,diasDesdeFolga:0,folgaFixa:null,folgaFixa2:null,ausencias:[]});
   const salvo = await salvarEquipe();
   if(salvo) pintarEquipe(); else loja().colabs.pop();
 };

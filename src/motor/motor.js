@@ -28,6 +28,23 @@ function cargoDe(c){
 }
 function isFarma(c){ return (c.cargo||'').toUpperCase().includes('FARMA'); }
 function isSubger(c){ const x=(c.cargo||'').toUpperCase(); return x.includes('SUBGER') || x.startsWith('SUB/'); }
+function diaSemanaValido(v){ return Number.isInteger(Number(v)) && Number(v)>=0 && Number(v)<=6; }
+function diasFixosGerente(c, P){
+  if(!c || !c.gerente) return [];
+  const primeiro = diaSemanaValido(c.folgaFixa) ? Number(c.folgaFixa) : null;
+  const segundo = diaSemanaValido(c.folgaFixa2) ? Number(c.folgaFixa2) : null;
+  if(primeiro != null && segundo != null && primeiro !== segundo) return [primeiro, segundo];
+  const perfil = c.perfil && P && P.perfis && P.perfis[c.perfil] ? P.perfis[c.perfil] : null;
+  const diasPerfil = perfil && perfil.regras && Array.isArray(perfil.regras.folgaFixaSemanal)
+    ? perfil.regras.folgaFixaSemanal.map(Number).filter(diaSemanaValido) : [];
+  const distintos = [...new Set(diasPerfil)];
+  return distintos.length >= 2 ? distintos.slice(0,2) : [0,6];
+}
+function gerenteTemFolgaPersonalizada(c, P){
+  return !!(c && c.gerente && diasFixosGerente(c, P).length === 2
+    && !(diasFixosGerente(c, P)[0] === 0 && diasFixosGerente(c, P)[1] === 6
+      && !(diaSemanaValido(c.folgaFixa) && diaSemanaValido(c.folgaFixa2))));
+}
 function turnoDe(c){
   const m = /(\d{1,2}):(\d{2})/.exec(c.horario||'');
   if(!m) return 'flex';
@@ -147,9 +164,67 @@ function ausenciaEm(c, d){
 }
 
 /* ============================================================
+   SEMANA: DOMINGO A SÁBADO
+   ============================================================ */
+/* Quantas folgas um bloco de `k` dias exige. É a regra proporcional de sempre
+   (semana cheia pede 2; sobra de 3 a 6 dias pede 1), escrita de um jeito que
+   também vale para os blocos de 8 a 13 dias criados pela fusão da ponta.
+   Para uma ponta única a fusão dá exatamente o mesmo total que contá-la
+   separada — por isso ninguém perde nem ganha folga por causa da fusão. */
+function folgasDoBloco(k){
+  return 2 * Math.floor(k / 7) + ((k % 7) >= 3 ? 1 : 0);
+}
+
+/* A semana vai de domingo a sábado. Como o período costuma ir do dia 11 ao dia
+   10, as pontas quase nunca caem em domingo: sobra um pedaço de 1 a 6 dias em
+   cada extremidade. Um pedaço de 1 ou 2 dias não tem como receber duas folgas —
+   exigir isso esvaziaria a loja — então ele é absorvido pela semana vizinha e o
+   alvo passa a ser o do bloco inteiro.
+
+   Duas guardas, descobertas medindo:
+   1. só funde se existir ao menos uma semana de calendário completa, senão um
+      período curto inteiro viraria um "bloco" que não é semana nenhuma;
+   2. só funde se o bloco resultante ficar com no máximo 13 dias, senão as duas
+      pontas de um período de 14 dias colapsam num bloco só. */
+const LIMITE_BLOCO_FUNDIDO = 13;
+function semanasDomingoASabado(days){
+  const N = days.length;
+  const semanas = [];
+  let i = 0;
+  while(i < N){
+    let j = i;
+    while(j+1 < N && days[j+1].getDay() !== 0) j++;
+    semanas.push({ini:i, fim:j});
+    i = j + 1;
+  }
+  const tamanho = s => s.fim - s.ini + 1;
+  if(semanas.some(s => tamanho(s) >= 7)){
+    if(semanas.length >= 2 && tamanho(semanas[0]) < 7
+       && tamanho(semanas[0]) + tamanho(semanas[1]) <= LIMITE_BLOCO_FUNDIDO){
+      semanas[1].ini = semanas[0].ini;
+      semanas.shift();
+    }
+    if(semanas.length >= 2){
+      const ultima = semanas[semanas.length-1], anterior = semanas[semanas.length-2];
+      if(tamanho(ultima) < 7
+         && tamanho(ultima) + tamanho(anterior) <= LIMITE_BLOCO_FUNDIDO){
+        anterior.fim = ultima.fim;
+        semanas.pop();
+      }
+    }
+  }
+  semanas.forEach((s,k)=>{
+    s.idx = k;
+    s.dias = [];
+    for(let d=s.ini; d<=s.fim; d++) s.dias.push(d);
+  });
+  return semanas;
+}
+
+/* ============================================================
    GERAÇÃO
-   params = {inicio, fim, inicioSemana(0=dom,1=seg), folgasSemana,
-             cicloDomingo, maxSeq, minCaixa, minBalcao, farmaPorTurno}
+   params = {inicio, fim, folgasSemana, cicloDomingo, maxSeq,
+             minCaixa, minBalcao, farmaPorTurno}
    ============================================================ */
 /* O trabalho pesado da geração é por pessoa. Expor isso como generator permite
    que a tela ceda o fio entre pessoas e continue respondendo, sem mexer em uma
@@ -176,28 +251,18 @@ function* gerarEscalaPassos(colabs, params){
     grid[c.id] = days.map(d => ausenciaEm(c,d) || null);   // null = a definir; '' = trabalha
   });
 
-  /* ---- semanas ---- */
-  const semanas = [];
-  if(P.inicioSemana === 'P'){
-    for(let i=0;i<N;i+=7) semanas.push({ini:i, fim:Math.min(i+6,N-1), idx:semanas.length});
-  } else {
-    let i = 0;
-    while(i < N){
-      let j = i;
-      while(j+1 < N && days[j+1].getDay() !== P.inicioSemana) j++;
-      semanas.push({ini:i, fim:j, idx:semanas.length});
-      i = j+1;
-    }
-  }
-  semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
+  /* ---- semanas: domingo a sábado ---- */
+  const semanas = semanasDomingoASabado(days);
 
-  /* ---- alvo de folgas por dia: espalhar em vez de empilhar ---- */
+  /* ---- alvo de folgas por dia: espalhar em vez de empilhar ----
+     Soma o alvo de cada bloco, a mesma conta que `opcoesDaSemana` usa. Se as
+     duas divergirem, o alvo por dia e o mínimo diário automático saem errados
+     sem que nada acuse. */
   let previsto = 0;
-  const semanasCompletas = () => semanas.filter(s2=>s2.dias.length>=7).length;
-  const semanasParciais  = () => semanas.filter(s2=>s2.dias.length>=3 && s2.dias.length<7).length;
+  const folgasDoPeriodo = semanas.reduce((t,s)=>t + folgasDoBloco(s.dias.length), 0);
   ativos.forEach(c=>{
     if(c.gerente){ previsto += days.filter(d=>d.getDay()===0||d.getDay()===6).length; }
-    else { previsto += P.folgasSemana * semanasCompletas() + semanasParciais(); }
+    else { previsto += folgasDoPeriodo; }
   });
   const alvoDia    = previsto / N;
 
@@ -244,13 +309,13 @@ function* gerarEscalaPassos(colabs, params){
   /* Pesos em faixas separadas por ordem de grandeza. A soma de todos os custos de
      cobertura de um mês precisa continuar menor que uma única infração legal —
      senão o motor "compra" a infração para salvar a cobertura, que foi o erro
-     encontrado nas simulações do 6x1. */
+     encontrado nas simulações. */
   const PESO = Object.assign({
     // faixa 1: obrigação legal
     estouroSeq: 200000,        // passar do limite de dias seguidos trabalhados
+    folgaSemanal: 180000,      // deixar o bloco abaixo das folgas que a semana exige
     pulaDomingo: 150000,       // trabalhar mais domingos seguidos do que o ciclo permite
     // faixa 2: regra da casa
-    soDomingo: 30000,          // no 6x1, ficar sem a folga da semana por causa do domingo
     diaFixo: 25000,            // não respeitar o dia de folga fixa escolhido para a pessoa
     domingoAncorado: 28000,    // furar o domingo de folga que o usuário fixou na data
     domingoExtra: 28000,       // folgar em domingo fora do ciclo ancorado
@@ -261,7 +326,7 @@ function* gerarEscalaPassos(colabs, params){
     curva: 400, equipe: 600, teto: 150, outroDomingo: 450,
     // faixa 4: qualidade da escala
     extraFolga: 700, extraFolgaSolta: 1600, blocoLongo: 500, bonusDomColado: 250,
-    solto: 95, avulso: 130, separado: 210, domAvulso: 60
+    avulso: 130, separado: 210
   }, ajustePrioridade, P.pesos||{});
   function custoSuave(c, i){
     let custo = 0;
@@ -315,14 +380,16 @@ function* gerarEscalaPassos(colabs, params){
     return d > 0 ? d : 0;
   }
 
-  /* ---- 1) GERENTES: folga todo sábado e domingo ---- */
+  /* ---- 1) GERENTES: dois dias fixos; legado continua sábado+domingo ---- */
+  const gerentesPersonalizados = ativos.filter(c=>gerenteTemFolgaPersonalizada(c, P));
   ativos.filter(c=>c.gerente).forEach(c=>{
+    const diasFixos = diasFixosGerente(c, P);
     days.forEach((d,i)=>{
-      if(grid[c.id][i]===null && (d.getDay()===0 || d.getDay()===6)) grid[c.id][i]='X';
+      if(grid[c.id][i]===null && diasFixos.includes(d.getDay())) grid[c.id][i]='X';
     });
   });
 
-  /* ---- 2) domingos de folga (a cada N domingos trabalhados, 1 folga) ---- */
+  /* ---- 2) domingos de folga (a cada N domingos trabalhados) ---- */
   const domingos = [];
   days.forEach((d,i)=>{ if(d.getDay()===0) domingos.push(i); });
 
@@ -382,12 +449,13 @@ function* gerarEscalaPassos(colabs, params){
      Só depois os automáticos escolhem a fase menos ocupada; isso impede que o
      contador automático comece em uma fase já reservada. */
   const semGerente = ativos.filter(c=>!c.gerente);
+  const participantesDomingo = semGerente.concat(gerentesPersonalizados);
   const faseDefinida = {};
-  semGerente.forEach(c=>{ faseDefinida[c.id] = fasePreferida(c); });
-  semGerente.filter(c=>faseDefinida[c.id] != null).forEach(c=>{
+  participantesDomingo.forEach(c=>{ faseDefinida[c.id] = fasePreferida(c); });
+  participantesDomingo.filter(c=>faseDefinida[c.id] != null).forEach(c=>{
     registrarFase(c, faseDefinida[c.id]);
   });
-  semGerente.filter(c=>faseDefinida[c.id] == null).forEach(c=>{
+  participantesDomingo.filter(c=>faseDefinida[c.id] == null).forEach(c=>{
     const cargo = cargoDe(c);
     const ocupadas = fasesOcupadasPorCargo[cargo] || [];
     const inicio = (contadorCargoDomingo[cargo] || 0) % P.cicloDomingo;
@@ -399,6 +467,21 @@ function* gerarEscalaPassos(colabs, params){
     }
     contadorCargoDomingo[cargo] = inicio + 1;
     registrarFase(c, primeiro);
+  });
+
+  /* Gerente personalizado participa do ciclo de domingos. Quando chega o seu
+     domingo, ele substitui a primeira folga fixa; a segunda permanece. Assim
+     sexta+sábado vira domingo+sábado naquela semana, não três folgas. */
+  gerentesPersonalizados.forEach(c=>{
+    const fixos = diasFixosGerente(c, P);
+    const primeira = fixos[0], segunda = fixos[1];
+    (domFolga[c.id] || new Set()).forEach(i=>{
+      if(grid[c.id][i] === null) grid[c.id][i] = 'X';
+      const sem = semanas.find(s=>s.dias.includes(i));
+      if(!sem || primeira === 0 || primeira === segunda) return;
+      const alvo = sem.dias.find(k=>days[k].getDay()===primeira);
+      if(alvo != null && alvo !== i && grid[c.id][alvo] === 'X') grid[c.id][alvo] = null;
+    });
   });
 
   /* ---- 3) folgas: cadeia do mês inteiro por colaborador (programação dinâmica) ----
@@ -475,15 +558,12 @@ function* gerarEscalaPassos(colabs, params){
       return {dias, novos, domSemana: domSemana.length, domFolgado: domFolgado.length};
     };
 
-    /* 6x1: a folga da semana e a folga de domingo são direitos separados —
-       na semana em que cai o domingo do ciclo, a pessoa folga duas vezes. */
-    if(P.modelo === '6x1')
-        return opcoes6x1(c, sem, {fixos, jaX, nDias, ausentes, domSemana, marcar, meuDomingo});
-
-    let alvo = nDias>=7 ? P.folgasSemana : (nDias>=3 ? 1 : 0);
-    const semOpcao = [Object.assign({tipo:'fixo', custo:0}, marcar([]))];
-    if(ausentes >= nDias - 1) return semOpcao;
+    let alvo = folgasDoBloco(nDias);
     const faltam = Math.max(0, alvo - jaX);
+    /* Não fechar a semana é opção de último recurso: paga pelas folgas que
+       deixou de dar, igual a qualquer outra opção abaixo do alvo. */
+    const semOpcao = [Object.assign({tipo:'fixo', custo: faltam * PESO.folgaSemanal}, marcar([]))];
+    if(ausentes >= nDias - 1) return [Object.assign({tipo:'fixo', custo:0}, marcar([]))];
     const ok = i => sem.dias.includes(i) && !bloqueioRigido(c,i);
     const custoDomingo = (dias, novos, custoInicial=0) => {
       let custo = custoInicial;
@@ -510,8 +590,9 @@ function* gerarEscalaPassos(colabs, params){
       return custo;
     };
     if(faltam === 0){
-      // semana já fechada: normalmente não se mexe. Mas em semana curta ou na última,
-      // deixa a opção de uma folga a mais, que é o que evita a ponta de 7 dias no fim do mês.
+      // bloco já fechado: normalmente não se mexe. Mas em bloco curto ou no
+      // último, deixa a opção de uma folga a mais, que é o que evita a ponta de
+      // sete dias no fim do período.
       if(nDias >= 7 && sem.idx < semanas.length-1) return semOpcao;
       const extras = sem.dias.filter(ok).map(i =>
         Object.assign({tipo:'avulso', extra:'ponta', custo:0}, marcar([i])));
@@ -532,6 +613,19 @@ function* gerarEscalaPassos(colabs, params){
       for(let k=0;k<sem.dias.length-1;k++){
         const a=sem.dias[k], b=sem.dias[k+1];
         if(b===a+1 && ok(a) && ok(b)) brutas.push({novos:[a,b], tipo:'par'});
+      }
+      /* Bloco fundido pede três folgas: um par mais um dia. Sem isso o motor só
+         sabe montar pares e fica sempre uma folga abaixo do alvo. O terceiro dia
+         aqui é exigência, não luxo, então não paga `extraFolga`. */
+      if(faltam >= 3){
+        const pares = brutas.filter(o=>o.tipo==='par').slice(0,12);
+        pares.forEach(par=>{
+          sem.dias.forEach(i=>{
+            if(par.novos.includes(i) || !ok(i)) return;
+            if(par.novos.some(j=>Math.abs(j-i)===1)) return;   // encostaria, virando bloco de 3
+            brutas.push({novos:par.novos.concat([i]).sort((a,b)=>a-b), tipo:'par-mais-um'});
+          });
+        });
       }
       if(brutas.length===0){
         const livres = sem.dias.filter(ok);
@@ -572,7 +666,16 @@ function* gerarEscalaPassos(colabs, params){
 
     return brutas.map(o=>{
       const info = marcar(o.novos);
-      let custo = (o.tipo==='separado' ? PESO.separado : o.tipo==='avulso' ? PESO.avulso : 0);
+      let custo = (o.tipo==='separado' ? PESO.separado
+                 : o.tipo==='avulso' ? PESO.avulso
+                 : o.tipo==='par-mais-um' ? PESO.separado
+                 : 0);
+      /* Folga semanal é direito legal: ficar abaixo do alvo do bloco custa caro.
+         Com semanas de 7 dias isso nunca pesava, porque qualquer par já atendia
+         o alvo 2. O bloco fundido pede 3, e sem este custo o motor escolhia a
+         opção de 2 por ser mais barata na cobertura. */
+      const faltaNoAlvo = alvo - (jaX + o.novos.length);
+      if(faltaNoAlvo > 0) custo += faltaNoAlvo * PESO.folgaSemanal;
       if(o.extra) custo += (o.extra==='colado' ? PESO.extraFolga : PESO.extraFolgaSolta);
       custo = custoDomingo(info.dias, o.novos, custo);
 
@@ -598,85 +701,6 @@ function* gerarEscalaPassos(colabs, params){
         custo += Math.abs((o.novos[0] - sem.ini) - desejado) * 18;
       }
       if(o.novos.length===1 && (ehFolga(c,o.novos[0]-1) || ehFolga(c,o.novos[0]+1))) custo -= 80;
-      return Object.assign({tipo:o.tipo, extra:o.extra, custo}, info);
-    });
-  }
-
-  /* Opções de uma semana no modelo 6x1: uma folga na semana e, quando for a vez
-     do domingo dele, o domingo por cima — sem exigência de dias colados. */
-  function opcoes6x1(c, sem, ctx){
-    const {fixos, jaX, nDias, ausentes, domSemana, marcar} = ctx;
-    const semOpcao = [Object.assign({tipo:'fixo', custo:0}, marcar([]))];
-    if(ausentes >= nDias - 1) return semOpcao;
-
-    const ok = i => sem.dias.includes(i) && !bloqueioRigido(c,i);
-    const domingo = domSemana.find(i => ok(i));
-    const domJaFolga = domSemana.some(i => DESCANSO.includes(grid[c.id][i]));
-    const comuns = sem.dias.filter(i => ok(i) && days[i].getDay() !== 0);
-    const alvoSemana = nDias >= 7 ? 1 : (nDias >= 3 ? 1 : 0);
-    const faltamSemana = Math.max(0, alvoSemana - jaX);
-
-    const brutas = [];
-    if(faltamSemana >= 1){
-      comuns.forEach(i => brutas.push({novos:[i], tipo:'semanal'}));
-      // mesma folga da semana somada ao domingo do ciclo
-      if(domingo != null && !domJaFolga)
-        comuns.forEach(i => brutas.push({novos:[i, domingo].sort((a,b)=>a-b), tipo:'semanal-e-domingo'}));
-      // só o domingo: atende a semana, mas perde a folga comum — último caso
-      if(domingo != null && !domJaFolga) brutas.push({novos:[domingo], tipo:'so-domingo'});
-      if(!comuns.length && domingo != null && !domJaFolga) brutas.push({novos:[domingo], tipo:'so-domingo'});
-    } else if(domingo != null && !domJaFolga){
-      // a semana já tem a folga comum; falta encaixar o domingo do ciclo
-      brutas.push({novos:[domingo], tipo:'domingo-do-ciclo'});
-      brutas.push({novos:[], tipo:'fixo'});
-    }
-    if(!brutas.length) return semOpcao;
-
-    // variantes com um dia a mais, quando a cadeia dos dias seguidos não fecha
-    const extras = [];
-    brutas.slice(0,10).forEach(o=>{
-      if(!o.novos.length) return;
-      sem.dias.forEach(i=>{
-        if(o.novos.includes(i) || !ok(i) || days[i].getDay()===0) return;
-        extras.push({novos:o.novos.concat([i]).sort((a,b)=>a-b), tipo:o.tipo, extra:'solto'});
-      });
-    });
-    brutas.push(...extras);
-
-    const slotFixo = slotBase[c.id] % Math.max(1, nDias);
-    const fixo = (c.folgaFixa != null && c.folgaFixa !== '') ? Number(c.folgaFixa) : null;
-    return brutas.map(o=>{
-      const info = marcar(o.novos);
-      let custo = 0;
-      // quem tem folga fixa no domingo já cumpre a folga da semana no próprio domingo
-      if(o.tipo === 'so-domingo' && fixo !== 0) custo += PESO.soDomingo;
-      if(o.tipo === 'domingo-do-ciclo')  custo += 0;
-      if(o.tipo === 'fixo' && !o.novos.length) custo += PESO.pulaDomingo;   // deixar o domingo passar
-      if(o.extra) custo += PESO.extraFolgaSolta;
-      o.novos.forEach(i=>{
-        custo += custoSuave(c,i);
-        if(days[i].getDay()===0){
-          // No 6x1 o domingo é direito do ciclo, mas a preferência continua
-          // sendo distribuir as folgas do mesmo cargo de forma equilibrada.
-          const minhasFolgas = folgasDoCargoNoDomingo(i, cargoDe(c));
-          const menorNoCiclo = domingos.reduce((menor, outroDomingo) =>
-            Math.min(menor, folgasDoCargoNoDomingo(outroDomingo, cargoDe(c))), Infinity);
-          if(minhasFolgas > menorNoCiclo) custo += (minhasFolgas - menorNoCiclo) * PESO.outroDomingo;
-        }
-      });
-      custo += pesoBalanceamento(c, o.novos);
-  if(domAncorado[c.id] && ctx.meuDomingo != null
-     && !info.dias.includes(ctx.meuDomingo)
-     && !AUSENTE.includes(grid[c.id][ctx.meuDomingo])) custo += PESO.domingoAncorado;
-      if(fixo != null){
-        // dia de folga escolhido para a pessoa: só cede quando não há alternativa
-        const temODia = o.novos.some(i => days[i].getDay() === fixo);
-        const cabeNaSemana = sem.dias.some(i => days[i].getDay() === fixo && !AUSENTE.includes(grid[c.id][i]));
-        if(!temODia && cabeNaSemana && o.novos.length) custo += PESO.diaFixo;
-      } else {
-        const comum = o.novos.find(i => days[i].getDay() !== 0);
-        if(comum != null) custo += Math.abs((comum - sem.ini) - slotFixo) * 22;
-      }
       return Object.assign({tipo:o.tipo, extra:o.extra, custo}, info);
     });
   }
@@ -837,7 +861,7 @@ function* gerarEscalaPassos(colabs, params){
   /* ---- 5) fecha: null vira dia trabalhado ---- */
   ativos.forEach(c=>{ for(let i=0;i<N;i++) if(grid[c.id][i]===null) grid[c.id][i]=''; });
 
-  return {days, grid, semanas, ativos, params:P, diag, desdeFolga};
+  return {days, grid, semanas, ativos, params:P, diag, desdeFolga, domFolga};
 }
 
 /* Estado que uma grade salva deixa para o período seguinte. Uma linha ausente
@@ -890,13 +914,22 @@ function estadoFinalDaGrade(grade, inicio, fim, opcoes){
   return estado;
 }
 
+/* Escala nova é sempre domingo a sábado. `inicioSemana` só continua sendo lido
+   para reconferir escala antiga: uma escala publicada quando a semana era
+   "blocos de 7 a partir do dia 11" ('P') ou "segunda a domingo" (1) precisa
+   continuar sendo julgada pela regra da época, senão o veredito de uma escala já
+   aprovada muda sozinho. Ver decisão 0010. */
 function semanasDoPeriodo(days, inicioSemana){
   const N = days.length;
-  const semanas = [];
   if(inicioSemana === 'P'){
+    const semanas = [];
     for(let i=0;i<N;i+=7) semanas.push({ini:i, fim:Math.min(i+6,N-1), idx:semanas.length});
-  } else {
-    const iniSem = Number(inicioSemana || 0);
+    semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
+    return semanas;
+  }
+  if(inicioSemana != null && Number(inicioSemana) !== 0){
+    const iniSem = Number(inicioSemana);
+    const semanas = [];
     let i = 0;
     while(i < N){
       let j = i;
@@ -904,9 +937,10 @@ function semanasDoPeriodo(days, inicioSemana){
       semanas.push({ini:i, fim:j, idx:semanas.length});
       i = j+1;
     }
+    semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
+    return semanas;
   }
-  semanas.forEach(s => { s.dias = []; for(let i=s.ini;i<=s.fim;i++) s.dias.push(i); });
-  return semanas;
+  return semanasDomingoASabado(days);
 }
 
 /* ============================================================
@@ -978,37 +1012,43 @@ function validar(res, colabs){
        que decidiu. Loja sem perfis mantém sábado e domingo para o gerente. */
     const perfisLoja = P.perfis || {};
     const perfilPessoa = c.perfil && perfisLoja[c.perfil] ? perfisLoja[c.perfil] : null;
-    const diasPerfil = perfilPessoa && Array.isArray(perfilPessoa.regras && perfilPessoa.regras.folgaFixaSemanal)
+    const diasFichaGerente = c.gerente && diaSemanaValido(c.folgaFixa) && diaSemanaValido(c.folgaFixa2)
+      && Number(c.folgaFixa) !== Number(c.folgaFixa2)
+      ? [Number(c.folgaFixa), Number(c.folgaFixa2)] : null;
+    const diasPerfil = diasFichaGerente || (perfilPessoa && Array.isArray(perfilPessoa.regras && perfilPessoa.regras.folgaFixaSemanal)
       ? perfilPessoa.regras.folgaFixaSemanal.map(Number)
-      : (c.gerente ? [0,6] : []);
+      : (c.gerente ? [0,6] : []));
+    const gerentePersonalizado = !!(c.gerente && diasPerfil.length >= 2
+      && !(Number(diasPerfil[0]) === 0 && Number(diasPerfil[1]) === 6));
     if(diasPerfil.length){
-      const nomePerfil = perfilPessoa ? perfilPessoa.nome : 'gerente (padrão da casa)';
+      const nomePerfil = perfilPessoa ? perfilPessoa.nome : (gerentePersonalizado ? 'ficha do gerente' : 'gerente (padrão da casa)');
       const basePerfil = perfilPessoa ? (perfilPessoa.base || 'politica-da-casa') : 'politica-da-casa';
+      const diasFixoGerente = gerentePersonalizado ? diasPerfil : [];
       days.forEach((d,i)=>{
-        if(diasPerfil.includes(d.getDay()) && !folga(i)){
-          av.push({tipo:'perfil-folga-fixa', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
-            perfil:(perfilPessoa ? perfilPessoa.id || c.perfil : 'gerente'), base:basePerfil,
-            txt:`Perfil "${nomePerfil}" prevê folga em ${DIA_NOME[d.getDay()]}, mas a pessoa está escalada em ${ddmm(d)}`});
-        }
+        if(!diasPerfil.includes(d.getDay()) || folga(i)) return;
+        const semana = semanas.find(s=>s.dias.includes(i));
+        const domingoDaSemana = semana && semana.dias.find(k=>days[k].getDay()===0);
+        const substituida = gerentePersonalizado && diasFixoGerente[0] === d.getDay()
+          && domingoDaSemana != null && folga(domingoDaSemana);
+        if(substituida) return;
+        av.push({tipo:'perfil-folga-fixa', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', dia:i,
+          perfil:(perfilPessoa ? perfilPessoa.id || c.perfil : 'gerente'), base:basePerfil,
+          txt:`Perfil "${nomePerfil}" prevê folga em ${DIA_NOME[d.getDay()]}, mas a pessoa está escalada em ${ddmm(d)}`});
       });
     }
 
-    // 1) folgas por semana (obrigatória para não-gerentes)
+    /* 1) folgas por semana (obrigatória para não-gerentes). O alvo acompanha o
+       tamanho do bloco: semana cheia pede 2, bloco de 10 a 13 dias pede 3, e
+       uma ponta de 1 ou 2 dias não pede nenhuma. */
     semanas.forEach(s=>{
-      if(s.dias.length<7) return;
+      const alvoSemana = folgasDoBloco(s.dias.length);
+      if(alvoSemana < 1) return;
       const n = s.dias.filter(i=>arr[i]==='X'||arr[i]==='FC').length;
       const ferias = s.dias.filter(i=>arr[i]==='F'||arr[i]==='AT'||arr[i]==='LC').length;
-      if(ferias>=5) return;
-      if(!c.gerente && (n + Math.min(ferias, P.folgasSemana)) < P.folgasSemana)
+      if(ferias >= s.dias.length - 1) return;
+      if(!c.gerente && (n + Math.min(ferias, alvoSemana)) < alvoSemana)
         av.push({tipo:'folgas-semana', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', base:'lei',
-          txt:`Semana de ${ddmm(days[s.ini])}: ${n} folga(s), mínimo ${P.folgasSemana}`});
-      if(!c.gerente && P.modelo === '6x1' && ferias < 4){
-        const domFolga = s.dias.some(i=>days[i].getDay()===0 && (arr[i]==='X'||arr[i]==='FC'));
-        if(domFolga && n < 2){
-          av.push({tipo:'6x1-domingo', categoria:'obrigatoria', obrigatoria:true, nivel:'regra', base:'politica-da-casa',
-            txt:`Semana de ${ddmm(days[s.ini])}: folgou no domingo do ciclo mas ficou sem a folga semanal do 6x1 (política da casa)`});
-        }
-      }
+          txt:`Semana de ${ddmm(days[s.ini])}: ${n} folga(s), mínimo ${alvoSemana}`});
     });
 
     // 2) sequência máxima (obrigatória para não-gerentes)
@@ -1051,7 +1091,7 @@ function validar(res, colabs){
     if(!c.gerente && folgaFixaVal != null && folgaFixaVal !== ''){
       const diaFixo = Number(folgaFixaVal);
       semanas.forEach(s2=>{
-        if(s2.dias.length < 7) return;
+        if(folgasDoBloco(s2.dias.length) < 1) return;
         const cabe = s2.dias.filter(i=>days[i].getDay()===diaFixo && !['F','AT','LC'].includes(arr[i]));
         if(!cabe.length) return;
         const folgou = cabe.some(i=>arr[i]==='X' || arr[i]==='FC');
@@ -1062,8 +1102,8 @@ function validar(res, colabs){
 
     // 4) folgas isoladas fora do domingo no 5x2 (preferência / qualidade)
     const semanaParcial = new Set();
-    semanas.forEach(s2=>{ if(s2.dias.length<7) s2.dias.forEach(i=>semanaParcial.add(i)); });
-    if(!c.gerente && P.modelo !== '6x1'){
+    semanas.forEach(s2=>{ if(folgasDoBloco(s2.dias.length) < 2) s2.dias.forEach(i=>semanaParcial.add(i)); });
+    if(!c.gerente){
       for(let i=0;i<N;i++){
         if(arr[i]!=='X' || semanaParcial.has(i)) continue;
         const antes = i>0 && folga(i-1), depois = i<N-1 && folga(i+1);

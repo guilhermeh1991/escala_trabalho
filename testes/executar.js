@@ -14,9 +14,8 @@ const {verificar, metricas} = require('./verificador.js');
 const Documento = require('../src/motor/documento.js');
 
 const LIMIARES = {
-  escalasLimpas5x2:   90,   // % de cenários sem nenhuma violação trabalhista
-  escalasLimpas6x1:   90,
-  folgasEmPar:        94,   // % de folgas em dias seguidos (só no 5x2)
+  escalasLimpas:      90,   // % de cenários sem nenhuma violação trabalhista
+  folgasEmPar:        94,   // % de folgas em dias seguidos
   desvioEquipeMax:   2.00,  // oscilação da equipe em loja, dia a dia
   diasSemFolgaMax:   1.50,  // média por escala
   casosReaisLimpos:   100,  // % das lojas reais sem violação trabalhista
@@ -24,7 +23,7 @@ const LIMIARES = {
 
 const REGRAS_TRABALHISTAS = [
   'R1-folgas-semana', 'R2-sequencia', 'R3-domingo',
-  'R4-par', 'R6-gerente', 'R8-ausencia', 'R10-6x1-domingo'
+  'R4-par', 'R6-gerente', 'R8-ausencia'
 ];
 
 let falhas = [];
@@ -50,7 +49,7 @@ function estadoInicial(equipe, P) {
 console.log('\n=== 1. Simulação em massa (300 cenários aleatórios) ===\n');
 S.resetar(12345);
 
-const porModelo = {'5x2': {n:0, limpos:0}, '6x1': {n:0, limpos:0}};
+const geral = {n:0, limpos:0};
 const agregado = {desvio:0, par:0, parN:0, semFolga:0, n:0};
 const violacoes = {};
 let quebras = 0;
@@ -72,20 +71,19 @@ for (let n = 1; n <= 300; n++) {
   const legais = V.filter(v => REGRAS_TRABALHISTAS.includes(v.regra));
   legais.forEach(v => violacoes[v.regra] = (violacoes[v.regra] || 0) + 1);
 
-  const m = P.modelo || '5x2';
-  porModelo[m].n++;
-  if (!legais.length) porModelo[m].limpos++;
+  geral.n++;
+  if (!legais.length) geral.limpos++;
 
   agregado.desvio += M.desvioEquipe;
   agregado.semFolga += M.diasSemFolga;
   agregado.n++;
-  if (m === '5x2') { agregado.par += M.pctPar; agregado.parN++; }
+  agregado.par += M.pctPar;
+  agregado.parN++;
 }
 
 const pct = (a, b) => b ? +(100 * a / b).toFixed(1) : 100;
-conferir('escalas limpas — 5x2 (%)', pct(porModelo['5x2'].limpos, porModelo['5x2'].n), LIMIARES.escalasLimpas5x2);
-conferir('escalas limpas — 6x1 (%)', pct(porModelo['6x1'].limpos, porModelo['6x1'].n), LIMIARES.escalasLimpas6x1);
-conferir('folgas em par — 5x2 (%)', +(agregado.par / Math.max(1, agregado.parN)).toFixed(1), LIMIARES.folgasEmPar);
+conferir('escalas limpas (%)', pct(geral.limpos, geral.n), LIMIARES.escalasLimpas);
+conferir('folgas em par (%)', +(agregado.par / Math.max(1, agregado.parN)).toFixed(1), LIMIARES.folgasEmPar);
 conferir('desvio da equipe por dia', +(agregado.desvio / agregado.n).toFixed(2), LIMIARES.desvioEquipeMax, '<=');
 conferir('dias sem folga por escala', +(agregado.semFolga / agregado.n).toFixed(2), LIMIARES.diasSemFolgaMax, '<=');
 conferir('exceções no motor', quebras, 0, '<=');
@@ -128,24 +126,18 @@ const L332 = mk([
   ['COLABORADOR 28','REPOSITOR','08:00 AS 17:00'], ['COLABORADOR 29','AX. LOJA','08:00 AS 17:00']
 ]);
 
-const base = {cicloDomingo:3, maxSeq:6, minFarma:2, minSubger:1, subgerFds:true,
-              inicioSemana:'P', prioridade:'par'};
+const base = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6,
+              minFarma:2, minSubger:1, subgerFds:true, prioridade:'par'};
 const casosReais = [];
-[['5x2',2],['6x1',1]].forEach(([modelo, fsem]) => {
-  ['2026-07-11','2026-08-11','2026-09-11'].forEach(inicio => {
-    const fim = new Date(inicio + 'T12:00'); fim.setMonth(fim.getMonth() + 1);
-    const iso = d => d.toISOString().slice(0,10);
-    casosReais.push(['330 ' + modelo + ' ' + inicio.slice(0,7), L330,
-      Object.assign({}, base, {modelo, folgasSemana:fsem, inicio, fim:iso(fim),
-        minCaixa:2, minBalcao: modelo === '6x1' ? 5 : 4,
-        minDia: modelo === '6x1' ? {0:8,1:9,2:11,3:11,4:11,5:10,6:10}
-                                 : {0:7,1:7,2:9,3:9,4:9,5:9,6:9}})]);
-    casosReais.push(['332 ' + modelo + ' ' + inicio.slice(0,7), L332,
-      Object.assign({}, base, {modelo, folgasSemana:fsem, inicio, fim:iso(fim),
-        minCaixa:3, minBalcao: modelo === '6x1' ? 5 : 4,
-        minDia: modelo === '6x1' ? {0:11,1:11,2:13,3:11,4:13,5:11,6:13}
-                                 : {0:9,1:9,2:11,3:9,4:11,5:9,6:11}})]);
-  });
+['2026-07-11','2026-08-11','2026-09-11'].forEach(inicio => {
+  const fim = new Date(inicio + 'T12:00'); fim.setMonth(fim.getMonth() + 1);
+  const iso = d => d.toISOString().slice(0,10);
+  casosReais.push(['330 ' + inicio.slice(0,7), L330,
+    Object.assign({}, base, {inicio, fim:iso(fim),
+      minCaixa:2, minBalcao:4, minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}})]);
+  casosReais.push(['332 ' + inicio.slice(0,7), L332,
+    Object.assign({}, base, {inicio, fim:iso(fim),
+      minCaixa:3, minBalcao:4, minDia:{0:9,1:9,2:11,3:9,4:11,5:9,6:11}})]);
 });
 
 let reaisLimpos = 0;
@@ -165,7 +157,85 @@ conferir('lojas reais sem violação (%)', pct(reaisLimpos, casosReais.length), 
 /* ------------------------------------------------------------------ */
 console.log('\n=== 3. Propriedades do motor ===\n');
 
-const eqDet = mk([['G','GERENTE','07:00',true],['A','SUBGERENTE','10:00'],['B','FARMACÊUTICO','07:00'],
+/* ---- semana de domingo a sábado e fusão da ponta ----
+   O período costuma ir do dia 11 ao dia 10, então as pontas quase nunca caem em
+   domingo. Uma ponta de 1 ou 2 dias não tem como receber duas folgas — exigir
+   isso esvaziaria a loja — por isso ela é somada à semana vizinha. */
+const tamanhoDosBlocos = (ini, fim) =>
+  E.semanasDoPeriodo(E.listDays(ini, fim), 0).map(s => s.dias.length);
+
+conferir('semana vai de domingo a sábado, ponta curta somada à vizinha',
+  JSON.stringify(tamanhoDosBlocos('2026-08-11','2026-09-10')) === '[12,7,12]' ? 1 : 0, 1);
+conferir('ponta de 1 dia não fica sozinha',
+  JSON.stringify(tamanhoDosBlocos('2026-04-11','2026-05-10')) === '[8,7,7,8]' ? 1 : 0, 1);
+conferir('ponta de 2 dias não fica sozinha',
+  JSON.stringify(tamanhoDosBlocos('2026-07-11','2026-08-10')) === '[8,7,7,9]' ? 1 : 0, 1);
+conferir('nenhum bloco menor que uma semana em período de dia 11 a dia 10',
+  tamanhoDosBlocos('2026-09-11','2026-10-10').every(k => k >= 7) ? 1 : 0, 1);
+/* Período de 14 dias sem nenhuma semana cheia: as duas pontas colapsariam num
+   bloco só, que não é semana nenhuma. Nesse caso não se funde. */
+conferir('período sem semana cheia não funde as pontas',
+  tamanhoDosBlocos('2026-08-11','2026-08-24').length > 1 ? 1 : 0, 1);
+
+/* Escala publicada sob a regra antiga continua sendo conferida por ela: o
+   veredito de uma escala já aprovada não muda sozinho (decisão 0010). */
+const diasAgosto = E.listDays('2026-08-11','2026-09-10');
+conferir('escala antiga em blocos de 7 continua conferida em blocos de 7',
+  JSON.stringify(E.semanasDoPeriodo(diasAgosto,'P').map(s=>s.dias.length)) === '[7,7,7,7,3]' ? 1 : 0, 1);
+conferir('escala antiga de segunda a domingo continua conferida assim',
+  JSON.stringify(E.semanasDoPeriodo(diasAgosto,1).map(s=>s.dias.length)) === '[6,7,7,7,4]' ? 1 : 0, 1);
+
+/* O alvo de cada bloco: duas folgas por semana cheia, mais uma se o resto
+   chegar a três dias. Um bloco de 10 a 13 dias pede três. */
+const alvoEsperado = {7:2, 8:2, 9:2, 10:3, 11:3, 12:3, 13:3};
+conferir('bloco maior pede folgas proporcionais',
+  Object.entries(alvoEsperado).every(([k, esperado]) =>
+    (2 * Math.floor(k/7) + ((k % 7) >= 3 ? 1 : 0)) === esperado) ? 1 : 0, 1);
+
+/* Esta é a asserção que pega o defeito de verdade: o gerador tem de SABER
+   montar três folgas num bloco fundido. Enquanto ele só sabia formar pares,
+   todo bloco de 10 a 13 dias saía uma folga abaixo do exigido. */
+const pFusao = Object.assign({}, base, {modelo:'5x2', folgasSemana:2,
+  inicio:'2026-08-11', fim:'2026-09-10', minCaixa:2, minBalcao:4,
+  minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}});
+const resFusao = E.gerarEscala(L330, pFusao);
+const blocosAbaixoDoAlvo = resFusao.semanas.reduce((total, s) => {
+  const alvo = 2 * Math.floor(s.dias.length/7) + ((s.dias.length % 7) >= 3 ? 1 : 0);
+  return total + resFusao.ativos.filter(c => !c.gerente).filter(c => {
+    const arr = resFusao.grid[c.id];
+    const folgas = s.dias.filter(i => arr[i] === 'X' || arr[i] === 'FC').length;
+    const ausentes = s.dias.filter(i => ['F','AT','LC'].includes(arr[i])).length;
+    if (ausentes >= s.dias.length - 1) return false;
+    return folgas + Math.min(ausentes, alvo) < alvo;
+  }).length;
+}, 0);
+conferir('todo bloco recebe as folgas que exige', blocosAbaixoDoAlvo, 0, '<=');
+
+const folgasPorPessoa = resFusao.ativos.filter(c => !c.gerente)
+  .map(c => resFusao.grid[c.id].filter(v => v === 'X').length);
+conferir('período de 31 dias dá 8 folgas por pessoa',
+  Math.min(...folgasPorPessoa) === 8 ? 1 : 0, 1);
+
+/* Gerente personalizado: sexta+sábado normalmente; no domingo ancorado,
+   domingo substitui a primeira folga e sábado permanece. */
+const gerenteFixo = {id:'gerente-fixo', nome:'GERENTE FIXO', cargo:'GERENTE',
+  horario:'07:00 AS 16:20', gerente:true, ativo:true, folgaFixa:5, folgaFixa2:6,
+  primeiroDomingo:'2026-10-18', ausencias:[]};
+const pGerenteFixo = {modelo:'5x2', folgasSemana:2, cicloDomingo:3, maxSeq:6,
+  inicio:'2026-10-11', fim:'2026-11-07', inicioSemana:0,
+  minCaixa:0, minBalcao:0, minFarma:0, minSubger:0};
+const resGerenteFixo = E.gerarEscala([gerenteFixo], pGerenteFixo);
+const folgasGerente = resGerenteFixo.semanas.map(s => s.dias
+  .filter(i => resGerenteFixo.grid[gerenteFixo.id][i] === 'X')
+  .map(i => resGerenteFixo.days[i].getDay()));
+conferir('gerente fixo respeita sexta e sábado',
+  JSON.stringify(folgasGerente[0]) === '[5,6]' ? 1 : 0, 1);
+conferir('domingo do gerente substitui a primeira folga fixa',
+  JSON.stringify(folgasGerente[1]) === '[0,6]' ? 1 : 0, 1);
+conferir('gerente volta aos dois dias fixos depois do domingo',
+  JSON.stringify(folgasGerente[2]) === '[5,6]' ? 1 : 0, 1);
+
+const eqDet = mk([['G','GERENTE','07:00',true],['A','SUBGERENTE','10:00'],['B','FARMACÊUTICO','07:00'],['A','SUBGERENTE','10:00'],['B','FARMACÊUTICO','07:00'],
                   ['C','FARMACÊUTICO','14:40'],['D','CAIXA','07:00'],['E','CAIXA','11:00']]);
 const pDet = Object.assign({}, base, {modelo:'5x2', folgasSemana:2,
   inicio:'2026-08-11', fim:'2026-09-10', minCaixa:1, minBalcao:1});
@@ -255,7 +325,7 @@ const farmasSemHistorico = [
 ].map((nome, i) => ({
   id:'farm' + i, nome, cargo:'FARMACÊUTICO', horario:['07:00', '11:00', '14:40'][i], ativo:true, ausencias:[]
 }));
-const paramsNovembro = Object.assign({}, paramsDomingo, {inicioSemana:'P', inicio:'2026-11-11', fim:'2026-12-10'});
+const paramsNovembro = Object.assign({}, paramsDomingo, {inicio:'2026-11-11', fim:'2026-12-10'});
 const resNovembro = E.gerarEscala(farmasSemHistorico, paramsNovembro);
 conferir('sem domingo informado não presume histórico para farmacêuticos',
   JSON.stringify(farmasSemHistorico.map(c => domingosDeFolga(resNovembro, c))) ===
@@ -280,7 +350,7 @@ function maiorFolgaDeCargoNoDomingo(res, equipe, cargo){
   return Math.max(0, ...domingosPorCargo(res, equipe, cargo));
 }
 const paramsDomingoAncorado = Object.assign({}, base, {
-  modelo:'5x2', folgasSemana:2, inicioSemana:'P',
+  modelo:'5x2', folgasSemana:2,
   inicio:'2026-12-11', fim:'2027-01-10', minCaixa:2, minBalcao:4,
   minFarma:2, minSubger:1, minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}
 });

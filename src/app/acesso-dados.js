@@ -92,7 +92,7 @@ const DB = {
     const {data, error} = await sb.from('lojas')
       .select(`id, nome, parametros, ordem,
                colaboradores ( id, nome, cargo, horario, gerente, ativo,
-                               folga_fixa, primeiro_domingo, dias_desde_folga, ordem,
+                               folga_fixa, folga_fixa_2, primeiro_domingo, dias_desde_folga, ordem,
                                ausencias ( id, tipo, ini, fim ) )`)
       .order('ordem', {ascending:true});
     if(error) throw error;
@@ -104,7 +104,7 @@ const DB = {
           id: c.id, nome: c.nome, cargo: c.cargo, horario: c.horario,
           gerente: !!c.gerente, ativo: c.ativo !== false,
           jornada: c.jornada || null,
-          folgaFixa: c.folga_fixa, primeiroDomingo: c.primeiro_domingo,
+          folgaFixa: c.folga_fixa, folgaFixa2: c.folga_fixa_2, primeiroDomingo: c.primeiro_domingo,
           diasDesdeFolga: c.dias_desde_folga,
           ausencias: (c.ausencias||[]).map(a=>({id:a.id, tipo:a.tipo, ini:a.ini, fim:a.fim}))
         }));
@@ -126,6 +126,7 @@ const DB = {
         id: c.id, loja_id: lojaId, nome: c.nome, cargo: c.cargo,
         horario: c.horario, jornada: c.jornada || null, gerente: !!c.gerente, ativo: c.ativo !== false,
         folga_fixa: (c.folgaFixa === '' || c.folgaFixa == null) ? null : Number(c.folgaFixa),
+        folga_fixa_2: (c.folgaFixa2 === '' || c.folgaFixa2 == null) ? null : Number(c.folgaFixa2),
         primeiro_domingo: c.primeiroDomingo || null,
         dias_desde_folga: (c.diasDesdeFolga == null || c.diasDesdeFolga === '') ? null : Number(c.diasDesdeFolga),
         ordem: i

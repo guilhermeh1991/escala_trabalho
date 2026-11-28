@@ -23,13 +23,12 @@ const L332 = mk([
 
 const base = {folgasSemana:2, cicloDomingo:3, maxSeq:6, minFarma:1, subgerFds:true};
 const casos = [
-  ['330 · jul→ago',  L330, {inicio:'2026-07-11', fim:'2026-08-10', minCaixa:2, minBalcao:4, minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}, inicioSemana:'P'}],
-  ['330 · ago→set',  L330, {inicio:'2026-08-11', fim:'2026-09-10', minCaixa:2, minBalcao:4, minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}, inicioSemana:'P'}],
-  ['330 · sem dom→sáb', L330, {inicio:'2026-08-11', fim:'2026-09-10', minCaixa:2, minBalcao:4, minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}, inicioSemana:0}],
-  ['332 · ago→set',  L332, {inicio:'2026-08-11', fim:'2026-09-10', minCaixa:4, minBalcao:4, minDia:{0:10,1:9,2:12,3:9,4:12,5:9,6:12}, inicioSemana:'P'}],
-  ['332 · curva mais folgada', L332, {inicio:'2026-08-11', fim:'2026-09-10', minCaixa:3, minBalcao:4, minDia:{0:9,1:9,2:11,3:9,4:11,5:9,6:11}, inicioSemana:'P'}],
+  ['330 · jul→ago',  L330, {inicio:'2026-07-11', fim:'2026-08-10', minCaixa:2, minBalcao:4, minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}}],
+  ['330 · ago→set',  L330, {inicio:'2026-08-11', fim:'2026-09-10', minCaixa:2, minBalcao:4, minDia:{0:7,1:7,2:9,3:9,4:9,5:9,6:9}}],
+  ['332 · ago→set',  L332, {inicio:'2026-08-11', fim:'2026-09-10', minCaixa:4, minBalcao:4, minDia:{0:10,1:9,2:12,3:9,4:12,5:9,6:12}}],
+  ['332 · curva mais folgada', L332, {inicio:'2026-08-11', fim:'2026-09-10', minCaixa:3, minBalcao:4, minDia:{0:9,1:9,2:11,3:9,4:11,5:9,6:11}}],
   ['330 · com 2 de férias', L330.map((c,i)=>i===2?Object.assign({},c,{ausencias:[{tipo:'F',ini:'2026-08-11',fim:'2026-09-05'}]}):i===7?Object.assign({},c,{ausencias:[{tipo:'F',ini:'2026-08-20',fim:'2026-09-10'}]}):c),
-      {inicio:'2026-08-11', fim:'2026-09-10', minCaixa:2, minBalcao:3, minDia:{0:6,1:6,2:8,3:8,4:8,5:8,6:8}, inicioSemana:'P'}],
+      {inicio:'2026-08-11', fim:'2026-09-10', minCaixa:2, minBalcao:3, minDia:{0:6,1:6,2:8,3:8,4:8,5:8,6:8}}],
 ];
 casos.forEach(([rot, equipe, extra])=>{
   const P = Object.assign({}, base, extra);

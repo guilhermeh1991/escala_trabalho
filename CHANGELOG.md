@@ -1,5 +1,46 @@
 # Histórico
 
+## 1.2 — novembro de 2026
+
+### Equipe
+
+- Gerentes agora podem escolher duas folgas fixas na ficha. Na semana do domingo
+  do ciclo, o domingo substitui a primeira folga fixa e a segunda permanece.
+- Gerentes antigos continuam com sábado e domingo até a nova configuração ser
+  preenchida.
+- Adicionada a coluna `folga_fixa_2` com migração aditiva para MySQL/HostGator.
+
+## 1.1 — novembro de 2026
+
+Sistema reduzido a uma única forma de montar escala.
+
+### Regras
+
+- **Modelo 6x1 removido.** Só existe 5x2: duas folgas por semana, em dias
+  seguidos.
+- **A semana passa a ir de domingo a sábado**, sem opção na tela. A contagem de
+  folgas agora coincide com a semana que a grade e o PDF sempre desenharam.
+- Ponta de período com menos de sete dias é **somada à semana vizinha**, num
+  bloco de 8 a 13 dias que pede folgas proporcionais. O total de folgas do
+  período não muda. Ver [decisão 0012](docs/decisoes/0012-semana-domingo-a-sabado.md).
+- Escala já publicada continua sendo conferida pelo formato de semana que valia
+  quando foi publicada.
+
+### Motor
+
+- Novo peso `folgaSemanal` (180.000, faixa legal): ficar abaixo das folgas que a
+  semana exige passa a custar. **Antes não custava nada** — defeito latente que
+  só apareceu quando um bloco passou a pedir três folgas.
+- Gerador aprendeu a montar três folgas num bloco (par mais um dia), em vez de
+  só pares.
+- Pesos `solto` e `domAvulso` removidos: eram declarados e nunca usados.
+- Escalas limpas de 90,6% para 95,3%; tempo por escala de 265 ms para 176 ms.
+
+### Documentação
+
+- Tabela de pesos completada: faltavam sete pesos, entre eles os quatro de
+  domingo, que estão acima do dia de folga fixa na ordem de prioridade.
+
 ## 1.0 — julho de 2026
 
 Primeira versão organizada, com as duas formas de uso e documentação completa.

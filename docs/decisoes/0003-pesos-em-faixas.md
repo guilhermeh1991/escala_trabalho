@@ -27,7 +27,7 @@ legal**.
 | 1 | obrigação legal | 150.000 a 200.000 |
 | 2 | regra da casa | 25.000 a 30.000 |
 | 3 | cobertura da loja | 400 a 5.000 |
-| 4 | qualidade | 60 a 1.600 |
+| 4 | qualidade | 130 a 1.600 |
 
 É a técnica de otimização lexicográfica: garante que nenhuma combinação de
 critérios inferiores supere um critério superior.

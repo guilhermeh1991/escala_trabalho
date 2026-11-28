@@ -10,7 +10,6 @@ labels: erro
 
 **Como reproduzir**
 - Loja e período:
-- Modelo (5x2 ou 6x1):
 - Parâmetros que fogem do padrão:
 - Colaborador afetado:
 

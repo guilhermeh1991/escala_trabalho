@@ -173,13 +173,30 @@ async function main() {
 
     const lojaNova = page.locator('#admin-lojas .admin-row').filter({hasText:'Loja Browser Ficticia'}).first();
     await lojaNova.waitFor({state:'visible'});
-    await lojaNova.click();
+    await lojaNova.locator('[data-acao="editar-loja"]').click();
     await page.locator('#admin-loja-nome').fill('Loja Browser Editada');
     await page.locator('#admin-form-loja button[type="submit"]').click();
     await waitText(page, '#admin-status', 'Alteração confirmada');
     await page.screenshot({path:`${OUT}/desktop-lojas.png`, fullPage:true});
 
+    const lojaConsulta = page.locator('#admin-lojas .admin-row').filter({hasText:'Loja Browser Editada'}).first();
+    await lojaConsulta.locator('[data-acao="ver-escalas"]').click();
+    await page.locator('#admin-central-status').waitFor({state:'visible'});
+    await page.locator('#admin-consulta-contexto').filter({hasText:'Loja Browser Editada'}).waitFor({state:'visible'});
+
+    await lojaConsulta.locator('[data-acao="ver-configuracao"]').click();
+    const configuracao = page.locator('#admin-central-configuracao');
+    await configuracao.waitFor({state:'visible'});
+    await configuracao.filter({hasText:'Loja Browser Editada'}).waitFor({state:'visible'});
+    await configuracao.filter({hasText:'Somente leitura'}).waitFor({state:'visible'});
+    assert.equal(await configuracao.locator('button').count(), 0);
+    assert.equal(await configuracao.locator('input, textarea, select').count(), 0);
+    await page.screenshot({path:`${OUT}/desktop-configuracao.png`, fullPage:true});
+
     await selectCompany(page, 'Empresa Operacional Teste');
+    const lojaOperacional = page.locator('#admin-lojas .admin-row').filter({hasText:'Loja Operacional A'}).first();
+    await lojaOperacional.locator('[data-acao="ver-escalas"]').click();
+    await page.locator('#admin-consulta-contexto').filter({hasText:'Loja Operacional A'}).waitFor({state:'visible'});
     await page.locator('#admin-busca-supervisor').fill(SUPERVISOR_EMAIL);
     await page.locator('.admin-supervisor').filter({hasText:SUPERVISOR_EMAIL}).first().waitFor({state:'visible'});
     await selectAuthorizedStore(page, SUPERVISOR_EMAIL, STORE_A);

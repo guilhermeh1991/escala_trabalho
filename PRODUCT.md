@@ -26,14 +26,14 @@ A rotina mensal começa pela conferência da equipe e das ausências, passa pela
 
 ## Capabilities and Constraints
 
-- Modelos 5x2 e 6x1, ciclo de domingos, folga fixa, férias, atestados, licenças e jornadas estruturadas.
+- Escala 5x2 com semana de domingo a sábado, ciclo de domingos, folga fixa, férias, atestados, licenças e jornadas estruturadas.
 - Regras legais e políticas da casa têm prioridades explícitas; ausências lançadas são preservadas.
 - A grade apresenta pessoas por linha e dias por coluna, com indicadores diários e cobertura intradiária quando as faixas estão configuradas.
 - O projeto é uma aplicação web em JavaScript puro, com backend PHP/MySQL e variantes HostGator, Supabase e offline.
 - A interface usa a identidade Shiftflow: fundo `#F5F6F3`, superfícies `#FFFFFF`, texto `#22352C` e ação `#16634C`.
 - A autoridade de plataforma vem do servidor: o e-mail precisa estar em `super_admins` no `api/config.php` e a conta não pode ter `empresa_id`. Conta vinculada a uma empresa opera aquela empresa, não a plataforma.
 - O painel central é somente leitura para dados operacionais: consulta usuários sem credenciais nem tokens, lista apenas versões publicadas e nunca expõe rascunhos. Editar, publicar ou excluir escala não existe nessa superfície.
-- Um supervisor só alcança lojas da própria empresa, por vínculo explícito em `supervisor_lojas`; revogar uma loja preserva as demais.
+- Um supervisor só alcança lojas da própria empresa, por vínculo explícito em `supervisor_lojas`; revogar uma loja preserva as demais. O cadastro é neutro: a promoção de uma conta confirmada para supervisor é feita e auditada pelo superadmin, que então vincula as lojas.
 - Cobrança, checkout, contratação de planos e integrações externas não fazem parte desta superfície operacional.
 
 ## Evidence on Hand

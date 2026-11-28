@@ -72,7 +72,7 @@ case 'carregar':
 
     $st = bd()->prepare(
         "SELECT id, loja_id, nome, email, cargo, horario, $campoJornada, gerente, ativo,
-                folga_fixa, primeiro_domingo, dias_desde_folga, ordem
+                folga_fixa, folga_fixa_2, primeiro_domingo, dias_desde_folga, ordem
            FROM colaboradores WHERE loja_id IN ($mrks) ORDER BY ordem");
     $st->execute($ids);
     $colabs = $st->fetchAll();
@@ -105,6 +105,7 @@ case 'carregar':
             'gerente'          => (bool)$c['gerente'],
             'ativo'            => (bool)$c['ativo'],
             'folgaFixa'        => $c['folga_fixa'] === null ? null : (int)$c['folga_fixa'],
+            'folgaFixa2'       => $c['folga_fixa_2'] === null ? null : (int)$c['folga_fixa_2'],
             'primeiroDomingo'  => $c['primeiro_domingo'],
             'diasDesdeFolga'   => $c['dias_desde_folga'] === null ? null : (int)$c['dias_desde_folga'],
             'ausencias'        => $ausencias[$c['id']] ?? [],
@@ -210,26 +211,33 @@ case 'salvar':
                 $sqlColaborador = $temJornada
                     ? 'INSERT INTO colaboradores
                         (id, loja_id, nome, email, cargo, horario, jornada, gerente, ativo,
-                         folga_fixa, primeiro_domingo, dias_desde_folga, ordem)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                         folga_fixa, folga_fixa_2, primeiro_domingo, dias_desde_folga, ordem)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                        ON DUPLICATE KEY UPDATE
                          nome = VALUES(nome), email = VALUES(email), cargo = VALUES(cargo),
                          horario = VALUES(horario), jornada = VALUES(jornada),
                          gerente = VALUES(gerente), ativo = VALUES(ativo), folga_fixa = VALUES(folga_fixa),
-                         primeiro_domingo = VALUES(primeiro_domingo),
+                         folga_fixa_2 = VALUES(folga_fixa_2), primeiro_domingo = VALUES(primeiro_domingo),
                          dias_desde_folga = VALUES(dias_desde_folga), ordem = VALUES(ordem)'
                     : 'INSERT INTO colaboradores
                         (id, loja_id, nome, email, cargo, horario, gerente, ativo,
-                         folga_fixa, primeiro_domingo, dias_desde_folga, ordem)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                         folga_fixa, folga_fixa_2, primeiro_domingo, dias_desde_folga, ordem)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
                        ON DUPLICATE KEY UPDATE
                          nome = VALUES(nome), email = VALUES(email), cargo = VALUES(cargo),
                          horario = VALUES(horario), gerente = VALUES(gerente),
                          ativo = VALUES(ativo), folga_fixa = VALUES(folga_fixa),
-                         primeiro_domingo = VALUES(primeiro_domingo),
+                         folga_fixa_2 = VALUES(folga_fixa_2), primeiro_domingo = VALUES(primeiro_domingo),
                          dias_desde_folga = VALUES(dias_desde_folga), ordem = VALUES(ordem)';
                 $st = bd()->prepare($sqlColaborador);
                 $ff = $c['folgaFixa'] ?? null;
+                $ff2 = $c['folgaFixa2'] ?? null;
+                if ($ff2 !== null && $ff2 !== '' && (!is_numeric($ff2) || (int)$ff2 < 0 || (int)$ff2 > 6)) {
+                    falhar('Segunda folga fixa inválida para ' . ($c['nome'] ?? 'colaborador') . '.');
+                }
+                if (!empty($c['gerente']) && $ff !== null && $ff !== '' && $ff2 !== null && $ff2 !== '' && (int)$ff === (int)$ff2) {
+                    falhar('As duas folgas fixas do gerente devem ser diferentes.');
+                }
                 $dd = $c['diasDesdeFolga'] ?? null;
                 $emailColab = trim((string)($c['email'] ?? ''));
                 if ($emailColab !== '' && !filter_var($emailColab, FILTER_VALIDATE_EMAIL)) {
@@ -249,6 +257,7 @@ case 'salvar':
                     !empty($c['gerente']) ? 1 : 0,
                     (($c['ativo'] ?? true) !== false) ? 1 : 0,
                     ($ff === null || $ff === '') ? null : (int)$ff,
+                    ($ff2 === null || $ff2 === '') ? null : (int)$ff2,
                     !empty($c['primeiroDomingo']) ? $c['primeiroDomingo'] : null,
                     ($dd === null || $dd === '') ? null : (int)$dd,
                     (int)$i,

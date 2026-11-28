@@ -33,6 +33,14 @@ Quem cria a empresa vira `admin`. Quem entra por código de convite vira
 `gestor`. Quem se cadastra com um e-mail que consta na equipe vira
 `colaborador`, automaticamente.
 
+O cadastro público não escolhe papel privilegiado. Quando uma conta já
+confirmada precisa atuar como supervisor, o administrador da plataforma pode
+promovê-la de `admin` para `gestor` no painel central. Essa mudança remove a
+visão da rede inteira: o acesso passa a depender exclusivamente de vínculos em
+`supervisor_lojas`, que o administrador define por loja. Rebaixar a conta para
+`admin` remove os vínculos de supervisor para que eles não reapareçam em uma
+futura promoção.
+
 ## Como o colaborador entra
 
 1. O gestor preenche o **e-mail de acesso** da pessoa na aba Equipe.

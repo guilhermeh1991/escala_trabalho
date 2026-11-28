@@ -581,6 +581,18 @@ function listarDatasPeriodoServidor(string $inicio, string $fim): array
     return $out;
 }
 
+/* Folgas que um bloco de $k dias exige: duas a cada sete dias cheios, mais uma
+   se o resto chegar a três. É a mesma regra proporcional de sempre, escrita de
+   um jeito que também serve aos blocos de 8 a 13 dias da fusão da ponta. */
+function folgasDoBlocoServidor(int $k): int
+{
+    return 2 * intdiv($k, 7) + (($k % 7) >= 3 ? 1 : 0);
+}
+
+/* A semana vai de domingo a sábado e a ponta curta é absorvida pela vizinha,
+   igual ao motor. Os ramos 'P' e segunda-a-domingo continuam intactos: escala
+   publicada sob a regra antiga tem de seguir sendo julgada por ela, senão o
+   veredito de uma escala já aprovada muda sozinho (decisão 0010). */
 function semanasDoPeriodoServidor(array $days, $inicioSemana): array
 {
     $N = count($days);
@@ -601,6 +613,38 @@ function semanasDoPeriodoServidor(array $days, $inicioSemana): array
         }
         $semanas[] = ['ini' => $i, 'fim' => $j, 'dias' => range($i, $j)];
         $i = $j + 1;
+    }
+    if ($iniSem !== 0) {
+        return $semanas;
+    }
+    $largura = static fn(array $s): int => $s['fim'] - $s['ini'] + 1;
+    $temSemanaCheia = false;
+    foreach ($semanas as $s) {
+        if ($largura($s) >= 7) {
+            $temSemanaCheia = true;
+            break;
+        }
+    }
+    if ($temSemanaCheia) {
+        $total = count($semanas);
+        if ($total >= 2 && $largura($semanas[0]) < 7
+            && $largura($semanas[0]) + $largura($semanas[1]) <= 13) {
+            $semanas[1]['ini'] = $semanas[0]['ini'];
+            array_shift($semanas);
+        }
+        $total = count($semanas);
+        if ($total >= 2) {
+            $ultima = $semanas[$total - 1];
+            $penultima = $semanas[$total - 2];
+            if ($largura($ultima) < 7 && $largura($ultima) + $largura($penultima) <= 13) {
+                $semanas[$total - 2]['fim'] = $ultima['fim'];
+                array_pop($semanas);
+            }
+        }
+        foreach ($semanas as $k => $s) {
+            $semanas[$k]['dias'] = range($s['ini'], $s['fim']);
+        }
+        $semanas = array_values($semanas);
     }
     return $semanas;
 }
@@ -702,7 +746,7 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
             $campoJornada = $temJornada ? 'jornada' : 'NULL AS jornada';
             $stC = bd()->prepare(
                 "SELECT id, nome, cargo, horario, $campoJornada, gerente, ativo,
-                        folga_fixa, primeiro_domingo, dias_desde_folga, ordem
+                        folga_fixa, folga_fixa_2, primeiro_domingo, dias_desde_folga, ordem
                    FROM colaboradores WHERE loja_id = ? ORDER BY ordem"
             );
             $stC->execute([$lojaId]);
@@ -729,6 +773,7 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
                     'gerente' => (bool)$r['gerente'],
                     'ativo' => (bool)$r['ativo'],
                     'folgaFixa' => $r['folga_fixa'] === null ? null : (int)$r['folga_fixa'],
+                    'folgaFixa2' => $r['folga_fixa_2'] === null ? null : (int)$r['folga_fixa_2'],
                     'primeiroDomingo' => $r['primeiro_domingo'],
                     'diasDesdeFolga' => $r['dias_desde_folga'] === null ? null : (int)$r['dias_desde_folga'],
                     'ausencias' => $ausPorColab[$r['id']] ?? [],
@@ -758,10 +803,11 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
         $P['_horas'] = $paramsRecebidos['_horas'];
     }
     $perfis = perfisDaLoja($paramsLoja);
-    $modelo = in_array($P['modelo'] ?? '5x2', ['5x2', '6x1'], true) ? (string)$P['modelo'] : '5x2';
-    $folgasSemana = isset($P['folgasSemana']) && is_numeric($P['folgasSemana'])
-        ? max(1, (int)$P['folgasSemana'])
-        : ($modelo === '6x1' ? 1 : 2);
+    /* Só existe 5x2. A chave `modelo` continua sendo lida e gravada porque o
+       histórico de versões a guarda e `CHAVES_DE_REGRA` a usa para detectar
+       adulteração de regra pelo navegador; valor antigo cai no padrão. */
+    $modelo = '5x2';
+    $folgasSemana = 2;
     $cicloDomingo = isset($P['cicloDomingo']) && is_numeric($P['cicloDomingo']) ? max(1, (int)$P['cicloDomingo']) : 3;
     $maxSeq = isset($P['maxSeq']) && is_numeric($P['maxSeq']) ? max(1, (int)$P['maxSeq']) : 6;
     $minInterjornada = isset($P['minInterjornada']) && is_numeric($P['minInterjornada']) ? max(1, (int)$P['minInterjornada']) : 660;
@@ -917,15 +963,26 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
         $perfil = perfilDoColaborador($c, $perfis);
         $regrasPerfil = $perfil['regras'] ?? [];
         $baseFolgaFds = $perfil['base'] ?? BASE_CASA;
-        $nomePerfil = $perfil['nome'] ?? 'gerente (padrão da casa)';
-        $diasFolgaPerfil = is_array($regrasPerfil['folgaFixaSemanal'] ?? null)
+        $fichaGerente = !empty($c['gerente'])
+            && isset($c['folgaFixa'], $c['folgaFixa2'])
+            && is_numeric($c['folgaFixa']) && is_numeric($c['folgaFixa2'])
+            && (int)$c['folgaFixa'] !== (int)$c['folgaFixa2']
+            ? [(int)$c['folgaFixa'], (int)$c['folgaFixa2']] : null;
+        $nomePerfil = $perfil['nome'] ?? ($fichaGerente ? 'ficha do gerente' : 'gerente (padrão da casa)');
+        $diasFolgaPerfil = $fichaGerente ?: (is_array($regrasPerfil['folgaFixaSemanal'] ?? null)
             ? array_map('intval', $regrasPerfil['folgaFixaSemanal'])
-            : (!empty($c['gerente']) ? [0, 6] : []);
+            : (!empty($c['gerente']) ? [0, 6] : []));
 
         if ($diasFolgaPerfil) {
             foreach ($days as $i => $d) {
                 $wd = (int)$d->format('w');
                 if (in_array($wd, $diasFolgaPerfil, true) && !$ehFolga($i)) {
+                    $semana = null;
+                    foreach ($semanas as $sBusca) if (in_array($i, $sBusca['dias'], true)) { $semana = $sBusca; break; }
+                    $domingo = null;
+                    if ($semana) foreach ($semana['dias'] as $idxDom) if ((int)$days[$idxDom]->format('w') === 0) { $domingo = $idxDom; break; }
+                    $substituida = $fichaGerente && (int)$diasFolgaPerfil[0] === $wd && $domingo !== null && $ehFolga($domingo);
+                    if ($substituida) continue;
                     $alertas[] = [
                         'colab' => $nome, 'tipo' => 'perfil-folga-fixa', 'categoria' => 'obrigatoria',
                         'obrigatoria' => true, 'nivel' => 'regra', 'dia' => $i,
@@ -937,34 +994,26 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
                 }
             }
         } else {
-            // 1) Folgas por semana
+            // 1) Folgas por semana, proporcional ao tamanho do bloco
             foreach ($semanas as $s) {
-                if (count($s['dias']) < 7) continue;
+                $alvoSemana = folgasDoBlocoServidor(count($s['dias']));
+                if ($alvoSemana < 1) continue;
                 $nFolgas = 0;
                 $ferias = 0;
-                $domFolga = false;
                 foreach ($s['dias'] as $idxDia) {
                     $cod = (string)($arr[$idxDia] ?? '');
                     if ($cod === 'X' || $cod === 'FC') {
                         $nFolgas++;
-                        if ((int)$days[$idxDia]->format('w') === 0) $domFolga = true;
                     } elseif (in_array($cod, ['F', 'AT', 'LC'], true)) {
                         $ferias++;
                     }
                 }
-                if ($ferias >= 5) continue;
-                if (($nFolgas + min($ferias, $folgasSemana)) < $folgasSemana) {
+                if ($ferias >= count($s['dias']) - 1) continue;
+                if (($nFolgas + min($ferias, $alvoSemana)) < $alvoSemana) {
                     $alertas[] = [
                         'colab' => $nome, 'tipo' => 'folgas-semana', 'categoria' => 'obrigatoria',
                         'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_LEI,
-                        'txt' => 'Semana de ' . $days[$s['ini']]->format('d/m') . ': ' . $nFolgas . ' folga(s), mínimo ' . $folgasSemana,
-                    ];
-                }
-                if ($modelo === '6x1' && $ferias < 4 && $domFolga && $nFolgas < 2) {
-                    $alertas[] = [
-                        'colab' => $nome, 'tipo' => '6x1-domingo', 'categoria' => 'obrigatoria',
-                        'obrigatoria' => true, 'nivel' => 'regra', 'base' => BASE_CASA,
-                        'txt' => 'Semana de ' . $days[$s['ini']]->format('d/m') . ': folgou no domingo do ciclo mas ficou sem a folga semanal do 6x1 (política da casa)',
+                        'txt' => 'Semana de ' . $days[$s['ini']]->format('d/m') . ': ' . $nFolgas . ' folga(s), mínimo ' . $alvoSemana,
                     ];
                 }
             }
@@ -1022,7 +1071,7 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
             if (isset($c['folgaFixa']) && $c['folgaFixa'] !== null && $c['folgaFixa'] !== '') {
                 $diaFixo = (int)$c['folgaFixa'];
                 foreach ($semanas as $s2) {
-                    if (count($s2['dias']) < 7) continue;
+                    if (folgasDoBlocoServidor(count($s2['dias'])) < 1) continue;
                     $cabe = [];
                     foreach ($s2['dias'] as $idxDia) {
                         if ((int)$days[$idxDia]->format('w') === $diaFixo && !in_array((string)$arr[$idxDia], ['F', 'AT', 'LC'], true)) {
@@ -1044,44 +1093,42 @@ function validarEscalaServidor(string $lojaId, string $inicio, string $fim, arra
                 }
             }
 
-            // 4) Folgas isoladas no 5x2 (preferência / observação)
-            if ($modelo !== '6x1') {
-                $semanaParcial = [];
+            // 4) Folgas isoladas (preferência / observação)
+            $semanaParcial = [];
+            foreach ($semanas as $s2) {
+                if (folgasDoBlocoServidor(count($s2['dias'])) < 2) {
+                    foreach ($s2['dias'] as $idxDia) $semanaParcial[$idxDia] = true;
+                }
+            }
+            for ($i = 0; $i < $N; $i++) {
+                if ((string)$arr[$i] !== 'X' || isset($semanaParcial[$i])) continue;
+                $antes = $i > 0 && $ehFolga($i - 1);
+                $depois = $i < $N - 1 && $ehFolga($i + 1);
+                if ($antes || $depois || (int)$days[$i]->format('w') === 0) continue;
+                $temPar = false;
                 foreach ($semanas as $s2) {
-                    if (count($s2['dias']) < 7) {
-                        foreach ($s2['dias'] as $idxDia) $semanaParcial[$idxDia] = true;
+                    if ($i >= $s2['ini'] && $i <= $s2['fim']) {
+                        foreach ($s2['dias'] as $k) {
+                            if ((string)$arr[$k] === 'X' && ($ehFolga($k + 1) || $ehFolga($k - 1))) {
+                                $temPar = true;
+                                break;
+                            }
+                        }
+                        break;
                     }
                 }
-                for ($i = 0; $i < $N; $i++) {
-                    if ((string)$arr[$i] !== 'X' || isset($semanaParcial[$i])) continue;
-                    $antes = $i > 0 && $ehFolga($i - 1);
-                    $depois = $i < $N - 1 && $ehFolga($i + 1);
-                    if ($antes || $depois || (int)$days[$i]->format('w') === 0) continue;
-                    $temPar = false;
-                    foreach ($semanas as $s2) {
-                        if ($i >= $s2['ini'] && $i <= $s2['fim']) {
-                            foreach ($s2['dias'] as $k) {
-                                if ((string)$arr[$k] === 'X' && ($ehFolga($k + 1) || $ehFolga($k - 1))) {
-                                    $temPar = true;
-                                    break;
-                                }
-                            }
-                            break;
-                        }
-                    }
-                    if ($temPar) {
-                        $alertas[] = [
-                            'colab' => $nome, 'tipo' => 'avulsa', 'categoria' => 'observacao',
-                            'obrigatoria' => false, 'nivel' => 'nota',
-                            'txt' => $days[$i]->format('d/m') . ' (' . $nomesDia[(int)$days[$i]->format('w')] . ') é folga avulsa — a semana já tem o par',
-                        ];
-                    } else {
-                        $alertas[] = [
-                            'colab' => $nome, 'tipo' => 'isolada', 'categoria' => 'preferencia',
-                            'obrigatoria' => false, 'nivel' => 'regra',
-                            'txt' => 'Preferência 5x2: folga isolada em ' . $days[$i]->format('d/m') . ' e a semana não tem par de folgas',
-                        ];
-                    }
+                if ($temPar) {
+                    $alertas[] = [
+                        'colab' => $nome, 'tipo' => 'avulsa', 'categoria' => 'observacao',
+                        'obrigatoria' => false, 'nivel' => 'nota',
+                        'txt' => $days[$i]->format('d/m') . ' (' . $nomesDia[(int)$days[$i]->format('w')] . ') é folga avulsa — a semana já tem o par',
+                    ];
+                } else {
+                    $alertas[] = [
+                        'colab' => $nome, 'tipo' => 'isolada', 'categoria' => 'preferencia',
+                        'obrigatoria' => false, 'nivel' => 'regra',
+                        'txt' => 'Preferência 5x2: folga isolada em ' . $days[$i]->format('d/m') . ' e a semana não tem par de folgas',
+                    ];
                 }
             }
         }
@@ -1436,8 +1483,7 @@ function resumoDaGrade(array $grade, array $params = []): array
     foreach (($params['_horas'] ?? []) as $porPessoa) {
         if (is_array($porPessoa)) $ajustes += count($porPessoa);
     }
-    $modelo = isset($params['modelo']) && in_array((string)$params['modelo'], ['5x2', '6x1'], true)
-        ? (string)$params['modelo'] : '5x2';
+    $modelo = '5x2';
     return [
         'pessoas' => count($grade),
         'dias' => $dias,
